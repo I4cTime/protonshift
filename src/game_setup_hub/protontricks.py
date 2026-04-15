@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
+
+from game_setup_hub.tool_check import find_tool
 
 
 PROTONTRICKS_FLATPAK = "com.github.Matoking.protontricks"
@@ -20,7 +21,7 @@ COMMON_VERBS = [
 
 def is_protontricks_available() -> bool:
     """Check if Protontricks is available (native or Flatpak)."""
-    if shutil.which("protontricks"):
+    if find_tool("protontricks"):
         return True
     try:
         r = subprocess.run(
@@ -39,8 +40,9 @@ def get_protontricks_cmd(app_id: str, verb: str | None = None) -> list[str] | No
     Returns [cmd, ...args] or None if not available.
     If verb is None, opens GUI (--gui).
     """
-    if shutil.which("protontricks"):
-        cmd = ["protontricks", app_id]
+    pt = find_tool("protontricks")
+    if pt:
+        cmd = [pt, app_id]
         if verb:
             cmd.append(verb)
         else:

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import subprocess
 from dataclasses import dataclass
+
+from game_setup_hub.tool_check import find_tool
 
 
 @dataclass
@@ -33,11 +34,12 @@ def get_session_type() -> str:
 
 def _parse_xrandr() -> list[MonitorInfo]:
     """Parse xrandr output for connected monitors."""
-    if not shutil.which("xrandr"):
+    xrandr = find_tool("xrandr")
+    if not xrandr:
         return []
     try:
         result = subprocess.run(
-            ["xrandr", "--current"],
+            [xrandr, "--current"],
             capture_output=True,
             text=True,
             timeout=5,
@@ -93,11 +95,12 @@ def _parse_xrandr() -> list[MonitorInfo]:
 
 def _parse_wlr_randr() -> list[MonitorInfo]:
     """Parse wlr-randr output for Wayland monitors."""
-    if not shutil.which("wlr-randr"):
+    wlr_randr = find_tool("wlr-randr")
+    if not wlr_randr:
         return []
     try:
         result = subprocess.run(
-            ["wlr-randr"],
+            [wlr_randr],
             capture_output=True,
             text=True,
             timeout=5,
@@ -158,9 +161,10 @@ def get_monitors() -> list[MonitorInfo]:
 
 def set_resolution(monitor: str, width: int, height: int, refresh: float = 0) -> bool:
     """Set resolution for a monitor using xrandr. Returns True on success."""
-    if not shutil.which("xrandr"):
+    xrandr = find_tool("xrandr")
+    if not xrandr:
         return False
-    cmd = ["xrandr", "--output", monitor, "--mode", f"{width}x{height}"]
+    cmd = [xrandr, "--output", monitor, "--mode", f"{width}x{height}"]
     if refresh > 0:
         cmd.extend(["--rate", str(refresh)])
     try:
