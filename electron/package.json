@@ -9,9 +9,9 @@
     "build:renderer": "pnpm --filter protonshift-renderer build",
     "build:electron": "tsc",
     "build": "pnpm run build:renderer && pnpm run build:electron",
-    "dist": "pnpm run build && electron-builder",
-    "dist:appimage": "pnpm run build && electron-builder --linux AppImage",
-    "dist:deb": "pnpm run build && electron-builder --linux deb"
+    "dist": "pnpm run build && electron-builder --publish never",
+    "dist:appimage": "pnpm run build && electron-builder --linux AppImage --publish never",
+    "dist:deb": "pnpm run build && electron-builder --linux deb --publish never"
   },
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
@@ -35,6 +35,10 @@
     "url": "https://github.com/I4cTime/protonshift/issues"
   },
   "homepage": "https://github.com/I4cTime/protonshift",
+  "author": {
+    "name": "I4cTime",
+    "email": "I4cTime@users.noreply.github.com"
+  },
   "build": {
     "appId": "io.github.protonshift",
     "productName": "ProtonShift",
@@ -65,13 +69,16 @@
       "category": "Game",
       "icon": "../assets",
       "desktop": {
-        "Name": "ProtonShift",
-        "Comment": "Linux game configuration toolkit",
-        "Categories": "Game;Utility;"
+        "entry": {
+          "Name": "ProtonShift",
+          "Comment": "Linux game configuration toolkit",
+          "Categories": "Game;Utility;"
+        }
       }
     },
     "deb": {
-      "depends": ["python3 (>= 3.12)"]
+      "depends": ["python3 (>= 3.12)"],
+      "maintainer": "I4cTime <I4cTime@users.noreply.github.com>"
     }
   }
 }
