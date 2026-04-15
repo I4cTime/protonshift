@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { ChildProcess, spawn } from "child_process";
 import * as path from "path";
 import * as http from "http";
@@ -6,6 +6,8 @@ import * as http from "http";
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
 let apiPort: number | null = null;
+let staticServer: http.Server | null = null;
+let staticRendererPort: number | null = null;
 
 const isDev = !app.isPackaged;
 
@@ -126,6 +128,102 @@ function getIconPath(): string {
   return path.join(process.resourcesPath, "assets", "256x256.png");
 }
 
+function mimeFor(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const map: Record<string, string> = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".txt": "text/plain; charset=utf-8",
+    ".map": "application/json; charset=utf-8",
+  };
+  return map[ext] ?? "application/octet-stream";
+}
+
+/** Serves Next static export over http://127.0.0.1 — root-relative /_next/... URLs do not work with file:// */
+function startStaticRendererServer(rootDir: string): Promise<number> {
+  const root = path.resolve(rootDir);
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      try {
+        const rawPath = req.url?.split("?")[0] ?? "/";
+        let pathname: string;
+        try {
+          pathname = decodeURIComponent(rawPath);
+        } catch {
+          res.writeHead(400).end();
+          return;
+        }
+        if (pathname.includes("..")) {
+          res.writeHead(403).end();
+          return;
+        }
+        const rel = pathname.replace(/^\/+/, "");
+        const rootResolved = path.resolve(root);
+
+        const candidates: string[] = [];
+        if (rel === "" || rel === "/") {
+          candidates.push(path.join(rootResolved, "index.html"));
+        } else {
+          candidates.push(
+            path.join(rootResolved, rel),
+            path.join(rootResolved, `${rel}.html`),
+            path.join(rootResolved, rel, "index.html"),
+          );
+        }
+
+        let found: string | null = null;
+        for (const candidate of candidates) {
+          const normalized = path.resolve(candidate);
+          if (!normalized.startsWith(rootResolved + path.sep) && normalized !== rootResolved) {
+            continue;
+          }
+          if (fs.existsSync(normalized) && fs.statSync(normalized).isFile()) {
+            found = normalized;
+            break;
+          }
+        }
+
+        if (!found) {
+          res.writeHead(404).end("Not found");
+          return;
+        }
+
+        const body = fs.readFileSync(found);
+        res.writeHead(200, {
+          "Content-Type": mimeFor(found),
+          "Content-Length": String(body.length),
+          "Cache-Control": "no-store",
+        });
+        res.end(body);
+      } catch {
+        res.writeHead(500).end();
+      }
+    });
+
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      staticServer = server;
+      if (addr && typeof addr === "object") {
+        staticRendererPort = addr.port;
+        resolve(addr.port);
+      } else {
+        reject(new Error("Static server failed to bind"));
+      }
+    });
+  });
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -147,6 +245,8 @@ function createWindow(): void {
   if (isDev) {
     mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools({ mode: "detach" });
+  } else if (staticRendererPort) {
+    mainWindow.loadURL(`http://127.0.0.1:${staticRendererPort}/`);
   } else {
     mainWindow.loadFile(path.join(__dirname, "..", "renderer", "out", "index.html"));
   }
@@ -202,6 +302,10 @@ app.on("ready", async () => {
   try {
     apiPort = await startPython();
     await waitForHealth(apiPort);
+    if (!isDev) {
+      const outDir = path.join(__dirname, "..", "renderer", "out");
+      await startStaticRendererServer(outDir);
+    }
   } catch (err) {
     console.error("Failed to start Python backend:", err);
     app.quit();
@@ -218,6 +322,11 @@ app.on("before-quit", () => {
   if (pythonProcess) {
     pythonProcess.kill("SIGTERM");
     pythonProcess = null;
+  }
+  if (staticServer) {
+    staticServer.close();
+    staticServer = null;
+    staticRendererPort = null;
   }
 });
 

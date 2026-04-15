@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "protonshift"
-version = "0.8.6"
+version = "0.8.7"
 description = "Linux game configuration toolkit: GPU, launch options, Proton, env vars"
 readme = "README.md"
 requires-python = ">=3.12"
