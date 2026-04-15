@@ -22,8 +22,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "electron": "^35.0.0",
-    "electron-builder": "^26.0.0",
+    "electron": "^39.8.5",
+    "electron-builder": "^26.9.0",
     "typescript": "^5.8.0"
   },
   "license": "AGPL-3.0-only",
