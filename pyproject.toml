@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "protonshift"
+version = "0.1.0"
+description = "Linux game configuration toolkit: GPU, launch options, Proton, env vars"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "vdf>=1.2",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "pyright"]
+
+[project.scripts]
+protonshift = "game_setup_hub.app:main"
+protonshift-api = "game_setup_hub.api:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+game_setup_hub = ["theme.css"]

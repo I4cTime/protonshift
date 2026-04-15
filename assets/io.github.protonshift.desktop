@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=ProtonShift
+Comment=Linux game configuration toolkit: GPU, launch options, Proton, env vars
+Exec=protonshift
+Icon=io.github.protonshift
+Terminal=false
+Type=Application
+Categories=Game;Utility;
+Keywords=Steam;Proton;Gaming;Launch;
+StartupWMClass=protonshift

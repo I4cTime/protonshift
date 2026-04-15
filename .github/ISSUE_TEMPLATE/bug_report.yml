@@ -1,0 +1,115 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in ProtonShift
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the details below.
+
+        **If this is a security vulnerability, do NOT open an issue.** Use our [security reporting process](https://github.com/I4cTime/protonshift/security/policy) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: ProtonShift version
+      description: "Check the app's About dialog or `electron/package.json`."
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of ProtonShift is affected?
+      options:
+        - Electron App (UI / renderer)
+        - Python Backend (FastAPI)
+        - Steam Integration
+        - Heroic Integration
+        - Lutris Integration
+        - MangoHud / Gamescope
+        - Launch Options
+        - Proton / Compatibility Tools
+        - Environment Variables
+        - Profiles
+        - GPU / System Info
+        - AppImage / .deb Packaging
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug.
+      placeholder: "When I open the game detail page, it shows..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the behavior.
+      placeholder: |
+        1. Open ProtonShift
+        2. Navigate to a game detail
+        3. Click "Edit Launch Options"
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened. Include error messages or stack traces if available.
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Linux Distribution
+      placeholder: "Pop!_OS 22.04 / Ubuntu 24.04 / Linux Mint 22"
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      placeholder: "NVIDIA RTX 4070 / AMD RX 7900 XTX / Intel Arc A770"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Installation method
+      options:
+        - AppImage
+        - .deb package
+        - Running from source (pnpm dev)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any other context — logs, screenshots, related issues, etc.
+    validations:
+      required: false

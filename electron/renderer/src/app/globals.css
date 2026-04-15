@@ -1,0 +1,409 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* ── Base design tokens (Quantum Void defaults) ─────────────────────── */
+@theme inline {
+  --color-neon-cyan: var(--theme-accent);
+  --color-neon-blue: var(--theme-accent-muted);
+  --color-neon-purple: var(--theme-secondary);
+  --color-neon-pink: var(--theme-tertiary);
+
+  --color-surface-deep: var(--theme-surface-deep);
+  --color-surface-mid: var(--theme-surface-mid);
+  --color-surface-elevated: var(--theme-surface-elevated);
+
+  --color-glow-cyan: var(--theme-glow-primary);
+  --color-glow-purple: var(--theme-glow-secondary);
+
+  --color-text-primary: var(--theme-text-primary);
+  --color-text-secondary: var(--theme-text-secondary);
+  --color-text-muted: var(--theme-text-muted);
+
+  --shadow-glow-sm: 0 0 8px var(--theme-glow-primary);
+  --shadow-glow-md: 0 0 16px var(--theme-glow-primary);
+  --shadow-glow-lg: 0 0 24px var(--theme-glow-primary);
+  --shadow-card: 0 0 20px var(--theme-shadow-card), inset 0 1px 0 var(--theme-shadow-inset);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-blob-a: var(--theme-blob-a);
+  --color-blob-b: var(--theme-blob-b);
+  --color-blob-c: var(--theme-blob-c);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME: Quantum Void (dark, cyan + violet)
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="quantum-void"] {
+  color-scheme: dark;
+
+  --theme-accent: #00D1FF;
+  --theme-accent-muted: #3b82f6;
+  --theme-secondary: #B266FF;
+  --theme-tertiary: #ec4899;
+
+  --theme-surface-deep: #0f0f14;
+  --theme-surface-mid: #16161e;
+  --theme-surface-elevated: #1e1e28;
+
+  --theme-glow-primary: rgba(0, 209, 255, 0.4);
+  --theme-glow-secondary: rgba(178, 102, 255, 0.3);
+
+  --theme-text-primary: rgba(255, 255, 255, 0.95);
+  --theme-text-secondary: rgba(255, 255, 255, 0.7);
+  --theme-text-muted: rgba(0, 209, 255, 0.6);
+
+  --theme-shadow-card: rgba(0, 209, 255, 0.08);
+  --theme-shadow-inset: rgba(255, 255, 255, 0.04);
+
+  --theme-body-gradient: linear-gradient(180deg, #0f0f14 0%, #0a0a0f 100%);
+  --theme-scrollbar: rgba(0, 209, 255, 0.3);
+  --theme-scrollbar-hover: rgba(0, 209, 255, 0.5);
+
+  --theme-blob-a: rgba(0, 209, 255, 0.12);
+  --theme-blob-b: rgba(178, 102, 255, 0.10);
+  --theme-blob-c: rgba(236, 72, 153, 0.08);
+
+  --theme-input-border: rgba(255, 255, 255, 0.1);
+  --theme-input-border-hover: rgba(255, 255, 255, 0.2);
+
+  /* HeroUI design tokens */
+  --background: #0f0f14;
+  --foreground: rgba(255, 255, 255, 0.95);
+  --surface: #1e1e28;
+  --surface-foreground: rgba(255, 255, 255, 0.95);
+  --surface-secondary: #16161e;
+  --surface-secondary-foreground: rgba(255, 255, 255, 0.95);
+  --surface-tertiary: #1e1e28;
+  --surface-tertiary-foreground: rgba(255, 255, 255, 0.95);
+  --overlay: #1e1e28;
+  --overlay-foreground: rgba(255, 255, 255, 0.95);
+  --muted: rgba(0, 209, 255, 0.6);
+  --default: #1e1e28;
+  --default-foreground: rgba(255, 255, 255, 0.95);
+  --accent: #00D1FF;
+  --accent-foreground: #0f0f14;
+  --border: rgba(255, 255, 255, 0.1);
+  --separator: rgba(255, 255, 255, 0.06);
+  --focus: #00D1FF;
+  --link: rgba(255, 255, 255, 0.95);
+  --field-background: #0f0f14;
+  --field-foreground: rgba(255, 255, 255, 0.95);
+  --field-placeholder: rgba(0, 209, 255, 0.6);
+  --field-border: rgba(255, 255, 255, 0.1);
+  --field-border-width: 1px;
+  --success: #22c55e;
+  --success-foreground: #0f0f14;
+  --warning: #f59e0b;
+  --warning-foreground: #0f0f14;
+  --danger: #ef4444;
+  --danger-foreground: rgba(255, 255, 255, 0.95);
+  --segment: #16161e;
+  --segment-foreground: rgba(255, 255, 255, 0.95);
+  --surface-shadow: 0 0 0 0 transparent inset;
+  --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.3) inset;
+  --field-shadow: 0 0 0 0 transparent inset;
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --scrollbar: rgba(0, 209, 255, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME: Molten Core (dark, orange + amber)
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="molten-core"] {
+  color-scheme: dark;
+
+  --theme-accent: #FF6B35;
+  --theme-accent-muted: #F59E0B;
+  --theme-secondary: #FFB800;
+  --theme-tertiary: #EF4444;
+
+  --theme-surface-deep: #0d0806;
+  --theme-surface-mid: #161210;
+  --theme-surface-elevated: #1c1410;
+
+  --theme-glow-primary: rgba(255, 107, 53, 0.4);
+  --theme-glow-secondary: rgba(255, 184, 0, 0.3);
+
+  --theme-text-primary: rgba(255, 255, 255, 0.95);
+  --theme-text-secondary: rgba(255, 255, 255, 0.7);
+  --theme-text-muted: rgba(255, 107, 53, 0.6);
+
+  --theme-shadow-card: rgba(255, 107, 53, 0.08);
+  --theme-shadow-inset: rgba(255, 255, 255, 0.04);
+
+  --theme-body-gradient: linear-gradient(180deg, #0d0806 0%, #080504 100%);
+  --theme-scrollbar: rgba(255, 107, 53, 0.3);
+  --theme-scrollbar-hover: rgba(255, 107, 53, 0.5);
+
+  --theme-blob-a: rgba(255, 107, 53, 0.10);
+  --theme-blob-b: rgba(255, 184, 0, 0.08);
+  --theme-blob-c: rgba(239, 68, 68, 0.06);
+
+  --theme-input-border: rgba(255, 255, 255, 0.1);
+  --theme-input-border-hover: rgba(255, 255, 255, 0.2);
+
+  /* HeroUI design tokens */
+  --background: #0d0806;
+  --foreground: rgba(255, 255, 255, 0.95);
+  --surface: #1c1410;
+  --surface-foreground: rgba(255, 255, 255, 0.95);
+  --surface-secondary: #161210;
+  --surface-secondary-foreground: rgba(255, 255, 255, 0.95);
+  --surface-tertiary: #1c1410;
+  --surface-tertiary-foreground: rgba(255, 255, 255, 0.95);
+  --overlay: #1c1410;
+  --overlay-foreground: rgba(255, 255, 255, 0.95);
+  --muted: rgba(255, 107, 53, 0.6);
+  --default: #1c1410;
+  --default-foreground: rgba(255, 255, 255, 0.95);
+  --accent: #FF6B35;
+  --accent-foreground: #0d0806;
+  --border: rgba(255, 255, 255, 0.1);
+  --separator: rgba(255, 255, 255, 0.06);
+  --focus: #FF6B35;
+  --link: rgba(255, 255, 255, 0.95);
+  --field-background: #0d0806;
+  --field-foreground: rgba(255, 255, 255, 0.95);
+  --field-placeholder: rgba(255, 107, 53, 0.6);
+  --field-border: rgba(255, 255, 255, 0.1);
+  --field-border-width: 1px;
+  --success: #22c55e;
+  --success-foreground: #0d0806;
+  --warning: #f59e0b;
+  --warning-foreground: #0d0806;
+  --danger: #ef4444;
+  --danger-foreground: rgba(255, 255, 255, 0.95);
+  --segment: #161210;
+  --segment-foreground: rgba(255, 255, 255, 0.95);
+  --surface-shadow: 0 0 0 0 transparent inset;
+  --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.3) inset;
+  --field-shadow: 0 0 0 0 transparent inset;
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --scrollbar: rgba(255, 107, 53, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME: Frost Glass (light, blue + indigo)
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="frost-glass"] {
+  color-scheme: light;
+
+  --theme-accent: #0066FF;
+  --theme-accent-muted: #4F46E5;
+  --theme-secondary: #6C5CE7;
+  --theme-tertiary: #EC4899;
+
+  --theme-surface-deep: #f0f4f8;
+  --theme-surface-mid: #f8fafc;
+  --theme-surface-elevated: #ffffff;
+
+  --theme-glow-primary: rgba(0, 102, 255, 0.2);
+  --theme-glow-secondary: rgba(108, 92, 231, 0.15);
+
+  --theme-text-primary: rgba(15, 23, 42, 0.95);
+  --theme-text-secondary: rgba(15, 23, 42, 0.7);
+  --theme-text-muted: rgba(0, 102, 255, 0.6);
+
+  --theme-shadow-card: rgba(0, 102, 255, 0.06);
+  --theme-shadow-inset: rgba(255, 255, 255, 0.8);
+
+  --theme-body-gradient: linear-gradient(180deg, #f0f4f8 0%, #e2e8f0 100%);
+  --theme-scrollbar: rgba(0, 102, 255, 0.25);
+  --theme-scrollbar-hover: rgba(0, 102, 255, 0.4);
+
+  --theme-blob-a: rgba(0, 102, 255, 0.06);
+  --theme-blob-b: rgba(108, 92, 231, 0.05);
+  --theme-blob-c: rgba(236, 72, 153, 0.04);
+
+  --theme-input-border: rgba(15, 23, 42, 0.12);
+  --theme-input-border-hover: rgba(15, 23, 42, 0.2);
+
+  /* HeroUI design tokens */
+  --background: #f0f4f8;
+  --foreground: rgba(15, 23, 42, 0.95);
+  --surface: #ffffff;
+  --surface-foreground: rgba(15, 23, 42, 0.95);
+  --surface-secondary: #f8fafc;
+  --surface-secondary-foreground: rgba(15, 23, 42, 0.95);
+  --surface-tertiary: #f0f4f8;
+  --surface-tertiary-foreground: rgba(15, 23, 42, 0.95);
+  --overlay: #ffffff;
+  --overlay-foreground: rgba(15, 23, 42, 0.95);
+  --muted: rgba(0, 102, 255, 0.6);
+  --default: #f0f4f8;
+  --default-foreground: rgba(15, 23, 42, 0.95);
+  --accent: #0066FF;
+  --accent-foreground: #ffffff;
+  --border: rgba(15, 23, 42, 0.12);
+  --separator: rgba(15, 23, 42, 0.06);
+  --focus: #0066FF;
+  --link: rgba(15, 23, 42, 0.95);
+  --field-background: #ffffff;
+  --field-foreground: rgba(15, 23, 42, 0.95);
+  --field-placeholder: rgba(0, 102, 255, 0.6);
+  --field-border: transparent;
+  --success: #22c55e;
+  --success-foreground: rgba(15, 23, 42, 0.95);
+  --warning: #f59e0b;
+  --warning-foreground: rgba(15, 23, 42, 0.95);
+  --danger: #ef4444;
+  --danger-foreground: #ffffff;
+  --segment: #ffffff;
+  --segment-foreground: rgba(15, 23, 42, 0.95);
+  --surface-shadow: 0 0px 0px 0 rgba(24, 24, 27, 0.03), 0 2px 10px 0 rgba(24, 24, 27, 0.08);
+  --overlay-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 -6px 12px 0 rgba(0, 0, 0, 0.03), 0 14px 28px 0 rgba(0, 0, 0, 0.08);
+  --field-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06), 0 0 1px 0 rgba(0, 0, 0, 0.06);
+  --backdrop: rgba(0, 0, 0, 0.5);
+  --scrollbar: rgba(0, 102, 255, 0.25);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME: Solar Bloom (light, green + orange)
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="solar-bloom"] {
+  color-scheme: light;
+
+  --theme-accent: #16A34A;
+  --theme-accent-muted: #059669;
+  --theme-secondary: #EA580C;
+  --theme-tertiary: #D97706;
+
+  --theme-surface-deep: #faf5ee;
+  --theme-surface-mid: #fdf9f3;
+  --theme-surface-elevated: #ffffff;
+
+  --theme-glow-primary: rgba(22, 163, 74, 0.2);
+  --theme-glow-secondary: rgba(234, 88, 12, 0.15);
+
+  --theme-text-primary: rgba(28, 25, 23, 0.95);
+  --theme-text-secondary: rgba(28, 25, 23, 0.7);
+  --theme-text-muted: rgba(22, 163, 74, 0.6);
+
+  --theme-shadow-card: rgba(22, 163, 74, 0.06);
+  --theme-shadow-inset: rgba(255, 255, 255, 0.8);
+
+  --theme-body-gradient: linear-gradient(180deg, #faf5ee 0%, #f5eee4 100%);
+  --theme-scrollbar: rgba(22, 163, 74, 0.25);
+  --theme-scrollbar-hover: rgba(22, 163, 74, 0.4);
+
+  --theme-blob-a: rgba(22, 163, 74, 0.06);
+  --theme-blob-b: rgba(234, 88, 12, 0.05);
+  --theme-blob-c: rgba(217, 119, 6, 0.04);
+
+  --theme-input-border: rgba(28, 25, 23, 0.12);
+  --theme-input-border-hover: rgba(28, 25, 23, 0.2);
+
+  /* HeroUI design tokens */
+  --background: #faf5ee;
+  --foreground: rgba(28, 25, 23, 0.95);
+  --surface: #ffffff;
+  --surface-foreground: rgba(28, 25, 23, 0.95);
+  --surface-secondary: #fdf9f3;
+  --surface-secondary-foreground: rgba(28, 25, 23, 0.95);
+  --surface-tertiary: #faf5ee;
+  --surface-tertiary-foreground: rgba(28, 25, 23, 0.95);
+  --overlay: #ffffff;
+  --overlay-foreground: rgba(28, 25, 23, 0.95);
+  --muted: rgba(22, 163, 74, 0.6);
+  --default: #faf5ee;
+  --default-foreground: rgba(28, 25, 23, 0.95);
+  --accent: #16A34A;
+  --accent-foreground: #ffffff;
+  --border: rgba(28, 25, 23, 0.12);
+  --separator: rgba(28, 25, 23, 0.06);
+  --focus: #16A34A;
+  --link: rgba(28, 25, 23, 0.95);
+  --field-background: #ffffff;
+  --field-foreground: rgba(28, 25, 23, 0.95);
+  --field-placeholder: rgba(22, 163, 74, 0.6);
+  --field-border: transparent;
+  --success: #22c55e;
+  --success-foreground: rgba(28, 25, 23, 0.95);
+  --warning: #f59e0b;
+  --warning-foreground: rgba(28, 25, 23, 0.95);
+  --danger: #ef4444;
+  --danger-foreground: #ffffff;
+  --segment: #ffffff;
+  --segment-foreground: rgba(28, 25, 23, 0.95);
+  --surface-shadow: 0 0px 0px 0 rgba(24, 24, 27, 0.03), 0 2px 10px 0 rgba(24, 24, 27, 0.08);
+  --overlay-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 -6px 12px 0 rgba(0, 0, 0, 0.03), 0 14px 28px 0 rgba(0, 0, 0, 0.08);
+  --field-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06), 0 0 1px 0 rgba(0, 0, 0, 0.06);
+  --backdrop: rgba(0, 0, 0, 0.5);
+  --scrollbar: rgba(22, 163, 74, 0.25);
+}
+
+/* ── HeroUI shared base overrides ────────────────────────────────────── */
+:root {
+  --radius: 0.5rem;
+  --cursor-interactive: pointer;
+  --disabled-opacity: 0.5;
+}
+
+/* ── Global styles ───────────────────────────────────────────────────── */
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--theme-body-gradient);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-hover);
+}
+
+/* Input styling that respects themes */
+input,
+textarea,
+select {
+  border-color: var(--theme-input-border);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--theme-accent);
+}
+
+/* ── HeroUI BEM component overrides ──────────────────────────────────
+   Override HeroUI component styles using BEM classes in @layer components.
+   See each component's docs for available classes.
+   Examples:
+     .button { @apply font-semibold tracking-wide; }
+     .button--primary { @apply bg-blue-600 hover:bg-blue-700; }
+     .accordion__trigger { @apply text-lg font-bold; }
+   ──────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Add project-specific HeroUI overrides here */
+}
+
+/* Electron frameless window: drag to move (see NavBar). Interactive controls use .app-region-no-drag */
+@layer utilities {
+  .app-region-drag {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .app-region-no-drag {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}
+

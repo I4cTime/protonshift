@@ -1,0 +1,76 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for ProtonShift
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for ProtonShift? We'd love to hear it. Please describe what you'd like and why.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of ProtonShift does this relate to?
+      options:
+        - Electron App (UI / renderer)
+        - Python Backend (FastAPI)
+        - Steam Integration
+        - Heroic Integration
+        - Lutris Integration
+        - MangoHud / Gamescope
+        - Launch Options
+        - Proton / Compatibility Tools
+        - Environment Variables
+        - Profiles
+        - GPU / System Info
+        - Packaging / Distribution
+        - GTK Frontend
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What problem does this solve, or what workflow does it improve?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to happen. Mockups, CLI examples, or pseudocode are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you've thought about.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: willing
+    attributes:
+      label: Would you be willing to submit a PR?
+      options:
+        - "Yes"
+        - "Yes, with guidance"
+        - "No"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else — mockups, links, related issues, etc.
+    validations:
+      required: false

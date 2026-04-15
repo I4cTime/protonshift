@@ -1,0 +1,113 @@
+{
+  "12210": [
+    {
+      "title": "Use OpenGL instead of DirectX",
+      "description": "Grand Theft Auto IV performs better with OpenGL on some GPUs",
+      "type": "env",
+      "key": "PROTON_USE_WINED3D",
+      "value": "1"
+    }
+  ],
+  "292030": [
+    {
+      "title": "Enable NVIDIA DLSS",
+      "description": "The Witcher 3 supports DLSS on NVIDIA GPUs via Proton",
+      "type": "env",
+      "key": "PROTON_ENABLE_NVAPI",
+      "value": "1"
+    },
+    {
+      "title": "Hide NVIDIA GPU info",
+      "description": "Some anti-cheat may flag NVAPI. Hide GPU info if needed.",
+      "type": "env",
+      "key": "PROTON_HIDE_NVIDIA_GPU",
+      "value": "0"
+    }
+  ],
+  "1091500": [
+    {
+      "title": "Enable large address aware",
+      "description": "Cyberpunk 2077 can benefit from large address aware mode",
+      "type": "launch_arg",
+      "value": "PROTON_LARGE_ADDRESS_AWARE=1 %command%"
+    },
+    {
+      "title": "Enable NVIDIA DLSS / RTX",
+      "description": "Enable NVAPI for DLSS and ray tracing support",
+      "type": "env",
+      "key": "PROTON_ENABLE_NVAPI",
+      "value": "1"
+    }
+  ],
+  "1174180": [
+    {
+      "title": "Force Vulkan renderer",
+      "description": "Red Dead Redemption 2 may crash with DX12; force Vulkan",
+      "type": "launch_arg",
+      "value": "-vulkan %command%"
+    }
+  ],
+  "1245620": [
+    {
+      "title": "Enable EAC runtime",
+      "description": "Elden Ring uses Easy Anti-Cheat which needs Proton EAC runtime",
+      "type": "env",
+      "key": "PROTON_EAC_RUNTIME",
+      "value": "1"
+    }
+  ],
+  "413150": [
+    {
+      "title": "Enable BattlEye runtime",
+      "description": "Stardew Valley multiplayer may need BattlEye compatibility",
+      "type": "env",
+      "key": "PROTON_BATTLEYE_RUNTIME",
+      "value": "1"
+    }
+  ],
+  "570": [
+    {
+      "title": "Disable Steam overlay",
+      "description": "Dota 2 overlay can cause rendering issues on some systems",
+      "type": "launch_arg",
+      "value": "-nooverlay %command%"
+    }
+  ],
+  "_common": [
+    {
+      "title": "Disable Esync",
+      "description": "Fixes crashes in games that don't support Esync properly",
+      "type": "env",
+      "key": "PROTON_NO_ESYNC",
+      "value": "1"
+    },
+    {
+      "title": "Disable Fsync",
+      "description": "Fixes crashes in games that don't support Fsync properly",
+      "type": "env",
+      "key": "PROTON_NO_FSYNC",
+      "value": "1"
+    },
+    {
+      "title": "Enable Proton debug log",
+      "description": "Write detailed Proton log to /tmp/proton_<user>/",
+      "type": "env",
+      "key": "PROTON_LOG",
+      "value": "1"
+    },
+    {
+      "title": "Use system Wine D3D",
+      "description": "Use Wine's OpenGL-based D3D instead of DXVK Vulkan",
+      "type": "env",
+      "key": "PROTON_USE_WINED3D",
+      "value": "1"
+    },
+    {
+      "title": "Enable NVIDIA NVAPI",
+      "description": "Required for DLSS and some NVIDIA-specific features",
+      "type": "env",
+      "key": "PROTON_ENABLE_NVAPI",
+      "value": "1"
+    }
+  ]
+}

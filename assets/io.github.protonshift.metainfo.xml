@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.protonshift</id>
+  <name>ProtonShift</name>
+  <summary>Linux game configuration toolkit</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.protonshift">
+    <name>ProtonShift</name>
+  </developer>
+  <description>
+    <p>
+      ProtonShift is a desktop application for Linux that helps you manage
+      game configurations. Like Nexus Mod Manager, but for game setup — not mods.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Discover installed Steam, Heroic, and Lutris games</li>
+      <li>Edit per-game launch options and Proton compatibility tools</li>
+      <li>Manage global gaming environment variables</li>
+      <li>Run Protontricks for quick component installs</li>
+      <li>Monitor GPU info and switch power profiles</li>
+      <li>Save and load game configuration profiles</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.protonshift.desktop</launchable>
+  <url type="homepage">https://github.com/I4cTime/protonshift</url>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Game</category>
+    <category>Utility</category>
+  </categories>
+  <provides>
+    <binary>protonshift</binary>
+  </provides>
+</component>

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/I4cTime/protonshift/security/advisories/new
+    about: Report security vulnerabilities privately — do not open a public issue.
+  - name: Discussions
+    url: https://github.com/I4cTime/protonshift/discussions
+    about: Ask questions, share ideas, or get help from the community.
