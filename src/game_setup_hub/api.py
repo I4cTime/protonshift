@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import socket
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +23,7 @@ from .heroic_config import (
     set_heroic_wine_version,
 )
 from .lutris import LutrisGame, discover_lutris_games
-from .presets import LAUNCH_PRESETS, LaunchPreset
+from .presets import LAUNCH_PRESETS
 from .profiles_storage import (
     ApplicationProfile,
     delete_profile,
@@ -32,9 +31,9 @@ from .profiles_storage import (
     load_profile,
     save_profile,
 )
-from .controllers import ControllerInfo as _ControllerInfo, get_controllers, get_sdl_mapping
-from .display import MonitorInfo as _MonitorInfo, get_monitors, get_session_type, set_resolution
-from .fixes import GameFix, add_user_fix, get_fixes
+from .controllers import get_controllers, get_sdl_mapping
+from .display import get_monitors, get_session_type, set_resolution
+from .fixes import add_user_fix, get_fixes
 from .gamescope import GamescopeOptions, build_gamescope_cmd, is_gamescope_available
 from .mangohud import (
     MANGOHUD_PARAMS,
@@ -45,7 +44,7 @@ from .mangohud import (
     read_mangohud_config,
     write_mangohud_config,
 )
-from .prefix import PrefixInfo, delete_prefix as _delete_prefix, get_prefix_info
+from .prefix import delete_prefix as _delete_prefix, get_prefix_info
 from .saves import (
     backup_saves as _backup_saves,
     find_save_paths,

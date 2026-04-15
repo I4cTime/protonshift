@@ -71,7 +71,7 @@
       }
     },
     "deb": {
-      "depends": ["python3 (>= 3.10)"]
+      "depends": ["python3 (>= 3.12)"]
     }
   }
 }

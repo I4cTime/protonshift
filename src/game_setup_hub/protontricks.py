@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from pathlib import Path
 
 
 PROTONTRICKS_FLATPAK = "com.github.Matoking.protontricks"
@@ -25,7 +24,7 @@ def is_protontricks_available() -> bool:
         return True
     try:
         r = subprocess.run(
-            ["flatpak", "list", "--app", f"--columns=application"],
+            ["flatpak", "list", "--app", "--columns=application"],
             capture_output=True,
             text=True,
         )
@@ -50,7 +49,7 @@ def get_protontricks_cmd(app_id: str, verb: str | None = None) -> list[str] | No
 
     try:
         r = subprocess.run(
-            ["flatpak", "list", "--app", f"--columns=application"],
+            ["flatpak", "list", "--app", "--columns=application"],
             capture_output=True,
             text=True,
         )
