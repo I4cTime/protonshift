@@ -1,0 +1,4 @@
+# Bundled into the AppImage/deb for packaged runs (see scripts/vendor-python-deps.sh).
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+vdf>=1.2

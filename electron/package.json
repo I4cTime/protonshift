@@ -1,6 +1,6 @@
 {
   "name": "protonshift",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Linux game configuration toolkit",
   "main": "dist/main.js",
   "scripts": {
@@ -9,9 +9,12 @@
     "build:renderer": "pnpm --filter protonshift-renderer build",
     "build:electron": "tsc",
     "build": "pnpm run build:renderer && pnpm run build:electron",
-    "dist": "pnpm run build && electron-builder --publish never",
-    "dist:appimage": "pnpm run build && electron-builder --linux AppImage --publish never",
-    "dist:deb": "pnpm run build && electron-builder --linux deb --publish never"
+    "vendor-python": "bash scripts/vendor-python-deps.sh",
+    "dist": "pnpm run vendor-python && pnpm run build && electron-builder --publish never",
+    "dist:appimage": "pnpm run vendor-python && pnpm run build && electron-builder --linux AppImage --publish never",
+    "dist:deb": "pnpm run vendor-python && pnpm run build && electron-builder --linux deb --publish never",
+    "dist:rpm": "pnpm run vendor-python && pnpm run build && electron-builder --linux rpm --publish never",
+    "dist:flatpak": "pnpm run vendor-python && pnpm run build && electron-builder --linux flatpak --publish never"
   },
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
@@ -62,10 +65,15 @@
       {
         "from": "../assets",
         "to": "assets"
+      },
+      {
+        "from": "python-vendor",
+        "to": "python/vendor",
+        "filter": ["**/*"]
       }
     ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": ["AppImage", "deb", "rpm", "flatpak"],
       "category": "Game",
       "icon": "../assets",
       "desktop": {
@@ -79,6 +87,33 @@
     "deb": {
       "depends": ["python3 (>= 3.12)"],
       "maintainer": "I4cTime <I4cTime@users.noreply.github.com>"
+    },
+    "rpm": {
+      "depends": ["python3 >= 3.12"],
+      "fpm": ["--rpm-summary", "Linux game configuration toolkit"]
+    },
+    "flatpak": {
+      "baseVersion": "24.08",
+      "runtime": "org.freedesktop.Platform",
+      "runtimeVersion": "24.08",
+      "sdk": "org.freedesktop.Sdk",
+      "finishArgs": [
+        "--share=ipc",
+        "--share=network",
+        "--socket=x11",
+        "--socket=wayland",
+        "--socket=pulseaudio",
+        "--filesystem=home:ro",
+        "--filesystem=~/.steam:ro",
+        "--filesystem=~/.local/share/Steam:ro",
+        "--filesystem=~/.config/heroic:ro",
+        "--filesystem=~/.local/share/lutris:ro",
+        "--filesystem=~/.config/MangoHud",
+        "--filesystem=~/.config/environment.d",
+        "--filesystem=~/.config/protonshift",
+        "--device=dri",
+        "--talk-name=org.freedesktop.Flatpak"
+      ]
     }
   }
 }

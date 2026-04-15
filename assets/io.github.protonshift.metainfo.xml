@@ -26,6 +26,7 @@
   <launchable type="desktop-id">io.github.protonshift.desktop</launchable>
   <url type="homepage">https://github.com/I4cTime/protonshift</url>
   <releases>
+    <release version="0.8.6" date="2026-04-15"/>
     <release version="0.8.5" date="2026-04-15"/>
   </releases>
   <content_rating type="oars-1.1"/>
