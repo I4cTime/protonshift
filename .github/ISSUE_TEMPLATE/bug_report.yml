@@ -14,7 +14,7 @@ body:
     attributes:
       label: ProtonShift version
       description: "Check the app's About dialog or `electron/package.json`."
-      placeholder: "0.8.5"
+      placeholder: "0.8.6"
     validations:
       required: true
 
@@ -101,6 +101,8 @@ body:
       options:
         - AppImage
         - .deb package
+        - .rpm package
+        - Flatpak
         - Running from source (pnpm dev)
         - Other
     validations:

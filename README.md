@@ -212,24 +212,37 @@ Multiple visual themes with light and dark variants, switchable from the nav bar
 
 ## Installation
 
-**Target:** Pop!_OS, Ubuntu 22.04+, Linux Mint, elementary OS.
+Grab the latest package for your distro from the [Releases](https://github.com/I4cTime/protonshift/releases) page.
 
-Grab the latest **AppImage** or **.deb** from the [Releases](https://github.com/I4cTime/protonshift/releases) page.
-
-### AppImage
+### AppImage (any distro)
 
 ```bash
 chmod +x ProtonShift-*.AppImage
 ./ProtonShift-*.AppImage
 ```
 
-### .deb
+### .deb (Ubuntu, Pop!_OS, Mint, elementary OS)
 
 ```bash
 sudo dpkg -i ProtonShift-*.deb
 ```
 
-Requires Python 3.12+ (included as a dependency in the .deb).
+### .rpm (Fedora, openSUSE, RHEL)
+
+```bash
+sudo dnf install ProtonShift-*.rpm
+# or on openSUSE:
+sudo zypper install ProtonShift-*.rpm
+```
+
+### Flatpak
+
+```bash
+flatpak install ProtonShift-*.flatpak
+flatpak run io.github.protonshift
+```
+
+Official builds bundle the Python API stack (FastAPI, Uvicorn, VDF, etc.) beside the app. You only need **Python 3.12+** available as `python3` (the `.deb` already depends on it).
 
 ---
 

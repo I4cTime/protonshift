@@ -42,7 +42,13 @@ function getPythonCommand(): { cmd: string; args: string[]; env: NodeJS.ProcessE
 
   const resourcesPath = process.resourcesPath;
   const srcDir = path.join(resourcesPath, "python", "src");
-  env.PYTHONPATH = srcDir + (env.PYTHONPATH ? `:${env.PYTHONPATH}` : "");
+  const vendorDir = path.join(resourcesPath, "python", "vendor");
+  const pyPathParts: string[] = [];
+  if (fs.existsSync(vendorDir)) {
+    pyPathParts.push(vendorDir);
+  }
+  pyPathParts.push(srcDir);
+  env.PYTHONPATH = pyPathParts.join(":") + (env.PYTHONPATH ? `:${env.PYTHONPATH}` : "");
   return {
     cmd: "python3",
     args: ["-m", "game_setup_hub.api", "--port", "0"],
@@ -69,9 +75,7 @@ function startPython(): Promise<number> {
     });
 
     pythonProcess.stderr?.on("data", (data: Buffer) => {
-      if (isDev) {
-        console.error("[python]", data.toString().trim());
-      }
+      console.error("[python]", data.toString().trim());
     });
 
     pythonProcess.on("error", (err) => {
