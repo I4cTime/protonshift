@@ -73,7 +73,7 @@
       }
     ],
     "linux": {
-      "target": ["AppImage", "deb", "rpm", "flatpak"],
+      "target": ["AppImage", "deb"],
       "category": "Game",
       "icon": "../assets",
       "desktop": {
