@@ -1,0 +1,6 @@
+{
+  "include": ["src"],
+  "exclude": ["src/game_setup_hub/app.py"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "standard"
+}

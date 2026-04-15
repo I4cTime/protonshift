@@ -26,7 +26,7 @@ def get_launch_options(config_path: Path, app_id: str) -> str:
     try:
         with open(config_path, encoding="utf-8", errors="replace") as f:
             data = vdf.load(f)
-    except (vdf.VDFError, OSError):
+    except (SyntaxError, ValueError, OSError):
         return ""
     apps = _get_apps_node(data)
     if not apps:
@@ -44,7 +44,7 @@ def get_compat_tool(config_path: Path, app_id: str) -> str:
     try:
         with open(config_path, encoding="utf-8", errors="replace") as f:
             data = vdf.load(f)
-    except (vdf.VDFError, OSError):
+    except (SyntaxError, ValueError, OSError):
         return ""
     try:
         store = data["UserLocalConfigStore"]
@@ -66,7 +66,7 @@ def set_compat_tool(config_path: Path, app_id: str, tool_name: str) -> bool:
         try:
             with open(config_path, encoding="utf-8", errors="replace") as f:
                 data = vdf.load(f)
-        except (vdf.VDFError, OSError):
+        except (SyntaxError, ValueError, OSError):
             return False
 
     store = data.setdefault("UserLocalConfigStore", {})
@@ -99,7 +99,7 @@ def set_launch_options(config_path: Path, app_id: str, options: str) -> bool:
         try:
             with open(config_path, encoding="utf-8", errors="replace") as f:
                 data = vdf.load(f)
-        except (vdf.VDFError, OSError):
+        except (SyntaxError, ValueError, OSError):
             return False
 
     # Ensure full structure exists
