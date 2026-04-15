@@ -324,7 +324,7 @@ class StatusResponse(BaseModel):
 # App setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="ProtonShift API", version="0.8.7")
+app = FastAPI(title="ProtonShift API", version="0.8.8")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Locks for serializing writes to shared resources

@@ -15,6 +15,7 @@ import {
   Info,
   Layers,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { Button, Chip, Spinner, Tooltip } from "@heroui/react";
 import { PageShell } from "@/components/page-shell";
@@ -37,6 +38,11 @@ const POWER_PROFILE_META: Record<
     icon: Zap,
     color: "text-yellow-400",
     description: "Dynamic clocks and fan curves — good balance for most games",
+  },
+  battery: {
+    icon: Leaf,
+    color: "text-emerald-400",
+    description: "Low power draw and quieter fans — best on battery or light desktop use",
   },
   "power-saver": {
     icon: Leaf,
@@ -204,12 +210,12 @@ export default function SystemPage() {
             )}
 
             {/* Power profile */}
-            {data && data.power_profiles.length > 0 && (
+            {data && (
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
                   <BatteryCharging className="size-4 text-neon-cyan" />
                   Power Profile
-                  {data.current_power_profile && (
+                  {data.power_profiles.length > 0 && data.current_power_profile && (
                     <Chip
                       size="sm"
                       color="accent"
@@ -220,65 +226,97 @@ export default function SystemPage() {
                     </Chip>
                   )}
                 </label>
-                <GlowCard className="p-5">
-                  <p className="mb-4 text-xs leading-relaxed text-text-muted">
-                    Switch between system power profiles. Performance maximises
-                    clocks for gaming, balanced adapts dynamically, and
-                    power-saver prioritises battery life and quiet fans. The
-                    change takes effect immediately.
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {data.power_profiles.map((profile) => {
-                      const active =
-                        profile.toLowerCase() ===
-                        data.current_power_profile?.toLowerCase();
-                      const meta =
-                        POWER_PROFILE_META[profile.toLowerCase()] ??
-                        POWER_PROFILE_META["balanced"];
-                      const ProfileIcon = meta?.icon ?? Zap;
+                {data.power_profiles.length > 0 ? (
+                  <GlowCard className="p-5">
+                    <p className="mb-4 text-xs leading-relaxed text-text-muted">
+                      Switch between system power profiles. Performance maximises
+                      clocks for gaming, balanced adapts dynamically, and
+                      power-saver (or battery on Pop!_OS) prioritises lower draw
+                      and quieter fans. The change takes effect immediately.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {data.power_profiles.map((profile) => {
+                        const active =
+                          profile.toLowerCase() ===
+                          data.current_power_profile?.toLowerCase();
+                        const meta =
+                          POWER_PROFILE_META[profile.toLowerCase()] ??
+                          POWER_PROFILE_META["balanced"];
+                        const ProfileIcon = meta?.icon ?? Zap;
 
-                      return (
-                        <button
-                          key={profile}
-                          onClick={() => handleSetProfile(profile)}
-                          className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${
-                            active
-                              ? "border-neon-cyan/40 bg-neon-cyan/10"
-                              : "border-border bg-surface-secondary/30 hover:border-border-secondary"
-                          }`}
-                        >
-                          <div
-                            className={`flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary ${meta?.color ?? "text-text-secondary"}`}
+                        return (
+                          <button
+                            key={profile}
+                            onClick={() => handleSetProfile(profile)}
+                            className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                              active
+                                ? "border-neon-cyan/40 bg-neon-cyan/10"
+                                : "border-border bg-surface-secondary/30 hover:border-border-secondary"
+                            }`}
                           >
-                            <ProfileIcon className="size-5" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold capitalize text-text-primary">
-                                {profile}
-                              </span>
-                              {active && (
-                                <Chip
-                                  size="sm"
-                                  color="accent"
-                                  variant="soft"
-                                  className="text-[10px]"
-                                >
-                                  Active
-                                </Chip>
+                            <div
+                              className={`flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary ${meta?.color ?? "text-text-secondary"}`}
+                            >
+                              <ProfileIcon className="size-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold capitalize text-text-primary">
+                                  {profile}
+                                </span>
+                                {active && (
+                                  <Chip
+                                    size="sm"
+                                    color="accent"
+                                    variant="soft"
+                                    className="text-[10px]"
+                                  >
+                                    Active
+                                  </Chip>
+                                )}
+                              </div>
+                              {meta?.description && (
+                                <p className="mt-0.5 text-xs text-text-muted">
+                                  {meta.description}
+                                </p>
                               )}
                             </div>
-                            {meta?.description && (
-                              <p className="mt-0.5 text-xs text-text-muted">
-                                {meta.description}
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </GlowCard>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </GlowCard>
+                ) : (
+                  <GlowCard className="p-5">
+                    <div className="flex gap-3">
+                      <AlertCircle className="mt-0.5 size-5 shrink-0 text-text-muted" />
+                      <div className="min-w-0 space-y-2 text-xs leading-relaxed text-text-muted">
+                        <p className="font-medium text-text-secondary">
+                          Profile switching unavailable
+                        </p>
+                        <p>
+                          No supported power tool responded. ProtonShift uses{" "}
+                          <code className="rounded bg-surface-deep px-1 py-0.5 font-mono text-[10px] text-neon-cyan">
+                            system76-power
+                          </code>{" "}
+                          on Pop!_OS (query:{" "}
+                          <code className="rounded bg-surface-deep px-1 py-0.5 font-mono text-[10px] text-neon-cyan">
+                            system76-power profile
+                          </code>
+                          ) or{" "}
+                          <code className="rounded bg-surface-deep px-1 py-0.5 font-mono text-[10px] text-neon-cyan">
+                            powerprofilesctl
+                          </code>{" "}
+                          from power-profiles-daemon elsewhere.
+                        </p>
+                        <p>
+                          Sandboxed installs (for example Flatpak) may not see
+                          those commands on the host unless permissions allow it.
+                        </p>
+                      </div>
+                    </div>
+                  </GlowCard>
+                )}
               </div>
             )}
 

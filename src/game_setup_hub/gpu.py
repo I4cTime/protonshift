@@ -88,23 +88,25 @@ def _read_hwmon_temp(device_path: Path) -> float | None:
     return None
 
 
+def _system76_power_profile_query() -> subprocess.CompletedProcess[str] | None:
+    """Run `system76-power profile` (no args). Newer CLI prints `Power Profile: …` plus details."""
+    try:
+        return subprocess.run(
+            ["system76-power", "profile"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except FileNotFoundError:
+        return None
+
+
 def get_power_profiles() -> list[str]:
     """Get available power profiles."""
-    # system76-power (Pop)
-    try:
-        r = subprocess.run(["system76-power", "profile", "list"], capture_output=True, text=True, timeout=3)
-        if r.returncode == 0:
-            profiles = []
-            for line in r.stdout.split("\n"):
-                if re.match(r"^\s*\*\s*\w+", line):
-                    # * Performance, * Balanced, etc.
-                    m = re.search(r"\*\s*(\w+)", line)
-                    if m:
-                        profiles.append(m.group(1).lower().capitalize())
-            if profiles:
-                return profiles
-    except FileNotFoundError:
-        pass
+    # system76-power (Pop!_OS) — modern CLI has no `profile list`; values are battery|balanced|performance
+    r = _system76_power_profile_query()
+    if r is not None and r.returncode == 0 and r.stdout.strip():
+        return ["battery", "balanced", "performance"]
 
     # power-profiles-daemon (Ubuntu)
     try:
@@ -126,12 +128,15 @@ def get_power_profiles() -> list[str]:
 
 def get_current_power_profile() -> str | None:
     """Get current power profile."""
-    try:
-        r = subprocess.run(["system76-power", "profile"], capture_output=True, text=True, timeout=3)
-        if r.returncode == 0 and r.stdout:
-            return r.stdout.strip().lower().capitalize()
-    except FileNotFoundError:
-        pass
+    r = _system76_power_profile_query()
+    if r is not None and r.returncode == 0 and r.stdout:
+        for line in r.stdout.splitlines():
+            m = re.search(r"Power Profile:\s*(\S+)", line, re.IGNORECASE)
+            if m:
+                return m.group(1).lower()
+        first = r.stdout.strip().split("\n", 1)[0].strip()
+        if first and ":" not in first and len(first) < 40:
+            return first.lower()
     try:
         r = subprocess.run(["powerprofilesctl", "get"], capture_output=True, text=True, timeout=3)
         if r.returncode == 0 and r.stdout:
