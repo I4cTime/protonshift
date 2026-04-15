@@ -1032,7 +1032,7 @@ def main():
         about = Adw.AboutWindow(
             transient_for=win,
             application_name="ProtonShift",
-            version="0.1.0",
+            version="0.8.5",
             developer_name="ProtonShift",
             website="https://github.com/protonshift/protonshift",
             application_icon="io.github.protonshift",
