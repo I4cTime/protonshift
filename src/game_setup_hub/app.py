@@ -15,21 +15,21 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 
-from .env_vars import ENV_PRESETS, read_gaming_env, write_gaming_env
-from .gpu import get_current_power_profile, get_gpu_info, get_power_profiles, set_power_profile
-from .presets import LAUNCH_PRESETS, LaunchPreset
-from .heroic import HeroicGame, discover_heroic_games
-from .lutris import LutrisGame, discover_lutris_games
-from .protontricks import COMMON_VERBS, is_protontricks_available, run_protontricks
-from .steam import (
+from .env_vars import ENV_PRESETS, read_gaming_env, write_gaming_env  # noqa: E402
+from .gpu import get_current_power_profile, get_gpu_info, get_power_profiles, set_power_profile  # noqa: E402
+from .presets import LAUNCH_PRESETS, LaunchPreset  # noqa: E402
+from .heroic import HeroicGame, discover_heroic_games  # noqa: E402
+from .lutris import LutrisGame, discover_lutris_games  # noqa: E402
+from .protontricks import COMMON_VERBS, is_protontricks_available, run_protontricks  # noqa: E402
+from .steam import (  # noqa: E402
     SteamGame,
     discover_games,
     get_available_proton_tools,
     get_localconfig_path,
     is_steam_running,
 )
-from .vdf_config import get_compat_tool, get_launch_options, set_compat_tool, set_launch_options
-from .profiles_storage import (
+from .vdf_config import get_compat_tool, get_launch_options, set_compat_tool, set_launch_options  # noqa: E402
+from .profiles_storage import (  # noqa: E402
     ApplicationProfile,
     list_profiles,
     load_profile,

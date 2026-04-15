@@ -22,11 +22,11 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "electron": "^35.0.0",
-    "electron-builder": "^26.0.0",
+    "electron": "^39.8.5",
+    "electron-builder": "^26.9.0",
     "typescript": "^5.8.0"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/I4cTime/protonshift.git"
@@ -71,7 +71,7 @@
       }
     },
     "deb": {
-      "depends": ["python3 (>= 3.10)"]
+      "depends": ["python3 (>= 3.12)"]
     }
   }
 }

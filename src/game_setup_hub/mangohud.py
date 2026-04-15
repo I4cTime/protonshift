@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Any
 
 MANGOHUD_CONFIG_DIR = Path.home() / ".config" / "MangoHud"
 MANGOHUD_GLOBAL_CONF = MANGOHUD_CONFIG_DIR / "MangoHud.conf"

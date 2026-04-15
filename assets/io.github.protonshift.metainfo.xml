@@ -4,7 +4,7 @@
   <name>ProtonShift</name>
   <summary>Linux game configuration toolkit</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>AGPL-3.0-only</project_license>
   <developer id="io.github.protonshift">
     <name>ProtonShift</name>
   </developer>

@@ -84,7 +84,7 @@ def _find_libraryfolders(steam_root: Path) -> list[Path]:
                         p = Path(folder["path"])
                         if p.exists():
                             paths.append(p)
-        except (vdf.VDFError, OSError):
+        except (SyntaxError, ValueError, OSError):
             pass
         break  # Use first found
     if not paths and steam_root.exists():
@@ -97,7 +97,7 @@ def _parse_acf(path: Path) -> dict | None:
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             return vdf.load(f)
-    except (vdf.VDFError, OSError):
+    except (SyntaxError, ValueError, OSError):
         return None
 
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .heroic import HEROIC_ROOTS, _resolve_heroic_root
+from .heroic import _resolve_heroic_root
 
 
 @dataclass
