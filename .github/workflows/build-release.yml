@@ -2,8 +2,8 @@ name: Build & Release
 
 on:
   release:
-    # `published` covers normal releases; `created` covers draft-created flows
-    types: [published, created]
+    # Fires when a release is published (including from draft); avoids duplicate runs with `created`
+    types: [published]
 
 permissions:
   contents: write
