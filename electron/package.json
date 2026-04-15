@@ -26,7 +26,7 @@
     "electron-builder": "^26.0.0",
     "typescript": "^5.8.0"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/I4cTime/protonshift.git"
