@@ -114,8 +114,9 @@ export function GamescopeBuilder({ onInsert }: GamescopeBuilderProps) {
           <p className="text-xs text-text-secondary font-medium">Install via your package manager:</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {[
+              { distro: "Bazzite / SteamOS", cmd: "Pre-installed — restart app or check PATH" },
               { distro: "Arch / Manjaro / EndeavourOS", cmd: "sudo pacman -S gamescope" },
-              { distro: "Fedora", cmd: "sudo dnf install gamescope" },
+              { distro: "Fedora / Fedora Atomic", cmd: "sudo dnf install gamescope" },
               { distro: "openSUSE", cmd: "sudo zypper install gamescope" },
               { distro: "NixOS", cmd: "nix-env -iA nixpkgs.gamescope" },
               { distro: "Flatpak (Steam)", cmd: "Bundled with Steam Flatpak" },

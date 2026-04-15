@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
+
+from game_setup_hub.tool_check import is_tool_available
 
 MANGOHUD_CONFIG_DIR = Path.home() / ".config" / "MangoHud"
 MANGOHUD_GLOBAL_CONF = MANGOHUD_CONFIG_DIR / "MangoHud.conf"
@@ -166,7 +167,7 @@ MANGOHUD_PARAMS: list[dict[str, str]] = [
 
 def is_mangohud_available() -> bool:
     """Check if MangoHud is installed."""
-    return shutil.which("mangohud") is not None
+    return is_tool_available("mangohud")
 
 
 def read_mangohud_config(path: Path | None = None) -> dict[str, str]:

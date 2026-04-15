@@ -28,8 +28,22 @@ function findPythonCmd(projectRoot: string): string {
   return "python3";
 }
 
+const EXTRA_PATH_DIRS = [
+  "/usr/bin",
+  "/usr/local/bin",
+  "/var/usrlocal/bin",
+  "/usr/lib/extensions/vulkan/MangoHud/bin",
+  "/usr/lib64/extensions/vulkan/MangoHud/bin",
+  "/run/current-system/sw/bin", // NixOS
+].join(":");
+
 function getPythonCommand(): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
   const env = { ...process.env };
+  // Immutable distros (Bazzite, SteamOS, Fedora Atomic) and AppImage
+  // wrappers can strip PATH entries. Ensure common locations are present.
+  if (env.PATH && !env.PATH.includes("/var/usrlocal/bin")) {
+    env.PATH = `${env.PATH}:${EXTRA_PATH_DIRS}`;
+  }
 
   if (isDev) {
     const projectRoot = path.resolve(__dirname, "..", "..");

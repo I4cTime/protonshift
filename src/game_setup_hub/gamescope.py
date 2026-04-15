@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass
+
+from game_setup_hub.tool_check import is_tool_available
 
 
 @dataclass
@@ -25,7 +26,7 @@ class GamescopeOptions:
 
 def is_gamescope_available() -> bool:
     """Check if gamescope is installed."""
-    return shutil.which("gamescope") is not None
+    return is_tool_available("gamescope")
 
 
 def build_gamescope_cmd(opts: GamescopeOptions) -> str:

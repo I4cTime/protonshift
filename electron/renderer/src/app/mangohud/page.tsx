@@ -203,8 +203,9 @@ export default function MangoHudPage() {
               <p className="text-xs text-text-secondary font-medium">Install via your package manager:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
+                  { distro: "Bazzite / SteamOS", cmd: "Pre-installed — restart app or check PATH" },
                   { distro: "Ubuntu / Pop!_OS / Mint", cmd: "sudo apt install mangohud" },
-                  { distro: "Fedora", cmd: "sudo dnf install mangohud" },
+                  { distro: "Fedora / Fedora Atomic", cmd: "sudo dnf install mangohud" },
                   { distro: "Arch / Manjaro / EndeavourOS", cmd: "sudo pacman -S mangohud" },
                   { distro: "openSUSE", cmd: "sudo zypper install mangohud" },
                   { distro: "Flatpak (Steam)", cmd: "flatpak install flathub org.freedesktop.Platform.VulkanLayer.MangoHud" },

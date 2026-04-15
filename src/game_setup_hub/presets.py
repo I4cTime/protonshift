@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass
+
+from game_setup_hub.tool_check import is_tool_available
 
 
 @dataclass
@@ -19,20 +20,10 @@ class LaunchPreset:
     def is_installed(self) -> bool:
         """Check if the tool/feature is available."""
         if self.value == "gamemoderun":
-            return _check_gamemode()
+            return is_tool_available("gamemoderun")
         if "MANGOHUD" in self.value:
-            return _check_mangohud()
-        return True  # No check for env vars, Proton Log, NVIDIA dGPU
-
-
-def _check_gamemode() -> bool:
-    """Check if gamemode is installed."""
-    return shutil.which("gamemoderun") is not None
-
-
-def _check_mangohud() -> bool:
-    """Check if MangoHud is installed."""
-    return shutil.which("mangohud") is not None
+            return is_tool_available("mangohud")
+        return True
 
 
 LAUNCH_PRESETS: list[LaunchPreset] = [
