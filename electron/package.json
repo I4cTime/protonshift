@@ -1,6 +1,6 @@
 {
   "name": "protonshift",
-  "version": "0.8.9",
+  "version": "0.8.10",
   "description": "Linux game configuration toolkit",
   "main": "dist/main.js",
   "scripts": {

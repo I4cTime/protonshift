@@ -143,10 +143,12 @@ export default function ControllersPage() {
         ) : error ? (
           <Alert status="danger">
             <Alert.Indicator />
-            <Alert.Title>Failed to detect controllers</Alert.Title>
-            <Alert.Description>
-              Check that the backend is running and <code className="text-neon-cyan">/proc/bus/input/devices</code> or <code className="text-neon-cyan">/dev/input/js*</code> is accessible, then try refreshing.
-            </Alert.Description>
+            <Alert.Content>
+              <Alert.Title>Failed to detect controllers</Alert.Title>
+              <Alert.Description>
+                Check that the backend is running and <code className="text-neon-cyan">/proc/bus/input/devices</code> or <code className="text-neon-cyan">/dev/input/js*</code> is accessible, then try refreshing.
+              </Alert.Description>
+            </Alert.Content>
           </Alert>
 
         /* Empty state */
