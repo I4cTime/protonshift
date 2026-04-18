@@ -7,7 +7,6 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-
 LUTRIS_ROOTS = [
     Path.home() / ".local" / "share" / "lutris",
     Path.home() / ".var" / "app" / "net.lutris.Lutris" / "data" / "lutris",

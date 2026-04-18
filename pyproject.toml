@@ -4,25 +4,45 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "protonshift"
-version = "0.8.11"
 description = "Linux game configuration toolkit: GPU, launch options, Proton, env vars"
 readme = "README.md"
 requires-python = ">=3.12"
+dynamic = ["version"]
 dependencies = [
-    "vdf>=1.2",
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.34",
+    "vdf>=1.2,<4",
+    "fastapi>=0.115,<1",
+    "pydantic>=2.0,<3",
+    # Use bare uvicorn (not [standard]). The "standard" extras pull uvloop,
+    # httptools, and watchfiles — three more native extensions that break
+    # AppImage portability. Pure-asyncio + h11 is plenty for localhost.
+    "uvicorn>=0.34,<1",
 ]
 
 [project.optional-dependencies]
-dev = ["ruff", "pyright"]
+dev = ["ruff", "pyright", "pytest", "pytest-asyncio", "httpx"]
 
 [project.scripts]
-protonshift = "game_setup_hub.app:main"
 protonshift-api = "game_setup_hub.api:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.dynamic]
+version = { attr = "game_setup_hub.__version__" }
+
 [tool.setuptools.package-data]
-game_setup_hub = ["theme.css"]
+game_setup_hub = ["data/*.json"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+# SIM105: try/except/pass with narrow exception is clearer than contextlib.suppress.
+# SIM102: nested-if collapse hurts readability when guards differ in intent.
+ignore = ["E501", "SIM105", "SIM102"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

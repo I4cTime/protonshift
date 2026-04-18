@@ -108,18 +108,20 @@ def get_power_profiles() -> list[str]:
     if r is not None and r.returncode == 0 and r.stdout.strip():
         return ["battery", "balanced", "performance"]
 
-    # power-profiles-daemon (Ubuntu)
+    # power-profiles-daemon (Ubuntu/Fedora). `powerprofilesctl list` prints
+    # one block per profile; the active one is prefixed with `*`. We want
+    # every profile name, not just the active one. Each block starts with
+    # `[* ]<name>:` at column 0.
     try:
         r = subprocess.run(["powerprofilesctl", "list"], capture_output=True, text=True, timeout=3)
         if r.returncode == 0:
-            profiles = []
-            for line in r.stdout.split("\n"):
-                if "*" in line:
-                    m = re.search(r"[\*]\s*([\w-]+)", line)
-                    if m:
-                        profiles.append(m.group(1))
+            profiles = [
+                m.group(1)
+                for line in r.stdout.splitlines()
+                if (m := re.match(r"^\s*\*?\s*([\w-]+):\s*$", line))
+            ]
             if profiles:
-                return ["performance", "balanced", "power-saver"]
+                return profiles
     except FileNotFoundError:
         pass
 
