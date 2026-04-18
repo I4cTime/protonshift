@@ -1,6 +1,6 @@
 {
   "name": "protonshift",
-  "version": "0.8.10",
+  "version": "0.8.11",
   "description": "Linux game configuration toolkit",
   "main": "dist/main.js",
   "scripts": {
@@ -85,11 +85,11 @@
       }
     },
     "deb": {
-      "depends": ["python3 (>= 3.12)"],
+      "depends": ["python3 (>= 3.12)", "python3-pydantic"],
       "maintainer": "I4cTime <I4cTime@users.noreply.github.com>"
     },
     "rpm": {
-      "depends": ["python3 >= 3.12"],
+      "depends": ["python3 >= 3.12", "python3-pydantic"],
       "fpm": ["--rpm-summary", "Linux game configuration toolkit"]
     },
     "flatpak": {

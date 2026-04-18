@@ -64,7 +64,13 @@ function getPythonCommand(): { cmd: string; args: string[]; env: NodeJS.ProcessE
     pyPathParts.push(vendorDir);
   }
   pyPathParts.push(srcDir);
-  env.PYTHONPATH = pyPathParts.join(":") + (env.PYTHONPATH ? `:${env.PYTHONPATH}` : "");
+  if (env.PYTHONPATH) {
+    pyPathParts.push(env.PYTHONPATH);
+  }
+  env.PYTHONPATH = pyPathParts.join(":");
+  // Ensure system site-packages are available as fallback for native
+  // extensions (.so) that may not match the vendored Python version.
+  env.PYTHONNOUSERSITE = "";
   return {
     cmd: "python3",
     args: ["-m", "game_setup_hub.api", "--port", "0"],

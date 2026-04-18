@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import game_setup_hub._vendor_compat  # noqa: F401  # must be first
+
 import argparse
 import asyncio
 import socket
