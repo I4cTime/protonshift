@@ -7,8 +7,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .fsutil import atomic_write_text
+from .paths import sanitize_filename
+
 _DATA_DIR = Path(__file__).parent / "data"
 _USER_FIXES_DIR = Path.home() / ".config" / "protonshift" / "fixes"
+
+
+def _user_fixes_path(app_id: str) -> Path:
+    return _USER_FIXES_DIR / f"{sanitize_filename(app_id, fallback='unknown')}.json"
 
 
 @dataclass
@@ -32,7 +39,7 @@ def _load_builtin_fixes() -> dict[str, list[dict[str, Any]]]:
 
 
 def _load_user_fixes(app_id: str) -> list[dict[str, Any]]:
-    path = _USER_FIXES_DIR / f"{app_id}.json"
+    path = _user_fixes_path(app_id)
     if not path.exists():
         return []
     try:
@@ -80,7 +87,7 @@ def add_user_fix(
 ) -> bool:
     """Add a user-contributed fix for a game. Returns True on success."""
     _USER_FIXES_DIR.mkdir(parents=True, exist_ok=True)
-    path = _USER_FIXES_DIR / f"{app_id}.json"
+    path = _user_fixes_path(app_id)
 
     existing = _load_user_fixes(app_id)
     existing.append({
@@ -92,7 +99,7 @@ def add_user_fix(
     })
 
     try:
-        path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        atomic_write_text(path, json.dumps(existing, indent=2))
         return True
     except OSError:
         return False

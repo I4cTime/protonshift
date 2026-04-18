@@ -6,6 +6,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from .fsutil import dir_size as _dir_size
+
 
 @dataclass
 class ShaderCacheInfo:
@@ -13,20 +15,6 @@ class ShaderCacheInfo:
     path: str
     exists: bool
     size_bytes: int = 0
-
-
-def _dir_size(path: Path) -> int:
-    total = 0
-    try:
-        for entry in path.rglob("*"):
-            if not entry.is_symlink() and entry.is_file():
-                try:
-                    total += entry.lstat().st_size
-                except OSError:
-                    pass
-    except OSError:
-        pass
-    return total
 
 
 def _shader_cache_dir(steam_root: Path, app_id: str) -> Path:

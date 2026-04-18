@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .fsutil import atomic_write_text
+
 ENV_D_DIR = Path.home() / ".config" / "environment.d"
 GAMING_CONF = "70-protonshift.conf"
 
@@ -47,9 +49,8 @@ def read_conf(path: Path) -> dict[str, str]:
 
 
 def write_conf(path: Path, vars_dict: dict[str, str], header: str = "") -> bool:
-    """Write KEY=value pairs to a .conf file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    lines = []
+    """Write KEY=value pairs to a .conf file atomically."""
+    lines: list[str] = []
     if header:
         for h in header.strip().split("\n"):
             lines.append(f"# {h}" if not h.startswith("#") else h)
@@ -60,8 +61,7 @@ def write_conf(path: Path, vars_dict: dict[str, str], header: str = "") -> bool:
         escaped = str(v).replace("\\", "\\\\").replace('"', '\\"')
         lines.append(f'{k}="{escaped}"')
     try:
-        with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write("\n".join(lines) + "\n")
+        atomic_write_text(path, "\n".join(lines) + "\n")
     except OSError:
         return False
     return True

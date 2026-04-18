@@ -159,14 +159,34 @@ def get_monitors() -> list[MonitorInfo]:
     return monitors
 
 
+# Output names emitted by xrandr/wlr-randr are short identifiers like
+# ``HDMI-1`` or ``DP-2``. Anything outside this shape is rejected before
+# ever reaching the xrandr command line so an attacker who can call the
+# /display/resolution endpoint cannot inject extra args.
+_MONITOR_NAME_RE = re.compile(r"^[A-Za-z0-9._\-]{1,32}$")
+_MAX_DIMENSION = 16384  # 16k — comfortably above any real display
+
+
 def set_resolution(monitor: str, width: int, height: int, refresh: float = 0) -> bool:
     """Set resolution for a monitor using xrandr. Returns True on success."""
+    if not _MONITOR_NAME_RE.match(monitor):
+        return False
+    # Whitelist against actually-detected monitors. Even if the regex is wrong
+    # this stops xrandr being driven against a name that isn't on the system.
+    known_names = {m.name for m in get_monitors()}
+    if known_names and monitor not in known_names:
+        return False
+    if not (0 < width <= _MAX_DIMENSION and 0 < height <= _MAX_DIMENSION):
+        return False
+    if not (0 <= refresh <= 1000):
+        return False
+
     xrandr = find_tool("xrandr")
     if not xrandr:
         return False
     cmd = [xrandr, "--output", monitor, "--mode", f"{width}x{height}"]
     if refresh > 0:
-        cmd.extend(["--rate", str(refresh)])
+        cmd.extend(["--rate", f"{refresh:g}"])
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=5)
         return result.returncode == 0

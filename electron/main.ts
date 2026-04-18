@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import { ChildProcess, spawn } from "child_process";
 import * as path from "path";
 import * as http from "http";
+import * as net from "net";
+import * as crypto from "crypto";
 
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
@@ -9,9 +11,31 @@ let apiPort: number | null = null;
 let staticServer: http.Server | null = null;
 let staticRendererPort: number | null = null;
 
+// Per-launch bearer token. Both the Python backend and Electron see it via
+// PROTONSHIFT_API_TOKEN, and every renderer-originated fetch attaches it.
+const apiToken = crypto.randomBytes(32).toString("base64url");
+
 const isDev = !app.isPackaged;
 
 import * as fs from "fs";
+
+function pickFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const addr = srv.address();
+      if (addr && typeof addr === "object") {
+        const port = addr.port;
+        srv.close(() => resolve(port));
+      } else {
+        srv.close();
+        reject(new Error("Failed to bind ephemeral port"));
+      }
+    });
+  });
+}
 
 function findPythonCmd(projectRoot: string): string {
   // Prefer the project venv if it exists (dev workflow)
@@ -37,7 +61,7 @@ const EXTRA_PATH_DIRS = [
   "/run/current-system/sw/bin", // NixOS
 ].join(":");
 
-function getPythonCommand(): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
+function getPythonCommand(port: number): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
   const env = { ...process.env };
   // Immutable distros (Bazzite, SteamOS, Fedora Atomic) and AppImage
   // wrappers can strip PATH entries. Ensure common locations are present.
@@ -45,13 +69,19 @@ function getPythonCommand(): { cmd: string; args: string[]; env: NodeJS.ProcessE
     env.PATH = `${env.PATH}:${EXTRA_PATH_DIRS}`;
   }
 
+  // Hand the backend the auth token. compare_digest on the Python side will
+  // reject any other Authorization header.
+  env.PROTONSHIFT_API_TOKEN = apiToken;
+
+  const portArg = String(port);
+
   if (isDev) {
     const projectRoot = path.resolve(__dirname, "..", "..");
     const srcDir = path.join(projectRoot, "src");
     env.PYTHONPATH = srcDir + (env.PYTHONPATH ? `:${env.PYTHONPATH}` : "");
     return {
       cmd: findPythonCmd(projectRoot),
-      args: ["-m", "game_setup_hub.api", "--port", "0"],
+      args: ["-m", "game_setup_hub.api", "--port", portArg],
       env,
     };
   }
@@ -68,19 +98,26 @@ function getPythonCommand(): { cmd: string; args: string[]; env: NodeJS.ProcessE
     pyPathParts.push(env.PYTHONPATH);
   }
   env.PYTHONPATH = pyPathParts.join(":");
-  // Ensure system site-packages are available as fallback for native
-  // extensions (.so) that may not match the vendored Python version.
-  env.PYTHONNOUSERSITE = "";
+  // CPython treats PYTHONNOUSERSITE as truthy if the variable is *present*,
+  // even when empty. Setting it to "" disables user site-packages — the
+  // opposite of what we want. Unset it so user site-packages stay enabled
+  // and `_vendor_compat` can fall back to system pydantic_core if the
+  // vendored .so is ABI-incompatible with the runtime Python.
+  delete env.PYTHONNOUSERSITE;
   return {
     cmd: "python3",
-    args: ["-m", "game_setup_hub.api", "--port", "0"],
+    args: ["-m", "game_setup_hub.api", "--port", portArg],
     env,
   };
 }
 
-function startPython(): Promise<number> {
+async function startPython(): Promise<number> {
+  // Pick the port on the Node side so we know it before spawning. Avoids the
+  // old stdout-regex dance, and we can pass it straight to `--port`.
+  const port = await pickFreePort();
+  const { cmd, args, env } = getPythonCommand(port);
+
   return new Promise((resolve, reject) => {
-    const { cmd, args, env } = getPythonCommand();
     pythonProcess = spawn(cmd, args, { env, stdio: ["pipe", "pipe", "pipe"] });
 
     const timeout = setTimeout(() => {
@@ -88,12 +125,8 @@ function startPython(): Promise<number> {
     }, 15000);
 
     pythonProcess.stdout?.on("data", (data: Buffer) => {
-      const output = data.toString();
-      const match = output.match(/PORT:(\d+)/);
-      if (match) {
-        clearTimeout(timeout);
-        resolve(parseInt(match[1], 10));
-      }
+      // Stdout is informational only now; readiness comes from /health.
+      console.log("[python]", data.toString().trim());
     });
 
     pythonProcess.stderr?.on("data", (data: Buffer) => {
@@ -112,6 +145,18 @@ function startPython(): Promise<number> {
       }
       pythonProcess = null;
     });
+
+    // Resolve as soon as /health responds. waitForHealth handles retries.
+    waitForHealth(port).then(
+      () => {
+        clearTimeout(timeout);
+        resolve(port);
+      },
+      (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      },
+    );
   });
 }
 
@@ -301,7 +346,11 @@ ipcMain.handle("api-fetch", async (_event, urlPath: string, init?: RequestInit) 
   try {
     const response = await fetch(url, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiToken}`,
+        ...init?.headers,
+      },
     });
     const body = await response.text();
     return {
@@ -321,7 +370,6 @@ ipcMain.handle("api-fetch", async (_event, urlPath: string, init?: RequestInit) 
 app.on("ready", async () => {
   try {
     apiPort = await startPython();
-    await waitForHealth(apiPort);
     if (!isDev) {
       const outDir = path.join(__dirname, "..", "renderer", "out");
       await startStaticRendererServer(outDir);

@@ -1,0 +1,63 @@
+app-id: io.github.protonshift
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "24.08"
+command: protonshift
+separate-locales: false
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  # Home read-only for game library discovery
+  - --filesystem=home:ro
+  # Steam paths (native + Flatpak)
+  - --filesystem=~/.steam:ro
+  - --filesystem=~/.local/share/Steam:ro
+  - --filesystem=~/.var/app/com.valvesoftware.Steam:ro
+  # Heroic paths (native + Flatpak)
+  - --filesystem=~/.config/heroic:ro
+  - --filesystem=~/.var/app/com.heroicgameslauncher.hgl:ro
+  # Lutris paths (native + Flatpak)
+  - --filesystem=~/.local/share/lutris:ro
+  - --filesystem=~/.var/app/net.lutris.Lutris:ro
+  # Writable config paths
+  - --filesystem=~/.config/MangoHud
+  - --filesystem=~/.config/environment.d
+  - --filesystem=~/.config/protonshift
+  # Talk to Flatpak for launching games via steam:// URIs
+  - --talk-name=org.freedesktop.Flatpak
+
+modules:
+  - name: python3-deps
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-build-isolation --prefix=/app vdf fastapi "uvicorn[standard]"
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/source/v/vdf/vdf-3.4.tar.gz
+        sha256: FIXME
+
+  - name: protonshift-python
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-build-isolation --prefix=/app .
+    sources:
+      - type: dir
+        path: ..
+
+  - name: protonshift
+    buildsystem: simple
+    build-commands:
+      - cp -r electron-dist/* /app/
+      - install -Dm644 assets/io.github.protonshift.svg /app/share/icons/hicolor/scalable/apps/io.github.protonshift.svg
+      - install -Dm644 assets/io.github.protonshift.desktop /app/share/applications/io.github.protonshift.desktop
+      - install -Dm644 assets/io.github.protonshift.metainfo.xml /app/share/metainfo/io.github.protonshift.metainfo.xml
+    sources:
+      - type: dir
+        path: ..

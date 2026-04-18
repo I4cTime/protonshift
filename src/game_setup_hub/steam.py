@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import subprocess
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -67,7 +69,7 @@ def _resolve_steam_root() -> Path | None:
 
 def _find_libraryfolders(steam_root: Path) -> list[Path]:
     """Get all library paths from libraryfolders.vdf."""
-    paths = []
+    paths: list[Path] = []
     for loc in [
         steam_root / "steamapps" / "libraryfolders.vdf",
         steam_root / "config" / "libraryfolders.vdf",
@@ -77,16 +79,17 @@ def _find_libraryfolders(steam_root: Path) -> list[Path]:
         try:
             with open(loc, encoding="utf-8", errors="replace") as f:
                 data = vdf.load(f)
-            folders = data.get("libraryfolders", data)
-            if isinstance(folders, dict):
-                for _key, folder in folders.items():
-                    if isinstance(folder, dict) and "path" in folder:
-                        p = Path(folder["path"])
-                        if p.exists():
-                            paths.append(p)
         except (SyntaxError, ValueError, OSError):
-            pass
-        break  # Use first found
+            continue
+        folders = data.get("libraryfolders", data)
+        if isinstance(folders, dict):
+            for _key, folder in folders.items():
+                if isinstance(folder, dict) and "path" in folder:
+                    p = Path(folder["path"])
+                    if p.exists():
+                        paths.append(p)
+        if paths:
+            break  # Stop at the first manifest that yielded usable paths
     if not paths and steam_root.exists():
         paths.append(steam_root)
     return paths
@@ -101,13 +104,39 @@ def _parse_acf(path: Path) -> dict | None:
         return None
 
 
+# Library walks add up: every API request to /games, /games/{app_id}/*,
+# /open-path etc. used to re-stat hundreds of acf files. A 5s TTL keeps the
+# UI snappy without going stale long enough to confuse users who just
+# installed something.
+_DISCOVERY_TTL_SECONDS = 5.0
+_discovery_lock = threading.Lock()
+_discovery_cache: tuple[float, Path | None, list[SteamGame]] | None = None
+
+
+def invalidate_discovery_cache() -> None:
+    """Drop the cached game list (call after install/uninstall events)."""
+    global _discovery_cache
+    with _discovery_lock:
+        _discovery_cache = None
+
+
 def discover_games() -> tuple[Path | None, list[SteamGame]]:
+    """Discover Steam root and all installed games. Cached briefly per process.
+
+    Returns ``(steam_root, games)``. Disk walks are skipped if a fresh enough
+    result is already cached.
     """
-    Discover Steam root and all installed games.
-    Returns (steam_root, games).
-    """
+    global _discovery_cache
+    now = time.monotonic()
+    with _discovery_lock:
+        cached = _discovery_cache
+        if cached and (now - cached[0]) < _DISCOVERY_TTL_SECONDS:
+            return cached[1], cached[2]
+
     steam_root = _resolve_steam_root()
     if not steam_root:
+        with _discovery_lock:
+            _discovery_cache = (now, None, [])
         return None, []
 
     libraries = _find_libraryfolders(steam_root)
@@ -151,6 +180,8 @@ def discover_games() -> tuple[Path | None, list[SteamGame]]:
             )
 
     games.sort(key=lambda g: (-g.last_played, g.name.lower()))
+    with _discovery_lock:
+        _discovery_cache = (now, steam_root, games)
     return steam_root, games
 
 
@@ -185,13 +216,21 @@ def get_compattools_dir(steam_root: Path | None) -> Path | None:
     return None
 
 
-# Built-in Steam Proton tool IDs (approximate — Steam may use different keys)
-BUILTIN_PROTON = ["proton_experimental", "proton_9_0", "proton_8_0", "proton_7_0", "proton_6_3", ""]
+# Built-in Steam Proton tool IDs. Source of truth is Steam itself; this list is
+# best-effort for the dropdown and may lag a release. Newer Proton tools are
+# discovered via `compatibilitytools.d` so users always see GE-Proton/etc.
+_BUILTIN_PROTON: tuple[str, ...] = (
+    "",
+    "proton_experimental",
+    "proton_9_0",
+    "proton_8_0",
+    "proton_7_0",
+)
 
 
 def get_available_proton_tools(steam_root: Path | None) -> list[str]:
     """List Proton/GE tools: built-in first, then compatibilitytools.d."""
-    tools: list[str] = ["", "proton_experimental", "proton_9_0", "proton_8_0", "proton_7_0"]
+    tools: list[str] = list(_BUILTIN_PROTON)
     compat_dir = get_compattools_dir(steam_root)
     if compat_dir and compat_dir.exists():
         for item in sorted(compat_dir.iterdir()):

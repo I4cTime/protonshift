@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 
 from game_setup_hub.tool_check import find_tool
-
 
 PROTONTRICKS_FLATPAK = "com.github.Matoking.protontricks"
 
@@ -17,6 +17,32 @@ COMMON_VERBS = [
     ("corefonts", "Core fonts"),
     ("arial", "Arial font"),
 ]
+
+# Steam app IDs are decimal integers. Anything else is rejected so a malicious
+# payload like "440; rm -rf ~" cannot reach the protontricks command line.
+_APP_ID_RE = re.compile(r"^\d{1,12}$")
+# Winetricks verbs are short alphanumeric tokens with optional `_-`. We do
+# NOT trust the COMMON_VERBS list as the whitelist because users can pass
+# arbitrary verbs from the UI; instead we constrain by *shape*.
+_VERB_RE = re.compile(r"^[A-Za-z0-9._\-]{1,64}$")
+
+
+class ProtontricksValidationError(ValueError):
+    """Raised when an app_id or verb fails validation before subprocess use."""
+
+
+def _validate_app_id(app_id: str) -> str:
+    if not isinstance(app_id, str) or not _APP_ID_RE.match(app_id):
+        raise ProtontricksValidationError(f"Invalid Steam app id: {app_id!r}")
+    return app_id
+
+
+def _validate_verb(verb: str | None) -> str | None:
+    if verb is None:
+        return None
+    if not isinstance(verb, str) or not _VERB_RE.match(verb):
+        raise ProtontricksValidationError(f"Invalid winetricks verb: {verb!r}")
+    return verb
 
 
 def is_protontricks_available() -> bool:
@@ -39,14 +65,20 @@ def get_protontricks_cmd(app_id: str, verb: str | None = None) -> list[str] | No
     Get command to run Protontricks for a game.
     Returns [cmd, ...args] or None if not available.
     If verb is None, opens GUI (--gui).
+
+    Raises :class:`ProtontricksValidationError` if ``app_id`` or ``verb`` would
+    inject anything other than a Steam app id / winetricks verb token. We
+    enforce the whitelist *before* assembling the argv to keep the subprocess
+    boundary clean even though :func:`subprocess.Popen` with a list arg does
+    not invoke a shell.
     """
+    safe_app_id = _validate_app_id(app_id)
+    safe_verb = _validate_verb(verb)
+
     pt = find_tool("protontricks")
     if pt:
-        cmd = [pt, app_id]
-        if verb:
-            cmd.append(verb)
-        else:
-            cmd.append("--gui")
+        cmd = [pt, safe_app_id]
+        cmd.append(safe_verb if safe_verb else "--gui")
         return cmd
 
     try:
@@ -60,11 +92,8 @@ def get_protontricks_cmd(app_id: str, verb: str | None = None) -> list[str] | No
     except FileNotFoundError:
         return None
 
-    cmd = ["flatpak", "run", PROTONTRICKS_FLATPAK, app_id]
-    if verb:
-        cmd.append(verb)
-    else:
-        cmd.append("--gui")
+    cmd = ["flatpak", "run", PROTONTRICKS_FLATPAK, safe_app_id]
+    cmd.append(safe_verb if safe_verb else "--gui")
     return cmd
 
 
@@ -74,7 +103,10 @@ def run_protontricks(app_id: str, verb: str | None = None) -> tuple[bool, str]:
     If verb is None, opens the GUI.
     Returns (success, error_message).
     """
-    cmd = get_protontricks_cmd(app_id, verb)
+    try:
+        cmd = get_protontricks_cmd(app_id, verb)
+    except ProtontricksValidationError as exc:
+        return False, str(exc)
     if not cmd:
         return False, "Protontricks not found. Install from Flathub: com.github.Matoking.protontricks"
     try:

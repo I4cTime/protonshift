@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from game_setup_hub.fsutil import atomic_write_text
+from game_setup_hub.paths import sanitize_filename
 from game_setup_hub.tool_check import is_tool_available
 
 MANGOHUD_CONFIG_DIR = Path.home() / ".config" / "MangoHud"
@@ -195,10 +197,9 @@ def read_mangohud_config(path: Path | None = None) -> dict[str, str]:
 
 
 def write_mangohud_config(config: dict[str, str], path: Path | None = None) -> bool:
-    """Write a MangoHud config file from key-value pairs."""
+    """Write a MangoHud config file from key-value pairs (atomic)."""
     if path is None:
         path = MANGOHUD_GLOBAL_CONF
-    path.parent.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
     for key, value in config.items():
         if value:
@@ -206,15 +207,19 @@ def write_mangohud_config(config: dict[str, str], path: Path | None = None) -> b
         else:
             lines.append(key)
     try:
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        atomic_write_text(path, "\n".join(lines) + "\n")
         return True
     except OSError:
         return False
 
 
 def get_per_game_config_path(game_name: str) -> Path:
-    """Get the per-game config path for MangoHud."""
-    safe_name = game_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+    """Get the per-game config path for MangoHud.
+
+    The supplied ``game_name`` is sanitised — ``..`` and slashes are stripped
+    so callers cannot escape :data:`MANGOHUD_CONFIG_DIR`.
+    """
+    safe_name = sanitize_filename(game_name.replace(" ", "_"), fallback="game")
     return MANGOHUD_CONFIG_DIR / f"wine-{safe_name}.conf"
 
 
