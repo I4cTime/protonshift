@@ -8,7 +8,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .fsutil import dir_size as _dir_size
-from .paths import PathValidationError, sanitize_filename, validate_within
+from .paths import (
+    PathValidationError,
+    sanitize_filename,
+    validate_user_path,
+    validate_within,
+)
 
 _BACKUP_ROOT = Path.home() / ".config" / "protonshift" / "backups"
 
@@ -36,11 +41,21 @@ class BackupInfo:
 
 
 def find_save_paths(app_id: str, prefix_path: str | None) -> list[SaveLocation]:
-    """Detect possible save locations for a game."""
+    """Detect possible save locations for a game.
+
+    ``prefix_path`` is validated through :func:`validate_user_path`; if it
+    falls outside a user-writable root we skip the prefix portion rather
+    than crawling arbitrary directories.
+    """
     locations: list[SaveLocation] = []
 
+    prefix: Path | None = None
     if prefix_path:
-        prefix = Path(prefix_path)
+        try:
+            prefix = validate_user_path(prefix_path, allow_missing=True)
+        except PathValidationError:
+            prefix = None
+    if prefix is not None:
         # Proton saves: various common save paths inside prefix
         save_candidates = [
             (prefix / "pfx" / "drive_c" / "users" / "steamuser" / "Saved Games", "Proton Saved Games"),
@@ -60,13 +75,15 @@ def find_save_paths(app_id: str, prefix_path: str | None) -> list[SaveLocation]:
                         label=label,
                     ))
 
-    # Native Linux save dirs
+    # Native Linux save dirs. ``app_id`` is sanitized to a single segment so a
+    # malicious value like ``../../etc`` cannot escape ``userdata/``.
+    safe_app_id = sanitize_filename(app_id, fallback="unknown")
     home = Path.home()
     native_candidates = [
         (home / ".local" / "share" / "Steam" / "userdata", "Steam Cloud / Userdata"),
     ]
     for path, label in native_candidates:
-        app_subdir = path / app_id
+        app_subdir = path / safe_app_id
         if app_subdir.exists():
             size = _dir_size(app_subdir)
             if size > 0:
@@ -101,7 +118,14 @@ def backup_saves(app_id: str, paths: list[str]) -> str | None:
     try:
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for save_path_str in paths:
-                save_path = Path(save_path_str)
+                # Validate every input path lives under a user-writable root
+                # before touching the filesystem. This both stops the API
+                # being abused to enumerate /etc and gives CodeQL a clean
+                # sanitizer it can recognise on the data-flow path.
+                try:
+                    save_path = validate_user_path(save_path_str, allow_missing=True)
+                except PathValidationError:
+                    continue
                 if not save_path.exists():
                     continue
                 base_name = sanitize_filename(save_path.name, fallback="root")
@@ -132,7 +156,8 @@ def backup_saves(app_id: str, paths: list[str]) -> str | None:
 
 def list_backups(app_id: str) -> list[BackupInfo]:
     """List all backups for a game."""
-    backup_dir = _BACKUP_ROOT / app_id
+    safe_app_id = sanitize_filename(app_id, fallback="unknown")
+    backup_dir = _BACKUP_ROOT / safe_app_id
     if not backup_dir.exists():
         return []
 
@@ -157,13 +182,17 @@ def restore_backup(backup_path: str, target_dir: str) -> bool:
 
     Hardened against zip-slip: each archive member is verified to land under
     ``target_dir`` before extraction. Backups must originate from
-    :data:`_BACKUP_ROOT`; arbitrary zip paths are rejected.
+    :data:`_BACKUP_ROOT`; arbitrary zip paths are rejected. The target dir
+    must live under one of the user-writable roots.
     """
     zip_path = Path(backup_path).resolve(strict=False)
-    target = Path(target_dir).resolve(strict=False)
 
     try:
         validate_within(_BACKUP_ROOT, zip_path)
+    except PathValidationError:
+        return False
+    try:
+        target = validate_user_path(target_dir, allow_missing=True)
     except PathValidationError:
         return False
 

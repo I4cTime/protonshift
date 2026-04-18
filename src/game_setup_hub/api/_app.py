@@ -72,24 +72,20 @@ def cli() -> None:
         default="127.0.0.1",
         help="Interface to bind. Defaults to loopback; do not change unless you understand the risk.",
     )
-    parser.add_argument(
-        "--print-token",
-        action="store_true",
-        help="Print the auth token to stdout on startup (handy for ad-hoc curl).",
-    )
     args = parser.parse_args()
 
     port = args.port if args.port > 0 else _find_free_port()
 
-    # If the parent process didn't provision a token, mint one. This keeps the
-    # API authenticated even when launched standalone.
+    # If the parent process didn't provision a token, mint one and keep it in
+    # the environment for child code to read. We deliberately do NOT print the
+    # token: writing credentials to stdout/stderr risks them ending up in
+    # journald, IDE consoles, or ELectron logs. Standalone curl users should
+    # set ``PROTONSHIFT_API_TOKEN`` themselves before launching.
     if not _state.API_TOKEN:
         _state.API_TOKEN = secrets.token_urlsafe(32)
         os.environ["PROTONSHIFT_API_TOKEN"] = _state.API_TOKEN
 
     print(f"PORT:{port}", flush=True)
-    if args.print_token:
-        print(f"TOKEN:{_state.API_TOKEN}", flush=True)
 
     from .. import logging_setup
     logging_setup.configure()

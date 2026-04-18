@@ -9,6 +9,7 @@ from datetime import UTC
 from pathlib import Path
 
 from .fsutil import dir_size as _dir_size
+from .paths import PathValidationError, validate_user_path
 
 
 @dataclass
@@ -80,8 +81,18 @@ def _detect_vkd3d_version(prefix: Path) -> str:
 
 
 def get_prefix_info(path: str) -> PrefixInfo:
-    """Get information about a Wine/Proton prefix directory."""
-    prefix = Path(path)
+    """Get information about a Wine/Proton prefix directory.
+
+    The path is re-validated through :func:`validate_user_path` even though
+    callers (the API layer) are expected to validate first. This makes the
+    function safe to call directly from tests / scripts and gives CodeQL a
+    sanitizer it can recognise on the data-flow path into ``rglob`` /
+    ``read_bytes``.
+    """
+    try:
+        prefix = validate_user_path(path, allow_missing=True)
+    except PathValidationError:
+        return PrefixInfo(path=path, exists=False)
     if not prefix.exists():
         return PrefixInfo(path=path, exists=False)
 
@@ -109,9 +120,18 @@ def get_prefix_info(path: str) -> PrefixInfo:
 
 
 def delete_prefix(path: str) -> bool:
-    """Delete a Wine/Proton prefix directory. Returns True on success."""
-    prefix = Path(path)
-    if not prefix.exists():
+    """Delete a Wine/Proton prefix directory. Returns True on success.
+
+    Defensive validation: the path must resolve under one of the user-writable
+    roots (home, /run/media, /media, /mnt, /tmp). This stops a bug or stolen
+    auth token from triggering ``rmtree("/etc")`` even though the API layer
+    is expected to validate first.
+    """
+    try:
+        prefix = validate_user_path(path, allow_missing=False)
+    except PathValidationError:
+        return False
+    if not prefix.exists() or not prefix.is_dir():
         return False
     try:
         shutil.rmtree(prefix)
