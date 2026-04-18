@@ -5,7 +5,10 @@ from __future__ import annotations
 import shutil
 import struct
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
+
+from .fsutil import dir_size as _dir_size
 
 
 @dataclass
@@ -16,21 +19,6 @@ class PrefixInfo:
     created: str = ""
     dxvk_version: str = ""
     vkd3d_version: str = ""
-
-
-def _dir_size(path: Path) -> int:
-    """Recursively compute directory size in bytes."""
-    total = 0
-    try:
-        for entry in path.rglob("*"):
-            if not entry.is_symlink() and entry.is_file():
-                try:
-                    total += entry.lstat().st_size
-                except OSError:
-                    pass
-    except OSError:
-        pass
-    return total
 
 
 def _read_pe_file_version(dll_path: Path) -> str:
@@ -102,8 +90,8 @@ def get_prefix_info(path: str) -> PrefixInfo:
     created = ""
     try:
         stat = prefix.stat()
-        from datetime import datetime, timezone
-        created = datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc).isoformat()
+        from datetime import datetime
+        created = datetime.fromtimestamp(stat.st_ctime, tz=UTC).isoformat()
     except OSError:
         pass
 

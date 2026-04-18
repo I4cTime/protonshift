@@ -6,7 +6,6 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-
 HEROIC_ROOTS = [
     Path.home() / ".config" / "heroic",
     Path.home() / ".var" / "app" / "com.heroicgameslauncher.hgl" / "config" / "heroic",
@@ -27,11 +26,16 @@ class HeroicGame:
         return self.prefix_path
 
 
-def _resolve_heroic_root() -> Path | None:
+def resolve_heroic_root() -> Path | None:
+    """Return the first existing Heroic config root (native or Flatpak)."""
     for root in HEROIC_ROOTS:
         if root.exists():
             return root
     return None
+
+
+# Backwards compatibility alias for older imports.
+_resolve_heroic_root = resolve_heroic_root
 
 
 def _discover_epic_games(heroic_root: Path) -> list[HeroicGame]:
@@ -171,7 +175,7 @@ def _discover_gog_games(heroic_root: Path) -> list[HeroicGame]:
 
 def discover_heroic_games() -> list[HeroicGame]:
     """Discover all Heroic installed games (Epic + GOG)."""
-    root = _resolve_heroic_root()
+    root = resolve_heroic_root()
     if not root:
         return []
     games = _discover_epic_games(root) + _discover_gog_games(root)

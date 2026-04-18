@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import struct
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,9 +13,11 @@ class ControllerInfo:
     id: str
     name: str
     device_path: str
-    controller_type: str  # "xbox", "playstation", "nintendo", "generic"
+    controller_type: str  # "xbox", "playstation", "nintendo", "8bitdo", "steam", "generic"
     vendor_id: str = ""
     product_id: str = ""
+    bus_type: str = ""
+    version: str = ""
 
 
 def _classify_controller(name: str) -> str:
@@ -52,8 +55,10 @@ def get_controllers() -> list[ControllerInfo]:
 
         name = ""
         handlers = ""
+        bus = ""
         vendor = ""
         product = ""
+        version = ""
         is_joystick = False
 
         for line in block.splitlines():
@@ -64,12 +69,14 @@ def get_controllers() -> list[ControllerInfo]:
                 if "js" in handlers:
                     is_joystick = True
             elif line.startswith("I:"):
-                v_match = re.search(r"Vendor=([0-9a-fA-F]+)", line)
-                p_match = re.search(r"Product=([0-9a-fA-F]+)", line)
-                if v_match:
-                    vendor = v_match.group(1)
-                if p_match:
-                    product = p_match.group(1)
+                if (m := re.search(r"Bus=([0-9a-fA-F]+)", line)):
+                    bus = m.group(1)
+                if (m := re.search(r"Vendor=([0-9a-fA-F]+)", line)):
+                    vendor = m.group(1)
+                if (m := re.search(r"Product=([0-9a-fA-F]+)", line)):
+                    product = m.group(1)
+                if (m := re.search(r"Version=([0-9a-fA-F]+)", line)):
+                    version = m.group(1)
 
         if not is_joystick or not name:
             continue
@@ -85,13 +92,26 @@ def get_controllers() -> list[ControllerInfo]:
             controller_type=_classify_controller(name),
             vendor_id=vendor,
             product_id=product,
+            bus_type=bus,
+            version=version,
         ))
 
     return controllers
 
 
+def _read_sysfs_id(js_name: str, key: str) -> str:
+    """Read a hex id from /sys/class/input/<js>/device/id/<key>."""
+    p = Path(f"/sys/class/input/{js_name}/device/id/{key}")
+    if not p.exists():
+        return ""
+    try:
+        return p.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 def _get_controllers_from_js() -> list[ControllerInfo]:
-    """Fallback: detect from /dev/input/js* devices."""
+    """Fallback: detect from /dev/input/js* devices via sysfs."""
     controllers: list[ControllerInfo] = []
     input_dir = Path("/dev/input")
     if not input_dir.exists():
@@ -111,25 +131,62 @@ def _get_controllers_from_js() -> list[ControllerInfo]:
             name=name,
             device_path=str(js_path),
             controller_type=_classify_controller(name),
+            vendor_id=_read_sysfs_id(js_path.name, "vendor"),
+            product_id=_read_sysfs_id(js_path.name, "product"),
+            bus_type=_read_sysfs_id(js_path.name, "bustype"),
+            version=_read_sysfs_id(js_path.name, "version"),
         ))
 
     return controllers
 
 
-def get_sdl_mapping(controller: ControllerInfo) -> str:
-    """
-    Generate an SDL_GAMECONTROLLERCONFIG entry for a controller.
-    This is a basic GUID-based stub; full calibration requires user input.
-    """
-    guid = f"{controller.vendor_id:>04s}{controller.product_id:>04s}".replace(" ", "0")
-    if len(guid) < 8:
-        guid = guid.ljust(32, "0")
-    else:
-        guid = guid.ljust(32, "0")
+def _build_sdl_guid(bus: str, vendor: str, product: str, version: str) -> str:
+    """Build a 32-char SDL2 joystick GUID for a Linux device.
 
-    # Standard Xbox-style mapping as a starting point
-    mapping = (
-        f"{guid},{controller.name},"
+    Format (little-endian, 16 bytes): bus(2) | crc(2)=0 | vendor(2) | 0000 |
+    product(2) | 0000 | version(2) | 0000
+
+    Returns 32 lowercase hex chars. Empty/invalid inputs default to ``0``.
+    """
+    def _hex16(value: str) -> int:
+        try:
+            return int(value, 16) & 0xFFFF
+        except ValueError:
+            return 0
+
+    blob = struct.pack(
+        "<HHHHHHHH",
+        _hex16(bus),
+        0,                  # CRC-16 of name; SDL accepts 0 as "unknown"
+        _hex16(vendor),
+        0,
+        _hex16(product),
+        0,
+        _hex16(version),
+        0,
+    )
+    return blob.hex()
+
+
+def get_sdl_mapping(controller: ControllerInfo) -> str:
+    """Generate an SDL_GAMECONTROLLERCONFIG entry for a controller.
+
+    Uses the canonical 16-byte little-endian SDL2 GUID layout so the entry
+    actually matches the device when SDL parses it. The button mapping body
+    is a generic Xbox-style starting point; users should re-calibrate via a
+    tool like ``sdl2-jstest`` for accuracy.
+    """
+    guid = _build_sdl_guid(
+        controller.bus_type or "0003",  # USB if unknown
+        controller.vendor_id,
+        controller.product_id,
+        controller.version,
+    )
+
+    name = controller.name.replace(",", " ")  # SDL mapping fields are comma-delimited
+
+    return (
+        f"{guid},{name},"
         "a:b0,b:b1,x:b2,y:b3,"
         "back:b6,start:b7,guide:b8,"
         "leftshoulder:b4,rightshoulder:b5,"
@@ -139,4 +196,3 @@ def get_sdl_mapping(controller: ControllerInfo) -> str:
         "lefttrigger:a2,righttrigger:a5,"
         "platform:Linux,"
     )
-    return mapping

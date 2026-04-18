@@ -6,6 +6,9 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from .fsutil import atomic_write_text
+from .paths import sanitize_filename
+
 PROFILES_DIR = Path.home() / ".config" / "protonshift" / "profiles"
 
 
@@ -33,22 +36,21 @@ def list_profiles() -> list[str]:
     return sorted(names)
 
 
-def _safe_filename(name: str) -> str:
-    return "".join(c if c.isalnum() or c in "._- " else "_" for c in name).strip() or "profile"
+def _profile_path(name: str) -> Path:
+    return ensure_profiles_dir() / f"{sanitize_filename(name, fallback='profile')}.json"
 
 
 def save_profile(profile: ApplicationProfile) -> bool:
-    path = ensure_profiles_dir() / f"{_safe_filename(profile.name)}.json"
+    path = _profile_path(profile.name)
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(asdict(profile), f, indent=2)
+        atomic_write_text(path, json.dumps(asdict(profile), indent=2))
         return True
     except OSError:
         return False
 
 
 def load_profile(name: str) -> ApplicationProfile | None:
-    path = PROFILES_DIR / f"{_safe_filename(name)}.json"
+    path = _profile_path(name)
     if not path.exists():
         return None
     try:
@@ -66,7 +68,7 @@ def load_profile(name: str) -> ApplicationProfile | None:
 
 
 def delete_profile(name: str) -> bool:
-    path = PROFILES_DIR / f"{_safe_filename(name)}.json"
+    path = _profile_path(name)
     if path.exists():
         try:
             path.unlink()

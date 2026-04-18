@@ -1,10 +1,13 @@
-"""Read/write Steam localconfig.vdf for LaunchOptions."""
+"""Read/write Steam localconfig.vdf for LaunchOptions and CompatToolMapping."""
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import vdf
+
+from .fsutil import atomic_write_text
 
 
 def _get_apps_node(data: dict) -> dict | None:
@@ -19,15 +22,39 @@ def _get_apps_node(data: dict) -> dict | None:
         return None
 
 
+def _load_vdf(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            data = vdf.load(f)
+        return data if isinstance(data, dict) else {}
+    except (SyntaxError, ValueError, OSError):
+        return {}
+
+
+def _dump_vdf_atomic(path: Path, data: dict) -> bool:
+    """Serialise ``data`` and atomically replace ``path``.
+
+    Atomicity matters here because partial writes to ``localconfig.vdf`` can
+    nuke every launch option / compat tool mapping for the user. Steam itself
+    holds the file open while running, so a torn write is more than a theory.
+    """
+    buf = io.StringIO()
+    try:
+        vdf.dump(data, buf, pretty=True)
+    except (TypeError, ValueError):
+        return False
+    try:
+        atomic_write_text(path, buf.getvalue())
+    except OSError:
+        return False
+    return True
+
+
 def get_launch_options(config_path: Path, app_id: str) -> str:
     """Get LaunchOptions for a game. Returns empty string if not set."""
-    if not config_path.exists():
-        return ""
-    try:
-        with open(config_path, encoding="utf-8", errors="replace") as f:
-            data = vdf.load(f)
-    except (SyntaxError, ValueError, OSError):
-        return ""
+    data = _load_vdf(config_path)
     apps = _get_apps_node(data)
     if not apps:
         return ""
@@ -39,13 +66,7 @@ def get_launch_options(config_path: Path, app_id: str) -> str:
 
 def get_compat_tool(config_path: Path, app_id: str) -> str:
     """Get CompatToolMapping for a game. Returns empty if not set."""
-    if not config_path.exists():
-        return ""
-    try:
-        with open(config_path, encoding="utf-8", errors="replace") as f:
-            data = vdf.load(f)
-    except (SyntaxError, ValueError, OSError):
-        return ""
+    data = _load_vdf(config_path)
     try:
         store = data["UserLocalConfigStore"]
         software = store["Software"]
@@ -53,7 +74,10 @@ def get_compat_tool(config_path: Path, app_id: str) -> str:
         steam = valve["Steam"]
         mapping = steam.get("CompatToolMapping") or steam.get("compat_tool_mapping")
         if isinstance(mapping, dict):
-            return mapping.get(app_id, "")
+            entry = mapping.get(app_id, "")
+            if isinstance(entry, dict):
+                return entry.get("name", "")
+            return entry or ""
     except (KeyError, TypeError):
         pass
     return ""
@@ -61,13 +85,7 @@ def get_compat_tool(config_path: Path, app_id: str) -> str:
 
 def set_compat_tool(config_path: Path, app_id: str, tool_name: str) -> bool:
     """Set CompatToolMapping for a game. Use empty string to clear."""
-    data: dict = {}
-    if config_path.exists():
-        try:
-            with open(config_path, encoding="utf-8", errors="replace") as f:
-                data = vdf.load(f)
-        except (SyntaxError, ValueError, OSError):
-            return False
+    data = _load_vdf(config_path) if config_path.exists() else {}
 
     store = data.setdefault("UserLocalConfigStore", {})
     software = store.setdefault("Software", {})
@@ -83,26 +101,13 @@ def set_compat_tool(config_path: Path, app_id: str, tool_name: str) -> bool:
     elif app_id in mapping:
         del mapping[app_id]
 
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with open(config_path, "w", encoding="utf-8", newline="\n") as f:
-            vdf.dump(data, f, pretty=True)
-    except OSError:
-        return False
-    return True
+    return _dump_vdf_atomic(config_path, data)
 
 
 def set_launch_options(config_path: Path, app_id: str, options: str) -> bool:
     """Set LaunchOptions for a game. Creates nodes if needed."""
-    data: dict = {}
-    if config_path.exists():
-        try:
-            with open(config_path, encoding="utf-8", errors="replace") as f:
-                data = vdf.load(f)
-        except (SyntaxError, ValueError, OSError):
-            return False
+    data = _load_vdf(config_path) if config_path.exists() else {}
 
-    # Ensure full structure exists
     store = data.setdefault("UserLocalConfigStore", {})
     software = store.setdefault("Software", {})
     valve = software.setdefault("Valve", {})
@@ -113,10 +118,4 @@ def set_launch_options(config_path: Path, app_id: str, options: str) -> bool:
         apps[app_id] = {}
     apps[app_id]["LaunchOptions"] = options
 
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with open(config_path, "w", encoding="utf-8", newline="\n") as f:
-            vdf.dump(data, f, pretty=True)
-    except OSError:
-        return False
-    return True
+    return _dump_vdf_atomic(config_path, data)

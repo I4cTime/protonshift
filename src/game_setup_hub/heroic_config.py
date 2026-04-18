@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .heroic import _resolve_heroic_root
+from .fsutil import atomic_write_text
+from .heroic import resolve_heroic_root
+from .paths import sanitize_filename
 
 
 @dataclass
@@ -37,17 +39,21 @@ class HeroicGameConfig:
 
 
 def _get_games_config_dir() -> Path | None:
-    root = _resolve_heroic_root()
+    root = resolve_heroic_root()
     if not root:
         return None
     return root / "GamesConfig"
+
+
+def _config_file_for(app_id: str, cfg_dir: Path) -> Path:
+    return cfg_dir / f"{sanitize_filename(app_id, fallback='unknown')}.json"
 
 
 def _read_config_file(app_id: str) -> dict[str, Any] | None:
     cfg_dir = _get_games_config_dir()
     if not cfg_dir or not cfg_dir.exists():
         return None
-    cfg_file = cfg_dir / f"{app_id}.json"
+    cfg_file = _config_file_for(app_id, cfg_dir)
     if not cfg_file.exists():
         return None
     try:
@@ -67,7 +73,7 @@ def _write_config_file(app_id: str, config: dict[str, Any]) -> bool:
     if not cfg_dir:
         return False
     cfg_dir.mkdir(parents=True, exist_ok=True)
-    cfg_file = cfg_dir / f"{app_id}.json"
+    cfg_file = _config_file_for(app_id, cfg_dir)
 
     existing: dict[str, Any] = {}
     if cfg_file.exists():
@@ -83,8 +89,7 @@ def _write_config_file(app_id: str, config: dict[str, Any]) -> bool:
         existing[app_id] = config
 
     try:
-        with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(existing, f, indent=2)
+        atomic_write_text(cfg_file, json.dumps(existing, indent=2))
         return True
     except OSError:
         return False
@@ -169,7 +174,7 @@ class HeroicWineVersionInfo:
 
 
 def list_heroic_wine_versions() -> list[HeroicWineVersionInfo]:
-    root = _resolve_heroic_root()
+    root = resolve_heroic_root()
     if not root:
         return []
 

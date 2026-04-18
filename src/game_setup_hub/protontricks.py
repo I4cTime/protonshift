@@ -6,7 +6,6 @@ import subprocess
 
 from game_setup_hub.tool_check import find_tool
 
-
 PROTONTRICKS_FLATPAK = "com.github.Matoking.protontricks"
 
 # Common Winetricks verbs users might want

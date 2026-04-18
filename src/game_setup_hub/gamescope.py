@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from dataclasses import dataclass
 
 from game_setup_hub.tool_check import is_tool_available
@@ -29,9 +30,14 @@ def is_gamescope_available() -> bool:
     return is_tool_available("gamescope")
 
 
-def build_gamescope_cmd(opts: GamescopeOptions) -> str:
-    """Build a gamescope command string from options."""
-    parts = ["gamescope"]
+def build_gamescope_argv(opts: GamescopeOptions) -> list[str]:
+    """Build a gamescope argv list from options.
+
+    `extra_args` is parsed via :func:`shlex.split` so quoted segments and
+    escapes are preserved correctly. The trailing ``--`` separator is always
+    appended so the caller can append the wrapped command directly.
+    """
+    parts: list[str] = ["gamescope"]
 
     if opts.output_width > 0 and opts.output_height > 0:
         parts.extend(["-w", str(opts.output_width), "-h", str(opts.output_height)])
@@ -43,8 +49,7 @@ def build_gamescope_cmd(opts: GamescopeOptions) -> str:
         parts.extend(["-r", str(opts.fps_limit)])
 
     if opts.fsr:
-        parts.append("--fsr-sharpness")
-        parts.append(str(max(0, min(20, opts.fsr_sharpness))))
+        parts.extend(["--fsr-sharpness", str(max(0, min(20, opts.fsr_sharpness)))])
 
     if opts.integer_scale:
         parts.append("--integer-scale")
@@ -58,9 +63,22 @@ def build_gamescope_cmd(opts: GamescopeOptions) -> str:
     if opts.borderless:
         parts.append("-b")
 
-    if opts.extra_args:
-        parts.append(opts.extra_args.strip())
+    if opts.extra_args.strip():
+        try:
+            parts.extend(shlex.split(opts.extra_args))
+        except ValueError:
+            # unbalanced quotes — fall back to whitespace split so the user
+            # at least sees something instead of silent loss
+            parts.extend(opts.extra_args.split())
 
     parts.append("--")
+    return parts
 
-    return " ".join(parts)
+
+def build_gamescope_cmd(opts: GamescopeOptions) -> str:
+    """Build a shell-safe gamescope command string from options.
+
+    Returned value is suitable for copy/paste into a launch options field.
+    Use :func:`build_gamescope_argv` when actually exec-ing the command.
+    """
+    return shlex.join(build_gamescope_argv(opts))
