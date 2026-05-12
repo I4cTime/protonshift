@@ -63,6 +63,11 @@ const EXTRA_PATH_DIRS = [
 
 function getPythonCommand(port: number): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
   const env = { ...process.env };
+  // Packaged trees (especially AppImages) live on read-only mounts; bytecode
+  // writes beside shipped *.py would raise PermissionError and exit before /health.
+  if (!isDev) {
+    env.PYTHONDONTWRITEBYTECODE = "1";
+  }
   // Immutable distros (Bazzite, SteamOS, Fedora Atomic) and AppImage
   // wrappers can strip PATH entries. Ensure common locations are present.
   if (env.PATH && !env.PATH.includes("/var/usrlocal/bin")) {
@@ -89,6 +94,7 @@ function getPythonCommand(port: number): { cmd: string; args: string[]; env: Nod
   const resourcesPath = process.resourcesPath;
   const srcDir = path.join(resourcesPath, "python", "src");
   const vendorDir = path.join(resourcesPath, "python", "vendor");
+  const bundledPython = path.join(resourcesPath, "python", "runtime", "bin", "python3");
   const pyPathParts: string[] = [];
   if (fs.existsSync(vendorDir)) {
     pyPathParts.push(vendorDir);
@@ -98,11 +104,28 @@ function getPythonCommand(port: number): { cmd: string; args: string[]; env: Nod
     pyPathParts.push(env.PYTHONPATH);
   }
   env.PYTHONPATH = pyPathParts.join(":");
-  // CPython treats PYTHONNOUSERSITE as truthy if the variable is *present*,
-  // even when empty. Setting it to "" disables user site-packages — the
-  // opposite of what we want. Unset it so user site-packages stay enabled
-  // and `_vendor_compat` can fall back to system pydantic_core if the
-  // vendored .so is ABI-incompatible with the runtime Python.
+
+  // Prefer the bundled interpreter (python-build-standalone). It is ABI-locked
+  // to our vendored wheels, so pydantic_core etc. always loads cleanly.
+  if (fs.existsSync(bundledPython)) {
+    // Ignore any user-site noise from the host Python install — we own this
+    // interpreter and the wheels live entirely under /resources/python.
+    env.PYTHONNOUSERSITE = "1";
+    // Make the bundled libpython resolvable for any subprocess we exec.
+    const bundledLib = path.join(resourcesPath, "python", "runtime", "lib");
+    env.LD_LIBRARY_PATH = env.LD_LIBRARY_PATH
+      ? `${bundledLib}:${env.LD_LIBRARY_PATH}`
+      : bundledLib;
+    return {
+      cmd: bundledPython,
+      args: ["-m", "game_setup_hub.api", "--port", portArg],
+      env,
+    };
+  }
+
+  // Defensive fallback: if the runtime dir is missing (e.g. user manually
+  // unpacked just the python/src subset), fall back to system python3 and let
+  // _vendor_compat sort out ABI drift.
   delete env.PYTHONNOUSERSITE;
   return {
     cmd: "python3",
@@ -120,6 +143,8 @@ async function startPython(): Promise<number> {
   return new Promise((resolve, reject) => {
     pythonProcess = spawn(cmd, args, { env, stdio: ["pipe", "pipe", "pipe"] });
 
+    let stderrTail = "";
+
     const timeout = setTimeout(() => {
       reject(new Error("Python backend did not start within 15 seconds"));
     }, 15000);
@@ -130,7 +155,9 @@ async function startPython(): Promise<number> {
     });
 
     pythonProcess.stderr?.on("data", (data: Buffer) => {
-      console.error("[python]", data.toString().trim());
+      const chunk = data.toString();
+      stderrTail = (stderrTail + chunk).slice(-6000);
+      console.error("[python]", chunk.trimEnd());
     });
 
     pythonProcess.on("error", (err) => {
@@ -141,7 +168,8 @@ async function startPython(): Promise<number> {
     pythonProcess.on("exit", (code) => {
       if (code !== null && code !== 0) {
         clearTimeout(timeout);
-        reject(new Error(`Python exited with code ${code}`));
+        const hint = stderrTail.trim() ? `\n${stderrTail.trim()}` : "";
+        reject(new Error(`Python exited with code ${code}${hint}`));
       }
       pythonProcess = null;
     });
@@ -214,7 +242,20 @@ function mimeFor(filePath: string): string {
   return map[ext] ?? "application/octet-stream";
 }
 
-/** Serves Next static export over http://127.0.0.1 — root-relative /_next/... URLs do not work with file:// */
+/** Serves Next static export over http://127.0.0.1 — root-relative /_next/... URLs do not work with file://.
+ * Detects RSC requests (Next App Router client-side navigation) and serves the
+ * matching .txt payload Next writes alongside each .html during `output: "export"`.
+ * Without this, clicking nav links produced an HTML response that the router
+ * could not parse, so the URL changed but the page did not switch. */
+function isRscRequest(req: http.IncomingMessage): boolean {
+  const h = req.headers;
+  if (h["rsc"] === "1" || h["rsc"] === "true") return true;
+  if (typeof h["next-router-prefetch"] !== "undefined") return true;
+  if (typeof h["next-router-segment-prefetch"] !== "undefined") return true;
+  if (typeof h["next-router-state-tree"] !== "undefined") return true;
+  return false;
+}
+
 function startStaticRendererServer(rootDir: string): Promise<number> {
   const root = path.resolve(rootDir);
   return new Promise((resolve, reject) => {
@@ -234,10 +275,20 @@ function startStaticRendererServer(rootDir: string): Promise<number> {
         }
         const rel = pathname.replace(/^\/+/, "");
         const rootResolved = path.resolve(root);
+        const rsc = isRscRequest(req);
+        const hasExt = path.extname(rel) !== "";
 
         const candidates: string[] = [];
         if (rel === "" || rel === "/") {
+          if (rsc) candidates.push(path.join(rootResolved, "index.txt"));
           candidates.push(path.join(rootResolved, "index.html"));
+        } else if (rsc && !hasExt) {
+          candidates.push(
+            path.join(rootResolved, `${rel}.txt`),
+            path.join(rootResolved, rel, "index.txt"),
+            path.join(rootResolved, `${rel}.html`),
+            path.join(rootResolved, rel, "index.html"),
+          );
         } else {
           candidates.push(
             path.join(rootResolved, rel),
@@ -264,10 +315,13 @@ function startStaticRendererServer(rootDir: string): Promise<number> {
         }
 
         const body = fs.readFileSync(found);
+        const ext = path.extname(found).toLowerCase();
+        const contentType = rsc && ext === ".txt" ? "text/x-component" : mimeFor(found);
         res.writeHead(200, {
-          "Content-Type": mimeFor(found),
+          "Content-Type": contentType,
           "Content-Length": String(body.length),
           "Cache-Control": "no-store",
+          Vary: "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
         });
         res.end(body);
       } catch {
@@ -309,7 +363,9 @@ function createWindow(): void {
 
   if (isDev) {
     mainWindow.loadURL("http://localhost:3000");
-    mainWindow.webContents.openDevTools({ mode: "detach" });
+    if (process.env.PROTONSHIFT_DEVTOOLS === "1") {
+      mainWindow.webContents.openDevTools({ mode: "detach" });
+    }
   } else if (staticRendererPort) {
     mainWindow.loadURL(`http://127.0.0.1:${staticRendererPort}/`);
   } else {
