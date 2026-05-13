@@ -9,13 +9,83 @@ from game_setup_hub.tool_check import find_tool
 
 PROTONTRICKS_FLATPAK = "com.github.Matoking.protontricks"
 
-# Common Winetricks verbs users might want
-COMMON_VERBS = [
-    ("vcrun2022", "Visual C++ 2022 Redistributable"),
-    ("dotnet48", ".NET Framework 4.8"),
-    ("d3dx9", "DirectX 9 (d3dx9)"),
-    ("corefonts", "Core fonts"),
-    ("arial", "Arial font"),
+# Common Winetricks verbs users might want, grouped by category. The grouping
+# is exposed by the API so the UI can render labelled sections instead of one
+# long flat list. Each entry is ``(verb_id, human_label)``; categories appear
+# in the order defined here.
+COMMON_VERBS_GROUPED: list[tuple[str, list[tuple[str, str]]]] = [
+    (
+        "Visual C++ Runtime",
+        [
+            ("vcrun2022", "Visual C++ 2022 Redistributable"),
+            ("vcrun2019", "Visual C++ 2019 Redistributable"),
+            ("vcrun2017", "Visual C++ 2017 Redistributable"),
+            ("vcrun2015", "Visual C++ 2015 Redistributable"),
+            ("vcrun2013", "Visual C++ 2013 Redistributable"),
+            ("vcrun2010", "Visual C++ 2010 Redistributable"),
+            ("vcrun2008", "Visual C++ 2008 Redistributable"),
+            ("vcrun2005", "Visual C++ 2005 Redistributable"),
+        ],
+    ),
+    (
+        ".NET Framework",
+        [
+            ("dotnet48", ".NET Framework 4.8"),
+            ("dotnet472", ".NET Framework 4.7.2"),
+            ("dotnet462", ".NET Framework 4.6.2"),
+            ("dotnet40", ".NET Framework 4.0"),
+            ("dotnet35sp1", ".NET Framework 3.5 SP1"),
+        ],
+    ),
+    (
+        ".NET Core",
+        [
+            ("dotnetdesktop6", ".NET Desktop Runtime 6"),
+        ],
+    ),
+    (
+        "DirectX",
+        [
+            ("d3dx9", "DirectX 9 (d3dx9)"),
+            ("d3dx9_43", "DirectX 9 (d3dx9_43)"),
+            ("d3dx10", "DirectX 10 (d3dx10)"),
+            ("d3dx11_43", "DirectX 11 (d3dx11_43)"),
+            ("d3dcompiler_43", "D3D Compiler 43"),
+            ("d3dcompiler_47", "D3D Compiler 47"),
+        ],
+    ),
+    (
+        "Media & codecs",
+        [
+            ("wmp11", "Windows Media Player 11"),
+            ("quartz", "DirectShow (quartz)"),
+            ("xact", "XACT engine (audio)"),
+            ("xna40", "XNA Framework 4.0"),
+        ],
+    ),
+    (
+        "Fonts",
+        [
+            ("corefonts", "Microsoft core fonts"),
+            ("arial", "Arial font"),
+            ("tahoma", "Tahoma font"),
+            ("cjkfonts", "CJK (Chinese/Japanese/Korean) fonts"),
+        ],
+    ),
+    (
+        "Other",
+        [
+            ("physx", "NVIDIA PhysX runtime"),
+            ("vb6run", "Visual Basic 6 runtime"),
+            ("gdiplus", "GDI+ (gdiplus)"),
+            ("mfc42", "MFC 4.2 runtime"),
+        ],
+    ),
+]
+
+# Flat list kept for backwards compatibility with any existing import sites.
+COMMON_VERBS: list[tuple[str, str]] = [
+    verb for _category, verbs in COMMON_VERBS_GROUPED for verb in verbs
 ]
 
 # Steam app IDs are decimal integers. Anything else is rejected so a malicious

@@ -15,10 +15,25 @@ import {
   Code,
   Pencil,
   FilePlus2,
+  Search,
+  FolderOpen,
 } from "lucide-react";
-import { Button, Input, Chip, Spinner, Link as HeroLink, Select, Label, ListBox } from "@heroui/react";
+import {
+  Button,
+  Card,
+  Chip,
+  Input,
+  Label,
+  Link as HeroLink,
+  ListBox,
+  Select,
+  Spinner,
+  Text,
+  TextField,
+} from "@heroui/react";
+import { EmptyState, ListView, Widget } from "@heroui-pro/react";
+import type { Selection } from "react-aria-components";
 import { PageShell } from "@/components/page-shell";
-import { GlowCard } from "@/components/glow-card";
 import { MangoHudOverlayMetrics } from "@/components/mangohud-overlay-metrics";
 import { MangoHudPresets } from "@/components/mangohud-presets";
 import { MangoHudValueFieldsGrid } from "@/components/mangohud-value-field";
@@ -29,6 +44,19 @@ import { useGames } from "@/hooks/use-games";
 import { appShowToast } from "@/lib/app-toast";
 
 type MangoHudGamePick = { id: string; label: string; suggestedSlug: string };
+
+const INSTALL_HINTS: { distro: string; cmd: string }[] = [
+  { distro: "Bazzite / SteamOS", cmd: "Pre-installed — restart app or check PATH" },
+  { distro: "Ubuntu / Pop!_OS / Mint", cmd: "sudo apt install mangohud" },
+  { distro: "Fedora / Fedora Atomic", cmd: "sudo dnf install mangohud" },
+  { distro: "Arch / Manjaro / EndeavourOS", cmd: "sudo pacman -S mangohud" },
+  { distro: "openSUSE", cmd: "sudo zypper install mangohud" },
+  {
+    distro: "Flatpak (Steam)",
+    cmd: "flatpak install flathub org.freedesktop.Platform.VulkanLayer.MangoHud",
+  },
+  { distro: "NixOS", cmd: "nix-env -iA nixpkgs.mangohud" },
+];
 
 export default function MangoHudPage() {
   const qc = useQueryClient();
@@ -78,7 +106,9 @@ export default function MangoHudPage() {
         suggestedSlug: mangohudSuggestedSlugForGame(g),
       });
     }
-    picks.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    picks.sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+    );
     return picks;
   }, [gamesData]);
 
@@ -136,13 +166,19 @@ export default function MangoHudPage() {
   function handleCreatePerGame(initial: "global" | "empty") {
     const raw = newPerGameName.trim();
     if (!raw) {
-      appShowToast("Enter a config name (often the game .exe stem, e.g. eldenring)", "error");
+      appShowToast(
+        "Enter a config name (often the game .exe stem, e.g. eldenring)",
+        "error",
+      );
       return;
     }
     const slug = mangohudPerGameSlug(raw);
     const exists = perGameList?.some((p) => p.name === slug);
     if (exists) {
-      appShowToast("That config already exists — pick it in the list below", "error");
+      appShowToast(
+        "That config already exists — pick it in the list below",
+        "error",
+      );
       return;
     }
     const cfg = initial === "global" ? { ...config } : {};
@@ -150,7 +186,8 @@ export default function MangoHudPage() {
   }
 
   useEffect(() => {
-    if (configData) setConfig(configData.config);
+    if (!configData) return;
+    queueMicrotask(() => setConfig(configData.config));
   }, [configData]);
 
   /** Deep-link from Games page: /mangohud?slug=…&pick=steam:… */
@@ -161,9 +198,11 @@ export default function MangoHudPage() {
       const slug = url.searchParams.get("slug");
       const pick = url.searchParams.get("pick");
       if (!slug && !pick) return;
-      if (slug) setNewPerGameName(slug);
-      if (pick) setSelectedGamePickId(pick);
-      setShowPerGame(true);
+      queueMicrotask(() => {
+        if (slug) setNewPerGameName(slug);
+        if (pick) setSelectedGamePickId(pick);
+        setShowPerGame(true);
+      });
       url.searchParams.delete("slug");
       url.searchParams.delete("pick");
       const rest = url.searchParams.toString();
@@ -186,335 +225,623 @@ export default function MangoHudPage() {
     appShowToast(`Applied "${presetName}" preset`);
   }
 
+  /* ------------------------------ Not installed ----------------------------- */
   if (!availData?.available) {
     return (
       <PageShell>
-        <div className="max-w-4xl mx-auto space-y-6">
-          <h2 className="text-xl font-bold text-neon-cyan">MangoHud</h2>
-          <GlowCard className="p-6 space-y-4">
-            <div className="flex items-center gap-3 text-text-secondary text-sm font-medium">
-              <Gauge className="size-5 text-neon-cyan" />
-              MangoHud — Not Installed
-            </div>
-            <p className="text-sm text-text-muted">
-              MangoHud is a Vulkan/OpenGL overlay that shows FPS, GPU/CPU usage, temperatures, frame timing, and more. It&apos;s the go-to performance overlay for Linux gaming.
-            </p>
-            <div className="space-y-2">
-              <p className="text-xs text-text-secondary font-medium">Install via your package manager:</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {[
-                  { distro: "Bazzite / SteamOS", cmd: "Pre-installed — restart app or check PATH" },
-                  { distro: "Ubuntu / Pop!_OS / Mint", cmd: "sudo apt install mangohud" },
-                  { distro: "Fedora / Fedora Atomic", cmd: "sudo dnf install mangohud" },
-                  { distro: "Arch / Manjaro / EndeavourOS", cmd: "sudo pacman -S mangohud" },
-                  { distro: "openSUSE", cmd: "sudo zypper install mangohud" },
-                  { distro: "Flatpak (Steam)", cmd: "flatpak install flathub org.freedesktop.Platform.VulkanLayer.MangoHud" },
-                  { distro: "NixOS", cmd: "nix-env -iA nixpkgs.mangohud" },
-                ].map((item) => (
-                  <div key={item.distro} className="p-3 rounded-lg bg-surface-deep border border-separator">
-                    <p className="text-xs text-text-muted mb-0.5">{item.distro}</p>
-                    <code className="text-xs text-neon-cyan font-mono break-all">{item.cmd}</code>
-                  </div>
-                ))}
+        <div className="mx-auto max-w-4xl space-y-5">
+          <div className="space-y-1">
+            <Text.Heading
+              level={2}
+              className="text-neon-cyan flex items-center gap-2 text-xl font-bold"
+            >
+              <Gauge className="size-5 shrink-0" aria-hidden />
+              MangoHud
+            </Text.Heading>
+            <Text.Paragraph size="xs" color="muted">
+              Vulkan/OpenGL overlay for FPS, GPU/CPU usage, temperatures, and
+              frame timing.
+            </Text.Paragraph>
+          </div>
+
+          <Widget>
+            <Widget.Header>
+              <Widget.Title className="flex items-center gap-1.5">
+                <Gauge
+                  className="text-neon-cyan size-4 shrink-0"
+                  aria-hidden
+                />
+                MangoHud
+                <Chip size="sm" color="warning" variant="soft" className="ml-1 text-[10px]">
+                  Not installed
+                </Chip>
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content className="space-y-4">
+              <Text.Paragraph size="sm" color="muted" className="leading-relaxed">
+                MangoHud is the go-to performance overlay for Linux gaming. Once
+                installed, restart this app to detect it.
+              </Text.Paragraph>
+
+              <div className="space-y-2">
+                <Label className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+                  Install via your package manager
+                </Label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {INSTALL_HINTS.map((item) => (
+                    <Card
+                      key={item.distro}
+                      className="border-border bg-surface-secondary/40 p-2.5"
+                    >
+                      <Card.Header className="p-0 pb-1">
+                        <Card.Title className="text-muted text-[11px] font-medium">
+                          {item.distro}
+                        </Card.Title>
+                      </Card.Header>
+                      <Card.Content className="p-0">
+                        <Text.Code className="text-neon-cyan block break-all text-xs">
+                          {item.cmd}
+                        </Text.Code>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="p-3 rounded-lg bg-surface-deep border border-separator">
-              <p className="text-xs text-text-secondary font-medium mb-1">Usage</p>
-              <p className="text-xs text-text-muted">
-                Add <code className="text-neon-cyan">MANGOHUD=1 %command%</code> to a game&apos;s launch options, or enable the MangoHud preset on the Games page.
-              </p>
-            </div>
-            <p className="text-xs text-text-muted">
-              After installing, restart the app to detect MangoHud.{" "}
-              <HeroLink
-                href="https://github.com/flightlessmango/MangoHud"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-neon-cyan"
-              >
-                GitHub &rarr;
-              </HeroLink>
-            </p>
-          </GlowCard>
+
+              <Card className="border-border bg-surface-secondary/40 p-3">
+                <Card.Header className="p-0 pb-1">
+                  <Card.Title className="text-muted text-[11px] font-semibold uppercase tracking-wide">
+                    Usage
+                  </Card.Title>
+                </Card.Header>
+                <Card.Content className="p-0">
+                  <Text.Paragraph size="xs" color="muted" className="leading-relaxed">
+                    Add{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      MANGOHUD=1 %command%
+                    </Text.Code>{" "}
+                    to a game&apos;s launch options, or enable the MangoHud
+                    preset on the Games page.
+                  </Text.Paragraph>
+                </Card.Content>
+              </Card>
+
+              <Text.Paragraph size="xs" color="muted" className="leading-relaxed">
+                After installing, restart the app to detect MangoHud.{" "}
+                <HeroLink
+                  href="https://github.com/flightlessmango/MangoHud"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-neon-cyan text-xs"
+                >
+                  GitHub →
+                </HeroLink>
+              </Text.Paragraph>
+            </Widget.Content>
+          </Widget>
         </div>
       </PageShell>
     );
   }
 
+  /* -------------------------------- Configured -------------------------------- */
   const toggleParams = configData?.params.filter((p) => p.type === "toggle") ?? [];
   const valueParams = configData?.params.filter((p) => p.type === "value") ?? [];
+  const presetCount = presets ? Object.keys(presets).length : 0;
+  const previewBody =
+    Object.entries(config)
+      .map(([k, v]) => (v ? `${k}=${v}` : k))
+      .join("\n") || "# (empty config)";
 
   return (
     <PageShell>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-neon-cyan">
-            <Gauge className="size-5" />
-            MangoHud Config
-          </h2>
+      <div className="mx-auto max-w-4xl space-y-5">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <Text.Heading
+              level={2}
+              className="text-neon-cyan flex items-center gap-2 text-xl font-bold"
+            >
+              <Gauge className="size-5 shrink-0" aria-hidden />
+              MangoHud config
+            </Text.Heading>
+            <Text.Paragraph
+              size="xs"
+              color="muted"
+              className="flex items-center gap-1.5"
+            >
+              <FileText className="size-3.5 shrink-0" aria-hidden />
+              <Text.Code className="text-[11px]">
+                ~/.config/MangoHud/MangoHud.conf
+              </Text.Code>
+            </Text.Paragraph>
+          </div>
           <Button
             onPress={() => saveMut.mutate(config)}
             isDisabled={saveMut.isPending}
-            className="gap-2"
+            className="gap-1.5"
           >
-            {saveMut.isPending ? <Spinner size="sm" /> : <Save className="size-4" />}
+            {saveMut.isPending ? (
+              <Spinner size="sm" />
+            ) : (
+              <Save className="size-3.5 shrink-0" aria-hidden />
+            )}
             Save
           </Button>
         </div>
 
+        {/* Quick presets */}
         {presets && (
-          <GlowCard className="p-5">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
-              <Layers className="size-4 text-neon-cyan" />
-              Quick Presets
-            </label>
-            <MangoHudPresets presets={presets} onApply={applyPreset} />
-          </GlowCard>
+          <Widget>
+            <Widget.Header>
+              <Widget.Title className="flex items-center gap-1.5">
+                <Layers
+                  className="text-neon-cyan size-4 shrink-0"
+                  aria-hidden
+                />
+                Quick presets
+                {presetCount > 0 && (
+                  <Chip
+                    size="sm"
+                    variant="secondary"
+                    className="ml-1 text-[10px]"
+                  >
+                    {presetCount}
+                  </Chip>
+                )}
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content>
+              <MangoHudPresets presets={presets} onApply={applyPreset} />
+            </Widget.Content>
+          </Widget>
         )}
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Spinner size="lg" />
-          </div>
+          <Widget>
+            <Widget.Content>
+              <div className="flex items-center justify-center py-12">
+                <Spinner size="lg" />
+              </div>
+            </Widget.Content>
+          </Widget>
         ) : (
           <>
-            <GlowCard className="p-5">
-              <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
-                <LayoutGrid className="size-4 text-neon-cyan" />
-                Overlay Metrics
-              </label>
-              <MangoHudOverlayMetrics
-                toggleParams={toggleParams}
-                config={config}
-                setConfig={setConfig}
-              />
-            </GlowCard>
+            <Widget>
+              <Widget.Header>
+                <Widget.Title className="flex items-center gap-1.5">
+                  <LayoutGrid
+                    className="text-neon-cyan size-4 shrink-0"
+                    aria-hidden
+                  />
+                  Overlay metrics
+                  {toggleParams.length > 0 && (
+                    <Chip
+                      size="sm"
+                      variant="secondary"
+                      className="ml-1 text-[10px]"
+                    >
+                      {toggleParams.length}
+                    </Chip>
+                  )}
+                </Widget.Title>
+              </Widget.Header>
+              <Widget.Content>
+                <MangoHudOverlayMetrics
+                  toggleParams={toggleParams}
+                  config={config}
+                  setConfig={setConfig}
+                />
+              </Widget.Content>
+            </Widget>
 
-            <GlowCard className="p-5">
-              <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
-                <SlidersHorizontal className="size-4 text-neon-cyan" />
-                Configuration Values
-              </label>
-              <MangoHudValueFieldsGrid
-                valueParams={valueParams}
-                values={config}
-                onParamChange={setParamValue}
-              />
-            </GlowCard>
+            <Widget>
+              <Widget.Header>
+                <Widget.Title className="flex items-center gap-1.5">
+                  <SlidersHorizontal
+                    className="text-neon-cyan size-4 shrink-0"
+                    aria-hidden
+                  />
+                  Configuration values
+                  {valueParams.length > 0 && (
+                    <Chip
+                      size="sm"
+                      variant="secondary"
+                      className="ml-1 text-[10px]"
+                    >
+                      {valueParams.length}
+                    </Chip>
+                  )}
+                </Widget.Title>
+              </Widget.Header>
+              <Widget.Content>
+                <MangoHudValueFieldsGrid
+                  valueParams={valueParams}
+                  values={config}
+                  onParamChange={setParamValue}
+                />
+              </Widget.Content>
+            </Widget>
 
-            <GlowCard className="p-5">
-              <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
-                <Code className="size-4 text-neon-cyan" />
-                Preview (MangoHud.conf)
-              </label>
-              <pre className="p-3 rounded-lg bg-surface-deep border border-border font-mono text-xs text-neon-cyan max-h-48 overflow-auto whitespace-pre-wrap">
-                {Object.entries(config)
-                  .map(([k, v]) => (v ? `${k}=${v}` : k))
-                  .join("\n") || "# (empty config)"}
-              </pre>
-            </GlowCard>
+            <Widget>
+              <Widget.Header>
+                <Widget.Title className="flex items-center gap-1.5">
+                  <Code
+                    className="text-neon-cyan size-4 shrink-0"
+                    aria-hidden
+                  />
+                  Preview
+                  <Text.Code className="text-muted ml-1 text-[10px]">
+                    MangoHud.conf
+                  </Text.Code>
+                </Widget.Title>
+              </Widget.Header>
+              <Widget.Content>
+                <pre className="border-border bg-surface-deep text-neon-cyan max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs leading-relaxed">
+                  {previewBody}
+                </pre>
+              </Widget.Content>
+            </Widget>
           </>
         )}
 
-        <GlowCard className="p-5">
-          <Button
-            variant="ghost"
-            onPress={() => setShowPerGame(!showPerGame)}
-            className="w-full justify-start gap-2 text-sm font-medium text-text-secondary"
-          >
-            {showPerGame ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-            <FileText className="size-4" />
-            Per-Game Configs
-            {perGameList && perGameList.length > 0 && (
-              <Chip size="sm" variant="secondary" className="ml-auto">{perGameList.length} found</Chip>
-            )}
-          </Button>
-          {showPerGame && (
-            <motion.div
-              className="mt-4 space-y-3"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-            >
-              <div className="p-4 rounded-lg bg-surface-deep border border-neon-cyan/20 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-                  <Plus className="size-4 text-neon-cyan" />
-                  New per-game config
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  MangoHud loads <code className="text-neon-cyan">~/.config/MangoHud/wine-&lt;name&gt;.conf</code> for
-                  Wine games—often <code className="text-neon-cyan">&lt;name&gt;</code> matches the game{" "}
-                  <code className="text-neon-cyan">.exe</code> stem (e.g.{" "}
-                  <code className="text-neon-cyan">eldenring</code>). For Steam we suggest the library{" "}
-                  <strong className="text-text-secondary">install folder</strong> name; for Heroic/Lutris the game
-                  title. Edit the field if your overlay still doesn&apos;t load. You can also set{" "}
-                  <code className="text-neon-cyan">MANGOHUD_CONFIGFILE=~/.config/MangoHud/wine-…conf</code> in launch
-                  options.
-                </p>
-                {mangohudGamePicks.length > 0 && (
-                  <Select
-                    className="w-full"
-                    value={selectedGamePickId}
-                    onChange={(v) => {
-                      const id = String(v ?? "");
-                      if (!id) {
-                        setSelectedGamePickId("");
-                        return;
-                      }
-                      const pick = mangohudGamePicks.find((p) => p.id === id);
-                      if (pick) {
-                        setSelectedGamePickId(id);
-                        setNewPerGameName(pick.suggestedSlug);
-                      }
-                    }}
-                    placeholder="Choose an installed game to fill the config name…"
-                  >
-                    <Label>Known games (auto-fill)</Label>
-                    <Select.Trigger>
-                      <Select.Value />
-                      <Select.Indicator />
-                    </Select.Trigger>
-                    <Select.Popover className="max-h-72">
-                      <ListBox className="max-h-64 overflow-y-auto">
-                        {mangohudGamePicks.map((pick) => (
-                          <ListBox.Item
-                            key={pick.id}
-                            id={pick.id}
-                            textValue={`${pick.label} → ${pick.suggestedSlug}`}
-                          >
-                            <span className="flex flex-col gap-0.5 text-left">
-                              <span>{pick.label}</span>
-                              <span className="text-xs font-mono text-text-muted">{pick.suggestedSlug}</span>
-                            </span>
-                            <ListBox.ItemIndicator />
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                )}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-text-muted">Config name</Label>
-                    <Input
-                      value={newPerGameName}
-                      onChange={(e) => {
-                        setNewPerGameName(e.target.value);
-                        setSelectedGamePickId("");
-                      }}
-                      placeholder="e.g. eldenring or My_Game"
-                      variant="secondary"
-                      className="w-full font-mono"
-                      aria-label="Per-game MangoHud config name"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <Button
-                      onPress={() => handleCreatePerGame("global")}
-                      isDisabled={createPerGameMut.isPending || !newPerGameName.trim()}
-                      className="gap-1.5"
-                    >
-                      {createPerGameMut.isPending ? <Spinner size="sm" /> : <Plus className="size-4" />}
-                      Copy from global
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onPress={() => handleCreatePerGame("empty")}
-                      isDisabled={createPerGameMut.isPending || !newPerGameName.trim()}
-                      className="gap-1.5"
-                    >
-                      <FilePlus2 className="size-4" />
-                      Create empty
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {!perGameList || perGameList.length === 0 ? (
-                <p className="text-xs text-text-muted">
-                  No per-game configs on disk yet. Use the form above to create{" "}
-                  <code className="text-neon-cyan">wine-&lt;name&gt;.conf</code> in{" "}
-                  <code className="text-neon-cyan">~/.config/MangoHud/</code>.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {perGameList.map((pg) => (
-                    <div
-                      key={pg.name}
-                      className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
-                        editingGame === pg.name
-                          ? "bg-neon-cyan/10 border-neon-cyan/30"
-                          : "bg-surface-deep border-separator hover:border-border"
-                      }`}
-                      onClick={() => loadPerGameConfig(pg.name)}
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-text-primary">{pg.name}</p>
-                        <p className="text-xs text-text-muted font-mono truncate">{pg.path}</p>
-                      </div>
-                      {editingGame === pg.name && (
-                        <Chip size="sm" color="accent" variant="soft">Editing</Chip>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {editingGame && (
-                <motion.div
-                  className="space-y-3 pt-3 border-t border-border"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+        {/* Per-game configs (collapsible) */}
+        <Widget>
+          <Widget.Header>
+            <Widget.Title className="flex items-center gap-1.5">
+              <FileText
+                className="text-neon-cyan size-4 shrink-0"
+                aria-hidden
+              />
+              Per-game configs
+              {perGameList && perGameList.length > 0 && (
+                <Chip
+                  size="sm"
+                  variant="secondary"
+                  className="ml-1 text-[10px]"
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="flex items-center gap-2 text-sm font-medium text-neon-cyan">
-                      <Pencil className="size-3.5" />
-                      Editing: {editingGame}
-                    </p>
-                    <Button
-                      size="sm"
-                      onPress={() => savePerGameMut.mutate({ name: editingGame, cfg: gameConfig })}
-                      isDisabled={savePerGameMut.isPending}
-                      className="gap-1.5"
-                    >
-                      {savePerGameMut.isPending ? <Spinner size="sm" /> : <Save className="size-3" />}
-                      Save
-                    </Button>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
-                    <LayoutGrid className="size-4 text-neon-cyan" />
-                    Overlay Metrics
-                  </label>
-                  <MangoHudOverlayMetrics
-                    toggleParams={toggleParams}
-                    config={gameConfig}
-                    setConfig={setGameConfig}
-                  />
-                  <div className="mt-4 space-y-3">
-                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-text-secondary">
-                      <SlidersHorizontal className="size-3.5 text-neon-cyan" />
-                      Configuration Values
-                    </p>
-                    <MangoHudValueFieldsGrid
-                      valueParams={valueParams}
-                      values={gameConfig}
-                      onParamChange={(key, next) =>
-                        setGameConfig((prev) => ({
-                          ...prev,
-                          [key]: next,
-                        }))
-                      }
-                    />
-                  </div>
-                  <pre className="p-3 rounded-lg bg-surface-deep border border-border font-mono text-xs text-neon-cyan max-h-32 overflow-auto whitespace-pre-wrap">
-                    {Object.entries(gameConfig)
-                      .map(([k, v]) => (v ? `${k}=${v}` : k))
-                      .join("\n") || "# (empty config)"}
-                  </pre>
-                </motion.div>
+                  {perGameList.length}
+                </Chip>
               )}
-            </motion.div>
+            </Widget.Title>
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={() => setShowPerGame((v) => !v)}
+              aria-expanded={showPerGame}
+              className="shrink-0 gap-1 text-xs"
+            >
+              {showPerGame ? "Hide" : "Show"}
+              {showPerGame ? (
+                <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+              ) : (
+                <ChevronRight className="size-3.5 shrink-0" aria-hidden />
+              )}
+            </Button>
+          </Widget.Header>
+          {showPerGame && (
+            <Widget.Content className="space-y-3">
+              <motion.div
+                className="space-y-3"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* New per-game config */}
+                <Card className="border-neon-cyan/20 bg-surface-deep p-3">
+                  <Card.Header className="p-0 pb-2">
+                    <Card.Title className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Plus
+                        className="text-neon-cyan size-4 shrink-0"
+                        aria-hidden
+                      />
+                      New per-game config
+                    </Card.Title>
+                  </Card.Header>
+                  <Card.Content className="space-y-3 p-0">
+                    <Text.Paragraph
+                      size="xs"
+                      color="muted"
+                      className="leading-relaxed"
+                    >
+                      MangoHud loads{" "}
+                      <Text.Code className="text-neon-cyan text-[11px]">
+                        ~/.config/MangoHud/wine-&lt;name&gt;.conf
+                      </Text.Code>{" "}
+                      for Wine games — often{" "}
+                      <Text.Code className="text-neon-cyan text-[11px]">
+                        &lt;name&gt;
+                      </Text.Code>{" "}
+                      matches the game{" "}
+                      <Text.Code className="text-neon-cyan text-[11px]">
+                        .exe
+                      </Text.Code>{" "}
+                      stem (e.g.{" "}
+                      <Text.Code className="text-neon-cyan text-[11px]">
+                        eldenring
+                      </Text.Code>
+                      ). For Steam we suggest the library{" "}
+                      <strong className="text-foreground font-semibold">
+                        install folder
+                      </strong>{" "}
+                      name; for Heroic/Lutris the game title. Edit the field if
+                      your overlay still doesn&apos;t load. You can also set{" "}
+                      <Text.Code className="text-neon-cyan text-[11px]">
+                        MANGOHUD_CONFIGFILE=~/.config/MangoHud/wine-…conf
+                      </Text.Code>{" "}
+                      in launch options.
+                    </Text.Paragraph>
+
+                    {mangohudGamePicks.length > 0 && (
+                      <Select
+                        className="w-full"
+                        value={selectedGamePickId}
+                        onChange={(v) => {
+                          const id = String(v ?? "");
+                          if (!id) {
+                            setSelectedGamePickId("");
+                            return;
+                          }
+                          const pick = mangohudGamePicks.find(
+                            (p) => p.id === id,
+                          );
+                          if (pick) {
+                            setSelectedGamePickId(id);
+                            setNewPerGameName(pick.suggestedSlug);
+                          }
+                        }}
+                        placeholder="Choose an installed game to fill the config name…"
+                      >
+                        <Label className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+                          Known games (auto-fill)
+                        </Label>
+                        <Select.Trigger>
+                          <Select.Value />
+                          <Select.Indicator />
+                        </Select.Trigger>
+                        <Select.Popover className="max-h-72 min-w-[var(--trigger-width)]">
+                          <ListBox className="max-h-64 overflow-y-auto">
+                            {mangohudGamePicks.map((pick) => (
+                              <ListBox.Item
+                                key={pick.id}
+                                id={pick.id}
+                                textValue={`${pick.label} → ${pick.suggestedSlug}`}
+                              >
+                                <span className="flex flex-col gap-0.5 text-left">
+                                  <span className="truncate">{pick.label}</span>
+                                  <span className="text-muted truncate font-mono text-xs">
+                                    {pick.suggestedSlug}
+                                  </span>
+                                </span>
+                                <ListBox.ItemIndicator />
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                    )}
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <TextField
+                        value={newPerGameName}
+                        onChange={(v) => {
+                          setNewPerGameName(v);
+                          setSelectedGamePickId("");
+                        }}
+                        variant="secondary"
+                        fullWidth
+                        className="min-w-0 flex-1"
+                      >
+                        <Label className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+                          Config name
+                        </Label>
+                        <Input
+                          placeholder="e.g. eldenring or My_Game"
+                          className="font-mono text-xs"
+                        />
+                      </TextField>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onPress={() => handleCreatePerGame("global")}
+                          isDisabled={
+                            createPerGameMut.isPending ||
+                            !newPerGameName.trim()
+                          }
+                          className="gap-1.5"
+                        >
+                          {createPerGameMut.isPending ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            <Plus className="size-3.5 shrink-0" aria-hidden />
+                          )}
+                          Copy from global
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onPress={() => handleCreatePerGame("empty")}
+                          isDisabled={
+                            createPerGameMut.isPending ||
+                            !newPerGameName.trim()
+                          }
+                          className="gap-1.5"
+                        >
+                          <FilePlus2 className="size-3.5 shrink-0" aria-hidden />
+                          Create empty
+                        </Button>
+                      </div>
+                    </div>
+                  </Card.Content>
+                </Card>
+
+                {/* Existing per-game configs */}
+                {!perGameList || perGameList.length === 0 ? (
+                  <EmptyState size="sm">
+                    <EmptyState.Header>
+                      <EmptyState.Media variant="icon">
+                        <FolderOpen className="size-5" aria-hidden />
+                      </EmptyState.Media>
+                      <EmptyState.Title>
+                        No per-game configs yet
+                      </EmptyState.Title>
+                      <EmptyState.Description>
+                        Use the form above to create a wine-&lt;name&gt;.conf
+                        in ~/.config/MangoHud/.
+                      </EmptyState.Description>
+                    </EmptyState.Header>
+                  </EmptyState>
+                ) : (
+                  <ListView
+                    aria-label="Per-game MangoHud configs"
+                    variant="secondary"
+                    selectionMode="single"
+                    selectionBehavior="replace"
+                    items={perGameList.map((p) => ({ id: p.name, ...p }))}
+                    selectedKeys={
+                      editingGame
+                        ? new Set([editingGame])
+                        : new Set<string>()
+                    }
+                    onSelectionChange={(keys: Selection) => {
+                      if (keys === "all") return;
+                      const id = [...keys][0];
+                      if (id != null) loadPerGameConfig(String(id));
+                    }}
+                    onAction={(key) => loadPerGameConfig(String(key))}
+                    className="border-0 bg-transparent p-0 shadow-none"
+                  >
+                    {(pg) => (
+                      <ListView.Item id={pg.name} textValue={pg.name}>
+                        <ListView.ItemContent>
+                          <FileText
+                            className={`size-4 shrink-0 ${
+                              editingGame === pg.name
+                                ? "text-neon-cyan"
+                                : "text-muted"
+                            }`}
+                            aria-hidden
+                          />
+                          <div className="flex min-w-0 flex-col">
+                            <ListView.Title
+                              className={
+                                editingGame === pg.name
+                                  ? "text-neon-cyan font-medium"
+                                  : undefined
+                              }
+                            >
+                              {pg.name}
+                            </ListView.Title>
+                            <ListView.Description className="font-mono">
+                              {pg.path}
+                            </ListView.Description>
+                          </div>
+                        </ListView.ItemContent>
+                        {editingGame === pg.name && (
+                          <ListView.ItemAction>
+                            <Chip size="sm" color="accent" variant="soft">
+                              Editing
+                            </Chip>
+                          </ListView.ItemAction>
+                        )}
+                      </ListView.Item>
+                    )}
+                  </ListView>
+                )}
+
+                {editingGame && (
+                  <motion.div
+                    className="border-border space-y-3 border-t pt-3"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Text.Heading
+                        level={3}
+                        className="text-neon-cyan flex items-center gap-1.5 text-sm font-semibold"
+                      >
+                        <Pencil className="size-3.5 shrink-0" aria-hidden />
+                        Editing:{" "}
+                        <Text.Code className="text-neon-cyan text-[12px]">
+                          {editingGame}
+                        </Text.Code>
+                      </Text.Heading>
+                      <Button
+                        size="sm"
+                        onPress={() =>
+                          savePerGameMut.mutate({
+                            name: editingGame,
+                            cfg: gameConfig,
+                          })
+                        }
+                        isDisabled={savePerGameMut.isPending}
+                        className="gap-1.5"
+                      >
+                        {savePerGameMut.isPending ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          <Save className="size-3 shrink-0" aria-hidden />
+                        )}
+                        Save
+                      </Button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-muted flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+                        <LayoutGrid
+                          className="text-neon-cyan size-3 shrink-0"
+                          aria-hidden
+                        />
+                        Overlay metrics
+                      </Label>
+                      <MangoHudOverlayMetrics
+                        toggleParams={toggleParams}
+                        config={gameConfig}
+                        setConfig={setGameConfig}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-muted flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+                        <SlidersHorizontal
+                          className="text-neon-cyan size-3 shrink-0"
+                          aria-hidden
+                        />
+                        Configuration values
+                      </Label>
+                      <MangoHudValueFieldsGrid
+                        valueParams={valueParams}
+                        values={gameConfig}
+                        onParamChange={(key, next) =>
+                          setGameConfig((prev) => ({
+                            ...prev,
+                            [key]: next,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-muted flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+                        <Search
+                          className="text-neon-cyan size-3 shrink-0"
+                          aria-hidden
+                        />
+                        Preview
+                      </Label>
+                      <pre className="border-border bg-surface-deep text-neon-cyan max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs leading-relaxed">
+                        {Object.entries(gameConfig)
+                          .map(([k, v]) => (v ? `${k}=${v}` : k))
+                          .join("\n") || "# (empty config)"}
+                      </pre>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            </Widget.Content>
           )}
-        </GlowCard>
+        </Widget>
       </div>
     </PageShell>
   );

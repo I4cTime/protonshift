@@ -242,7 +242,7 @@ flatpak install ProtonShift-*.flatpak
 flatpak run io.github.protonshift
 ```
 
-Official builds bundle the Python API stack (FastAPI, Uvicorn, VDF, etc.) beside the app. You only need **Python 3.12+** available as `python3` (the `.deb` already depends on it).
+Official builds bundle a portable CPython 3.12 runtime *and* the Python API stack (FastAPI, Uvicorn, VDF, etc.) beside the app — so the only outside dependencies are the **game tools you actually want to manage** (Steam, Heroic, Lutris, MangoHud, Gamescope, Protontricks, GameMode). No `python3` or `python3-pydantic` needed on the host.
 
 ---
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Button, Chip, Description } from "@heroui/react";
+import { Button, Chip, Text } from "@heroui/react";
+import { ItemCard, ItemCardGroup } from "@heroui-pro/react";
 import {
   Zap,
   Monitor,
@@ -128,34 +129,31 @@ export function MangoHudPresets({ presets, onApply }: MangoHudPresetsProps) {
 
   return (
     <div className="space-y-3">
-      <Description className="text-xs leading-relaxed text-text-muted">
+      <Text.Paragraph size="xs" color="muted" className="leading-relaxed">
         Presets replace your entire config with a curated set of toggles and
         values. Pick one as a starting point, then customise the metrics and
         values below. Your changes are not saved until you press Save.
-      </Description>
-      <div className="flex flex-col gap-3">
+      </Text.Paragraph>
+      <ItemCardGroup
+        variant="secondary"
+        layout="list"
+        className="overflow-hidden rounded-xl"
+      >
         {orderedNames.map((name) => {
           const config = presets[name];
           const meta = PRESET_META[name];
           const { toggles, values } = countMetrics(config);
           const Icon = meta?.icon ?? Monitor;
-          const iconColor = meta?.color ?? "text-text-secondary";
+          const iconColor = meta?.color ?? "text-foreground";
 
           return (
-            <div
-              key={name}
-              className="flex items-start gap-4 rounded-xl border border-border bg-surface-secondary/30 p-4 transition-colors hover:border-border-secondary"
-            >
-              <div
-                className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary ${iconColor}`}
-              >
-                <Icon className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">
-                    {meta?.label ?? name}
-                  </span>
+            <ItemCard key={name} className="py-3">
+              <ItemCard.Icon className={`bg-surface-secondary ${iconColor}`}>
+                <Icon className="size-4 shrink-0" aria-hidden />
+              </ItemCard.Icon>
+              <ItemCard.Content className="min-w-0 gap-1">
+                <ItemCard.Title className="flex flex-wrap items-center gap-2">
+                  <span className="truncate">{meta?.label ?? name}</span>
                   <Chip size="sm" variant="secondary" className="text-[10px]">
                     {toggles} metric{toggles !== 1 ? "s" : ""}
                   </Chip>
@@ -164,24 +162,24 @@ export function MangoHudPresets({ presets, onApply }: MangoHudPresetsProps) {
                       {values} value{values !== 1 ? "s" : ""}
                     </Chip>
                   )}
-                </div>
-                <p className="text-xs leading-relaxed text-text-muted">
-                  {meta?.description ??
-                    `Applies ${toggles + values} parameters.`}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="shrink-0 self-center"
-                onPress={() => onApply(name)}
-              >
-                Apply
-              </Button>
-            </div>
+                </ItemCard.Title>
+                <Text.Paragraph
+                  size="xs"
+                  color="muted"
+                  className="leading-snug"
+                >
+                  {meta?.description ?? `Applies ${toggles + values} parameters.`}
+                </Text.Paragraph>
+              </ItemCard.Content>
+              <ItemCard.Action>
+                <Button size="sm" variant="secondary" onPress={() => onApply(name)}>
+                  Apply
+                </Button>
+              </ItemCard.Action>
+            </ItemCard>
           );
         })}
-      </div>
+      </ItemCardGroup>
     </div>
   );
 }

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import games, health, heroic, mangohud, profiles, saves, system, utility
+from . import games, health, heroic, mangohud, profiles, saves, scopebuddy, system, utility
 
 all_routers: list[APIRouter] = [
     health.router,
@@ -12,6 +12,7 @@ all_routers: list[APIRouter] = [
     system.router,
     saves.router,
     mangohud.router,
+    scopebuddy.router,
     heroic.router,
     profiles.router,
     utility.router,

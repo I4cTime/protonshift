@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import type { AnyGame, SteamGame, HeroicGame, LutrisGame } from "@/lib/api";
+import { EmptyState } from "@heroui-pro/react";
+import { Joystick } from "lucide-react";
+import type { AnyGame, SteamGame, HeroicGame } from "@/lib/api";
 import { api } from "@/lib/api";
 import {
   useLaunchOptions,
@@ -35,8 +37,10 @@ import {
 } from "@/hooks/use-profiles";
 import { mangohudSuggestedSlugForGame } from "@/lib/mangohud-naming";
 import { appShowToast } from "@/lib/app-toast";
-import { RevealSection } from "./reveal-section";
 import { GameDetailHeader } from "./game-detail-header";
+import { GameDetailKpiStrip } from "./game-detail-kpi-strip";
+import { GameDetailTabs, type GameDetailTabKey } from "./game-detail-tabs";
+import { GameProfilesMenu } from "./game-profiles-menu";
 import { GameLaunchOptions } from "./game-launch-options";
 import { GameCompatTool } from "./game-compat-tool";
 import { GameProtontricks } from "./game-protontricks";
@@ -48,6 +52,7 @@ import { GameSaveData } from "./game-save-data";
 import { GamePaths } from "./game-paths";
 import { HeroicToggles } from "./heroic-toggles";
 import { GamescopeBuilder } from "./gamescope-builder";
+import { GameScopeBuddyOverride } from "./game-scopebuddy-override";
 
 interface GameDetailProps {
   game: AnyGame;
@@ -63,6 +68,7 @@ function isHeroicGame(game: AnyGame): game is HeroicGame {
 export function GameDetail({ game }: GameDetailProps) {
   const isSteam = isSteamGame(game);
   const isHeroic = isHeroicGame(game);
+  const isLutris = game.source === "lutris";
 
   const prefixPath = isSteam
     ? game.compatdata_path
@@ -79,6 +85,10 @@ export function GameDetail({ game }: GameDetailProps) {
       ? `heroic:${game.app_id}`
       : `lutris:${game.app_id}`;
   const mangohudSlug = mangohudSuggestedSlugForGame(game);
+  const scopeBuddyKey = isSteam ? game.app_id : mangohudSlug;
+  const scopeBuddyKeyLabel = isSteam
+    ? `Steam ${game.app_id}`
+    : `${game.source} · ${mangohudSlug}`;
 
   // ── Data hooks ──
   const { data: gamesData } = useGames();
@@ -117,27 +127,42 @@ export function GameDetail({ game }: GameDetailProps) {
 
   // ── Local state ──
   const [launchOptions, setLaunchOptions] = useState("");
+  const [gamescopeBuilderPreview, setGamescopeBuilderPreview] = useState("");
   const [selectedTool, setSelectedTool] = useState("");
   const [selectedHeroicWine, setSelectedHeroicWine] = useState("");
+  const [tabKey, setTabKey] = useState<GameDetailTabKey>("setup");
+  const [tabMotionEpoch, setTabMotionEpoch] = useState(0);
+  const prevAppIdRef = useRef(game.app_id);
 
   const steamRunning = gamesData?.steam_running ?? false;
 
   useEffect(() => {
-    if (isSteam && launchData) setLaunchOptions(launchData.options);
+    if (prevAppIdRef.current === game.app_id) return;
+    prevAppIdRef.current = game.app_id;
+    setTabKey("setup");
+    setTabMotionEpoch((e) => e + 1);
+  }, [game.app_id]);
+
+  useEffect(() => {
+    if (!isSteam || !launchData) return;
+    queueMicrotask(() => setLaunchOptions(launchData.options));
   }, [isSteam, launchData]);
 
   useEffect(() => {
-    if (isHeroic && heroicConfig) setLaunchOptions(heroicConfig.other_options);
+    if (!isHeroic || !heroicConfig) return;
+    queueMicrotask(() => setLaunchOptions(heroicConfig.other_options));
   }, [isHeroic, heroicConfig]);
 
   useEffect(() => {
-    if (isSteam && protonData) setSelectedTool(protonData.current);
+    if (!isSteam || !protonData) return;
+    queueMicrotask(() => setSelectedTool(protonData.current));
   }, [isSteam, protonData]);
 
   useEffect(() => {
-    if (isHeroic && heroicConfig?.wine_version?.name) {
-      setSelectedHeroicWine(heroicConfig.wine_version.name);
-    }
+    if (!isHeroic || !heroicConfig?.wine_version?.name) return;
+    queueMicrotask(() =>
+      setSelectedHeroicWine(heroicConfig.wine_version.name),
+    );
   }, [isHeroic, heroicConfig]);
 
   // ── Handlers ──
@@ -180,17 +205,180 @@ export function GameDetail({ game }: GameDetailProps) {
     }
   }
 
+  function handleTabSelectionChange(key: GameDetailTabKey) {
+    setTabKey(key);
+    setTabMotionEpoch((e) => e + 1);
+  }
+
   const isSaving = saveLaunchOpts.isPending || setHeroicLaunchOpts.isPending;
+
+  const setupHasContent =
+    hasLaunchOptions ||
+    (isSteam && !!protonData) ||
+    (isHeroic && !!heroicWineVersions && heroicWineVersions.length > 0) ||
+    (isHeroic && !!heroicConfig?.exists) ||
+    !!(fixesData && fixesData.length > 0);
+
+  const lutrisSetupPlaceholder = isLutris && !setupHasContent;
+
+  const profilesMenu = (
+    <GameProfilesMenu
+      gameName={game.name}
+      isSteam={isSteam}
+      isHeroic={isHeroic}
+      launchOptions={launchOptions}
+      selectedTool={selectedTool}
+      selectedHeroicWine={selectedHeroicWine}
+      profileNames={profileNames}
+      setLaunchOptions={setLaunchOptions}
+      setSelectedTool={setSelectedTool}
+      setSelectedHeroicWine={setSelectedHeroicWine}
+      saveProfileMut={saveProfile}
+    />
+  );
+
+  const setupPanel = (
+    <>
+      {lutrisSetupPlaceholder && (
+        <EmptyState className="border-border rounded-2xl border border-dashed px-4 py-8">
+          <EmptyState.Header>
+            <EmptyState.Media variant="icon">
+              <Joystick className="size-8 text-neon-cyan opacity-80" aria-hidden />
+            </EmptyState.Media>
+            <EmptyState.Title>Lutris game</EmptyState.Title>
+            <EmptyState.Description className="text-center">
+              Launch options and compatibility tools are managed in Lutris. Use the Prefix tab for paths
+              and save data when available, and Profiles for quick configuration presets.
+            </EmptyState.Description>
+          </EmptyState.Header>
+        </EmptyState>
+      )}
+      {hasLaunchOptions && (
+        <GameLaunchOptions
+          launchOptions={launchOptions}
+          setLaunchOptions={setLaunchOptions}
+          isSteam={isSteam}
+          presets={presets}
+        />
+      )}
+      {isSteam && protonData && (
+        <GameCompatTool
+          mode="steam"
+          selectedTool={selectedTool}
+          onToolChange={setSelectedTool}
+          tools={protonData.tools}
+        />
+      )}
+      {isHeroic && heroicWineVersions && heroicWineVersions.length > 0 && (
+        <GameCompatTool
+          mode="heroic"
+          selectedTool={selectedHeroicWine}
+          onToolChange={setSelectedHeroicWine}
+          wineVersions={heroicWineVersions}
+          heroicConfig={heroicConfig}
+        />
+      )}
+      {isHeroic && heroicConfig?.exists && <HeroicToggles appId={game.app_id} config={heroicConfig} />}
+      {hasLaunchOptions && (
+        <GamescopeBuilder
+          onBuiltLineChange={setGamescopeBuilderPreview}
+          onInsert={(cmd) => {
+            const current = launchOptions.trim();
+            if (current.includes(cmd)) return;
+            setLaunchOptions(current ? `${cmd} ${current}` : cmd);
+            appShowToast("Gamescope command inserted");
+          }}
+        />
+      )}
+      {hasLaunchOptions && (
+        <GameScopeBuddyOverride
+          scopeBuddyKey={scopeBuddyKey}
+          keyLabel={scopeBuddyKeyLabel}
+          gamescopeBuilderPreview={gamescopeBuilderPreview}
+        />
+      )}
+      {fixesData && fixesData.length > 0 && (
+        <GameKnownFixes
+          fixes={fixesData}
+          isSteam={isSteam}
+          hasLaunchOptions={hasLaunchOptions}
+          launchOptions={launchOptions}
+          setLaunchOptions={setLaunchOptions}
+        />
+      )}
+    </>
+  );
+
+  const prefixPanel = (
+    <>
+      {savesData && savesData.length > 0 && (
+        <GameSaveData
+          savesData={savesData}
+          backupsData={backupsData}
+          appId={game.app_id}
+          backupSavesMut={backupSavesMut}
+          restoreSavesMut={restoreSavesMut}
+        />
+      )}
+      {prefixData?.exists && (
+        <GamePrefixDetails
+          prefixData={prefixData}
+          appId={game.app_id}
+          isSteam={isSteam}
+          prefixPath={prefixPath}
+          deletePrefixMut={deletePrefixMut}
+        />
+      )}
+      {isSteam && verbsData?.available && (
+        <GameProtontricks
+          appId={game.app_id}
+          verbs={verbsData.verbs}
+          onRunVerb={(appId, verb) => runProtontricks.mutate({ appId, verb })}
+          isPending={runProtontricks.isPending}
+        />
+      )}
+      {isSteam && shaderData?.exists && (
+        <GameShaderCache
+          shaderData={shaderData}
+          appId={game.app_id}
+          clearShaderMut={clearShaderMut}
+        />
+      )}
+      <GamePaths
+        installPath={game.install_path ?? null}
+        prefixPath={prefixPath}
+        mangohudSlug={mangohudSlug}
+        mangohudPickId={mangohudPickId}
+      />
+    </>
+  );
+
+  const profilesPanel = (
+    <GameProfiles
+      gameName={game.name}
+      gameAppId={game.app_id}
+      isSteam={isSteam}
+      isHeroic={isHeroic}
+      launchOptions={launchOptions}
+      selectedTool={selectedTool}
+      selectedHeroicWine={selectedHeroicWine}
+      profileNames={profileNames}
+      setLaunchOptions={setLaunchOptions}
+      setSelectedTool={setSelectedTool}
+      setSelectedHeroicWine={setSelectedHeroicWine}
+      saveProfileMut={saveProfile}
+      deleteProfileMut={deleteProfileMut}
+    />
+  );
 
   return (
     <motion.div
       key={game.app_id}
-      className="space-y-4"
+      className="relative space-y-4 pr-2"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
     >
-      {/* Header */}
       <GameDetailHeader
         game={game}
         steamRunning={steamRunning}
@@ -201,156 +389,28 @@ export function GameDetail({ game }: GameDetailProps) {
         isLaunching={launchHeroicMut.isPending}
         onSave={handleSave}
         onLaunch={handleLaunch}
+        profilesMenu={profilesMenu}
       />
 
-      {/* Launch Options + Quick Presets */}
-      {hasLaunchOptions && (
-        <RevealSection>
-          <GameLaunchOptions
-            launchOptions={launchOptions}
-            setLaunchOptions={setLaunchOptions}
-            isSteam={isSteam}
-            presets={presets}
-          />
-        </RevealSection>
-      )}
+      <GameDetailKpiStrip
+        isSteam={isSteam}
+        isHeroic={isHeroic}
+        protonCurrent={protonData?.current}
+        heroicWineName={heroicConfig?.wine_version?.name ?? null}
+        prefixData={prefixData}
+        shaderData={shaderData}
+        backupsData={backupsData}
+      />
 
-      {/* Steam Proton/Compat Tool */}
-      {isSteam && protonData && (
-        <RevealSection delay={0.1}>
-          <GameCompatTool
-            mode="steam"
-            selectedTool={selectedTool}
-            onToolChange={setSelectedTool}
-            tools={protonData.tools}
-          />
-        </RevealSection>
-      )}
-
-      {/* Heroic Wine/Proton */}
-      {isHeroic && heroicWineVersions && heroicWineVersions.length > 0 && (
-        <RevealSection delay={0.1}>
-          <GameCompatTool
-            mode="heroic"
-            selectedTool={selectedHeroicWine}
-            onToolChange={setSelectedHeroicWine}
-            wineVersions={heroicWineVersions}
-            heroicConfig={heroicConfig}
-          />
-        </RevealSection>
-      )}
-
-      {/* Heroic Toggles */}
-      {isHeroic && heroicConfig?.exists && (
-        <RevealSection delay={0.15}>
-          <HeroicToggles appId={game.app_id} config={heroicConfig} />
-        </RevealSection>
-      )}
-
-      {/* Protontricks */}
-      {isSteam && verbsData?.available && (
-        <RevealSection delay={0.15}>
-          <GameProtontricks
-            appId={game.app_id}
-            verbs={verbsData.verbs}
-            onRunVerb={(appId, verb) => runProtontricks.mutate({ appId, verb })}
-            isPending={runProtontricks.isPending}
-          />
-        </RevealSection>
-      )}
-
-      {/* Gamescope */}
-      {hasLaunchOptions && (
-        <RevealSection delay={0.2}>
-          <GamescopeBuilder
-            onInsert={(cmd) => {
-              const current = launchOptions.trim();
-              if (current.includes(cmd)) return;
-              setLaunchOptions(current ? `${cmd} ${current}` : cmd);
-              appShowToast("Gamescope command inserted");
-            }}
-          />
-        </RevealSection>
-      )}
-
-      {/* Known Fixes */}
-      {fixesData && fixesData.length > 0 && (
-        <RevealSection delay={0.25}>
-          <GameKnownFixes
-            fixes={fixesData}
-            isSteam={isSteam}
-            hasLaunchOptions={hasLaunchOptions}
-            launchOptions={launchOptions}
-            setLaunchOptions={setLaunchOptions}
-          />
-        </RevealSection>
-      )}
-
-      {/* Profiles */}
-      <RevealSection delay={0.3}>
-        <GameProfiles
-          gameName={game.name}
-          gameAppId={game.app_id}
-          isSteam={isSteam}
-          isHeroic={isHeroic}
-          launchOptions={launchOptions}
-          selectedTool={selectedTool}
-          selectedHeroicWine={selectedHeroicWine}
-          profileNames={profileNames}
-          setLaunchOptions={setLaunchOptions}
-          setSelectedTool={setSelectedTool}
-          setSelectedHeroicWine={setSelectedHeroicWine}
-          saveProfileMut={saveProfile}
-          deleteProfileMut={deleteProfileMut}
-        />
-      </RevealSection>
-
-      {/* Prefix Details */}
-      {prefixData?.exists && (
-        <RevealSection delay={0.35}>
-          <GamePrefixDetails
-            prefixData={prefixData}
-            appId={game.app_id}
-            isSteam={isSteam}
-            prefixPath={prefixPath}
-            deletePrefixMut={deletePrefixMut}
-          />
-        </RevealSection>
-      )}
-
-      {/* Shader Cache */}
-      {isSteam && shaderData?.exists && (
-        <RevealSection delay={0.4}>
-          <GameShaderCache
-            shaderData={shaderData}
-            appId={game.app_id}
-            clearShaderMut={clearShaderMut}
-          />
-        </RevealSection>
-      )}
-
-      {/* Save Data */}
-      {savesData && savesData.length > 0 && (
-        <RevealSection delay={0.45}>
-          <GameSaveData
-            savesData={savesData}
-            backupsData={backupsData}
-            appId={game.app_id}
-            backupSavesMut={backupSavesMut}
-            restoreSavesMut={restoreSavesMut}
-          />
-        </RevealSection>
-      )}
-
-      {/* Paths */}
-      <RevealSection delay={0.5}>
-        <GamePaths
-          installPath={game.install_path ?? null}
-          prefixPath={prefixPath}
-          mangohudSlug={mangohudSlug}
-          mangohudPickId={mangohudPickId}
-        />
-      </RevealSection>
+      <GameDetailTabs
+        selectedKey={tabKey}
+        onSelectionChange={handleTabSelectionChange}
+        setupPanel={setupPanel}
+        prefixPanel={prefixPanel}
+        profilesPanel={profilesPanel}
+        gameKey={game.app_id}
+        motionEpoch={tabMotionEpoch}
+      />
     </motion.div>
   );
 }

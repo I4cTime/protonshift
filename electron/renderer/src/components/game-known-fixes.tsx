@@ -1,8 +1,9 @@
 "use client";
 
-import { Lightbulb } from "lucide-react";
-import { Button, Description } from "@heroui/react";
-import { GlowCard } from "./glow-card";
+import { Lightbulb, Terminal, Variable } from "lucide-react";
+import { Button, Chip, Text, Tooltip } from "@heroui/react";
+import { ItemCard, ItemCardGroup, Widget } from "@heroui-pro/react";
+import { InfoHint } from "./info-hint";
 import type { GameFixData } from "@/lib/api";
 import { appShowToast } from "@/lib/app-toast";
 
@@ -51,43 +52,83 @@ export function GameKnownFixes({
   }
 
   return (
-    <GlowCard className="p-5 space-y-3">
-      <div>
-        <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-          <Lightbulb className="size-4 text-amber-400" />
-          Known Fixes &amp; Tweaks
-        </label>
-        <Description>
-          Community-sourced fixes for common issues. Click Apply to insert into launch options.
-        </Description>
-      </div>
-
-      <div className="space-y-2">
-        {fixes.map((fix, i) => (
-          <div
-            key={`${fix.title}-${i}`}
-            className="flex items-center justify-between p-3 rounded-lg bg-surface-deep border border-separator hover:border-border transition-all"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary">{fix.title}</p>
-              <p className="text-xs text-text-muted truncate">{fix.description}</p>
-              <code className="text-xs font-mono text-neon-cyan mt-0.5 block">
-                {fix.fix_type === "env" ? `${fix.key}=${fix.value}` : fix.value}
-              </code>
-            </div>
-            {hasLaunchOptions && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-3 shrink-0"
-                onPress={() => handleApplyFix(fix)}
-              >
-                Apply
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-    </GlowCard>
+    <Widget>
+      <Widget.Header>
+        <Widget.Title className="flex flex-wrap items-center gap-1.5">
+          <Lightbulb className="size-4 shrink-0 text-amber-400" />
+          Known fixes and tweaks
+          <Chip size="sm" variant="secondary" className="text-[10px]">
+            {fixes.length}
+          </Chip>
+        </Widget.Title>
+        <InfoHint label="About known fixes">
+          Community-sourced fixes. Apply inserts into launch options (env vars before
+          %command% on Steam).
+        </InfoHint>
+      </Widget.Header>
+      <Widget.Content className="space-y-2">
+        <Text.Paragraph size="xs" color="muted">
+          One tap merges the snippet into your launch line if it is not already there.
+        </Text.Paragraph>
+        <ItemCardGroup variant="outline" layout="list" className="overflow-hidden rounded-xl">
+          {fixes.map((fix, i) => {
+            const snippet =
+              fix.fix_type === "env" ? `${fix.key}=${fix.value}` : fix.value;
+            const RowIcon = fix.fix_type === "env" ? Variable : Terminal;
+            return (
+              <ItemCard key={`${fix.title}-${i}`} className="py-2">
+                <ItemCard.Icon>
+                  <RowIcon className="text-muted size-4" aria-hidden />
+                </ItemCard.Icon>
+                <ItemCard.Content className="min-w-0 gap-1">
+                  <ItemCard.Title className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                    <span className="min-w-0 truncate">{fix.title}</span>
+                    <Chip size="sm" variant="soft" className="text-[10px] lowercase">
+                      {fix.fix_type}
+                    </Chip>
+                  </ItemCard.Title>
+                  <Text.Paragraph
+                    size="xs"
+                    color="muted"
+                    className="line-clamp-2 leading-snug"
+                  >
+                    {fix.description}
+                  </Text.Paragraph>
+                  <Text.Code
+                    className="text-neon-cyan block truncate text-[11px]"
+                    title={snippet}
+                  >
+                    {snippet}
+                  </Text.Code>
+                </ItemCard.Content>
+                <ItemCard.Action>
+                  {hasLaunchOptions ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onPress={() => handleApplyFix(fix)}
+                    >
+                      Apply
+                    </Button>
+                  ) : (
+                    <Tooltip delay={0}>
+                      <span className="inline-flex">
+                        <Button size="sm" variant="outline" isDisabled className="shrink-0">
+                          Apply
+                        </Button>
+                      </span>
+                      <Tooltip.Content>
+                        Launch options are not available for this launcher.
+                      </Tooltip.Content>
+                    </Tooltip>
+                  )}
+                </ItemCard.Action>
+              </ItemCard>
+            );
+          })}
+        </ItemCardGroup>
+      </Widget.Content>
+    </Widget>
   );
 }

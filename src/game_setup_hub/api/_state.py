@@ -35,6 +35,7 @@ vdf_lock = asyncio.Lock()
 env_lock = asyncio.Lock()
 profiles_lock = asyncio.Lock()
 mangohud_lock = asyncio.Lock()
+scopebuddy_lock = asyncio.Lock()
 heroic_lock = asyncio.Lock()
 
 # Cached Steam discovery (resolved once per process).

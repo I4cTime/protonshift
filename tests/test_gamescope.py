@@ -8,6 +8,7 @@ from game_setup_hub.gamescope import (
     GamescopeOptions,
     build_gamescope_argv,
     build_gamescope_cmd,
+    build_scopebuddy_wrap_cmd,
 )
 
 
@@ -46,3 +47,27 @@ def test_fsr_sharpness_clamped() -> None:
     argv = build_gamescope_argv(opts)
     sharpness_idx = argv.index("--fsr-sharpness")
     assert argv[sharpness_idx + 1] == "20"
+
+
+def test_scopebuddy_wrap_cmd_env_order() -> None:
+    opts = GamescopeOptions(
+        wrap_with_scopebuddy=True,
+        scb_auto_res=True,
+        scb_auto_hdr=True,
+        scb_noscope=True,
+    )
+    cmd = build_scopebuddy_wrap_cmd(opts)
+    assert "SCB_AUTO_RES=1" in cmd
+    assert "SCB_AUTO_HDR=1" in cmd
+    assert "SCB_NOSCOPE=1" in cmd
+    assert cmd.endswith(" scb --") or cmd.endswith(" scopebuddy --")
+    parts = shlex.split(cmd)
+    assert parts[-1] == "--"
+    assert parts[-2] in ("scb", "scopebuddy")
+
+
+def test_wrap_mode_argv_is_tokenized() -> None:
+    opts = GamescopeOptions(wrap_with_scopebuddy=True, scb_auto_vrr=True)
+    argv = build_gamescope_argv(opts)
+    assert "SCB_AUTO_VRR=1" in argv
+    assert argv[-1] == "--"

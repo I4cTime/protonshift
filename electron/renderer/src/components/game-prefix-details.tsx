@@ -1,14 +1,9 @@
 "use client";
 
 import { HardDrive, Calendar, Box, Trash2 } from "lucide-react";
-import {
-  Button,
-  Description,
-  Separator,
-  AlertDialog,
-  Spinner,
-} from "@heroui/react";
-import { GlowCard } from "./glow-card";
+import { Button, AlertDialog, Description, Spinner, Text } from "@heroui/react";
+import { ItemCard, ItemCardGroup, Widget } from "@heroui-pro/react";
+import { InfoHint } from "./info-hint";
 import type { PrefixInfo } from "@/lib/api";
 import { appShowToast } from "@/lib/app-toast";
 
@@ -45,7 +40,12 @@ export function GamePrefixDetails({
   const stats = [
     { icon: HardDrive, color: "text-neon-cyan", label: "Size", value: prefixData.size_human },
     prefixData.created
-      ? { icon: Calendar, color: "text-neon-blue", label: "Created", value: new Date(prefixData.created).toLocaleDateString() }
+      ? {
+          icon: Calendar,
+          color: "text-neon-blue",
+          label: "Created",
+          value: new Date(prefixData.created).toLocaleDateString(),
+        }
       : null,
     prefixData.dxvk_version
       ? { icon: Box, color: "text-neon-purple", label: "DXVK", value: prefixData.dxvk_version }
@@ -56,65 +56,86 @@ export function GamePrefixDetails({
   ].filter(Boolean) as { icon: typeof HardDrive; color: string; label: string; value: string }[];
 
   return (
-    <GlowCard className="p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-            <HardDrive className="size-4 text-neon-cyan" />
-            Prefix Details
-          </label>
-          <Description>
-            Wine prefix info: disk size, creation date, DXVK and VKD3D-Proton versions detected.
-          </Description>
+    <Widget>
+      <Widget.Header>
+        <Widget.Title className="flex flex-wrap items-center gap-1.5">
+          <HardDrive className="text-neon-cyan size-4 shrink-0" aria-hidden />
+          Prefix details
+        </Widget.Title>
+        <div className="flex shrink-0 items-center gap-1">
+          <InfoHint label="About prefix details">
+            Wine prefix size, creation date, and DXVK / VKD3D-Proton versions detected on disk.
+          </InfoHint>
+          <AlertDialog>
+            <Button variant="danger-soft" size="sm" className="gap-1.5">
+              <Trash2 className="size-3" />
+              Delete prefix
+            </Button>
+            <AlertDialog.Backdrop>
+              <AlertDialog.Container>
+                <AlertDialog.Dialog className="sm:max-w-[400px]">
+                  <AlertDialog.CloseTrigger />
+                  <AlertDialog.Header>
+                    <AlertDialog.Icon status="danger" />
+                    <AlertDialog.Heading>Delete Wine prefix?</AlertDialog.Heading>
+                  </AlertDialog.Header>
+                  <AlertDialog.Body>
+                    <Description className="text-sm">
+                      This permanently removes the Wine prefix and everything inside it: saves,
+                      configuration, and installed components. This cannot be undone.
+                    </Description>
+                  </AlertDialog.Body>
+                  <AlertDialog.Footer>
+                    <Button slot="close" variant="tertiary">
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onPress={handleDelete}
+                      isDisabled={deletePrefixMut.isPending}
+                    >
+                      {deletePrefixMut.isPending ? <Spinner size="sm" /> : "Yes, delete"}
+                    </Button>
+                  </AlertDialog.Footer>
+                </AlertDialog.Dialog>
+              </AlertDialog.Container>
+            </AlertDialog.Backdrop>
+          </AlertDialog>
         </div>
-        <AlertDialog>
-          <Button variant="danger-soft" size="sm" className="gap-1.5">
-            <Trash2 className="size-3" />
-            Delete Prefix
-          </Button>
-          <AlertDialog.Backdrop>
-            <AlertDialog.Container>
-              <AlertDialog.Dialog className="sm:max-w-[400px]">
-                <AlertDialog.CloseTrigger />
-                <AlertDialog.Header>
-                  <AlertDialog.Icon status="danger" />
-                  <AlertDialog.Heading>Delete Wine Prefix?</AlertDialog.Heading>
-                </AlertDialog.Header>
-                <AlertDialog.Body>
-                  <p>This will permanently remove the Wine prefix and all its contents including save data, configuration, and installed components. This cannot be undone.</p>
-                </AlertDialog.Body>
-                <AlertDialog.Footer>
-                  <Button slot="close" variant="tertiary">Cancel</Button>
-                  <Button
-                    variant="danger"
-                    onPress={handleDelete}
-                    isDisabled={deletePrefixMut.isPending}
+      </Widget.Header>
+      <Widget.Content className="space-y-3">
+        <Text.Paragraph size="xs" color="muted">
+          Summary of the prefix used for this game.
+        </Text.Paragraph>
+        <ItemCardGroup
+          variant="outline"
+          layout="grid"
+          columns={2}
+          className="overflow-hidden rounded-xl"
+        >
+          {stats.map((stat) => {
+            const StatIcon = stat.icon;
+            return (
+              <ItemCard key={stat.label} className="min-h-[3.25rem] py-2">
+                <ItemCard.Icon>
+                  <StatIcon className={`size-4 shrink-0 ${stat.color}`} aria-hidden />
+                </ItemCard.Icon>
+                <ItemCard.Content className="min-w-0">
+                  <ItemCard.Title
+                    className="truncate text-sm font-semibold"
+                    title={stat.value}
                   >
-                    {deletePrefixMut.isPending ? <Spinner size="sm" /> : "Yes, Delete"}
-                  </Button>
-                </AlertDialog.Footer>
-              </AlertDialog.Dialog>
-            </AlertDialog.Container>
-          </AlertDialog.Backdrop>
-        </AlertDialog>
-      </div>
-
-      <Separator />
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {stats.map((stat) => {
-          const StatIcon = stat.icon;
-          return (
-            <div key={stat.label} className="flex items-center gap-2 p-3 rounded-lg bg-surface-deep border border-separator">
-              <StatIcon className={`size-4 shrink-0 ${stat.color}`} />
-              <div>
-                <p className="text-xs text-text-muted">{stat.label}</p>
-                <p className="text-sm font-medium text-text-primary">{stat.value}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </GlowCard>
+                    {stat.value}
+                  </ItemCard.Title>
+                  <ItemCard.Description className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+                    {stat.label}
+                  </ItemCard.Description>
+                </ItemCard.Content>
+              </ItemCard>
+            );
+          })}
+        </ItemCardGroup>
+      </Widget.Content>
+    </Widget>
   );
 }

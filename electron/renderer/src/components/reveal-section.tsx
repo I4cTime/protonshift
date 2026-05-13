@@ -7,15 +7,18 @@ interface RevealSectionProps {
   children: ReactNode;
   className?: string;
   delay?: number;
+  /** Anchor id for in-page navigation (e.g. FloatingToc). */
+  sectionId?: string;
 }
 
-export function RevealSection({ children, className = "", delay = 0 }: RevealSectionProps) {
+export function RevealSection({ children, className = "", delay = 0, sectionId }: RevealSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-60px" });
 
   return (
     <motion.div
       ref={ref}
+      id={sectionId}
       className={className}
       initial={{ opacity: 0, y: 24, filter: "blur(4px)" }}
       animate={

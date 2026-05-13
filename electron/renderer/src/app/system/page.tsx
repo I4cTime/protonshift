@@ -14,20 +14,28 @@ import {
   Leaf,
   Info,
   Layers,
-  Trash2,
   AlertCircle,
+  Telescope,
+  type LucideIcon,
 } from "lucide-react";
-import { Button, Chip, Spinner, Tooltip } from "@heroui/react";
+import { Button, Chip, Spinner, Text, Tooltip } from "@heroui/react";
+import {
+  EmptyState,
+  ItemCard,
+  ItemCardGroup,
+  KPI,
+  KPIGroup,
+  Widget,
+} from "@heroui-pro/react";
 import { PageShell } from "@/components/page-shell";
-import { GlowCard } from "@/components/glow-card";
 import { useSystemInfo, useSetPowerProfile } from "@/hooks/use-system";
 import { api } from "@/lib/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { appShowToast } from "@/lib/app-toast";
 
 const POWER_PROFILE_META: Record<
   string,
-  { icon: typeof Zap; color: string; description: string }
+  { icon: LucideIcon; color: string; description: string }
 > = {
   performance: {
     icon: Bolt,
@@ -62,6 +70,11 @@ const QUICK_FOLDERS: {
     description: "Global and per-game MangoHud overlay configs",
   },
   {
+    label: "ScopeBuddy",
+    path: "~/.config/scopebuddy",
+    description: "scb.conf, AppID/*.conf overrides, and envvars snippets",
+  },
+  {
     label: "ProtonShift",
     path: "~/.config/protonshift",
     description: "ProtonShift profiles, fixes, and save backups",
@@ -91,7 +104,6 @@ const QUICK_FOLDERS: {
 export default function SystemPage() {
   const { data, isLoading, error } = useSystemInfo();
   const setPowerProfile = useSetPowerProfile();
-  const qc = useQueryClient();
 
   const { data: displayData } = useQuery({
     queryKey: ["display-monitors"],
@@ -102,6 +114,24 @@ export default function SystemPage() {
   const { data: shaderTotal } = useQuery({
     queryKey: ["shader-cache-total"],
     queryFn: api.getTotalShaderCache,
+    staleTime: 60_000,
+  });
+
+  const { data: gamescopeAvail } = useQuery({
+    queryKey: ["gamescope-available"],
+    queryFn: api.getGamescopeAvailable,
+    staleTime: 60_000,
+  });
+
+  const { data: scopeBuddyAvail } = useQuery({
+    queryKey: ["scopebuddy-available"],
+    queryFn: api.getScopeBuddyAvailable,
+    staleTime: 60_000,
+  });
+
+  const { data: mangohudAvail } = useQuery({
+    queryKey: ["mangohud-available"],
+    queryFn: api.getMangoHudAvailable,
     staleTime: 60_000,
   });
 
@@ -116,243 +146,389 @@ export default function SystemPage() {
 
   return (
     <PageShell>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto max-w-4xl space-y-5">
         {/* Header */}
-        <h2 className="flex items-center gap-2 text-xl font-bold text-neon-cyan">
-          <ServerCog className="size-5" />
-          System
-        </h2>
+        <div className="space-y-1">
+          <Text.Heading
+            level={2}
+            className="text-neon-cyan flex items-center gap-2 text-xl font-bold"
+          >
+            <ServerCog className="size-5 shrink-0" aria-hidden />
+            System
+          </Text.Heading>
+          <Text.Paragraph size="xs" color="muted">
+            Hardware, displays, power, and quick file-manager links — all read
+            live from the host.
+          </Text.Paragraph>
+        </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Spinner size="lg" />
-          </div>
+          <Widget>
+            <Widget.Content>
+              <div className="flex items-center justify-center py-12">
+                <Spinner size="lg" />
+              </div>
+            </Widget.Content>
+          </Widget>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-16">
-            <ServerCog className="size-8 text-text-muted/40" />
-            <p className="text-sm text-red-400">Failed to load system info</p>
-            <p className="text-xs text-text-muted">
-              Check that the backend is running and try refreshing.
-            </p>
-          </div>
+          <Widget>
+            <Widget.Content>
+              <EmptyState size="md">
+                <EmptyState.Header>
+                  <EmptyState.Media variant="icon">
+                    <ServerCog className="size-5" aria-hidden />
+                  </EmptyState.Media>
+                  <EmptyState.Title>Failed to load system info</EmptyState.Title>
+                  <EmptyState.Description>
+                    Check that the backend is running and try refreshing.
+                  </EmptyState.Description>
+                </EmptyState.Header>
+              </EmptyState>
+            </Widget.Content>
+          </Widget>
         ) : (
           <>
-            {/* GPU cards */}
+            {/* Host gaming tools */}
+            <Widget>
+              <Widget.Header>
+                <Widget.Title className="flex flex-wrap items-center gap-1.5">
+                  <Telescope className="text-neon-cyan size-4 shrink-0" aria-hidden />
+                  Gaming tools
+                </Widget.Title>
+              </Widget.Header>
+              <Widget.Content className="flex flex-wrap gap-2">
+                <Chip
+                  size="sm"
+                  variant="secondary"
+                  className="text-[10px] font-mono"
+                  color={gamescopeAvail?.available ? "success" : "warning"}
+                >
+                  gamescope {gamescopeAvail?.available ? "· ok" : "· missing"}
+                </Chip>
+                <Chip
+                  size="sm"
+                  variant="secondary"
+                  className="text-[10px] font-mono"
+                  color={scopeBuddyAvail?.available ? "success" : "warning"}
+                >
+                  {scopeBuddyAvail?.available
+                    ? `${scopeBuddyAvail.binary}${scopeBuddyAvail.version ? ` · v${scopeBuddyAvail.version}` : ""}`
+                    : "scb · missing"}
+                </Chip>
+                <Chip
+                  size="sm"
+                  variant="secondary"
+                  className="text-[10px] font-mono"
+                  color={mangohudAvail?.available ? "success" : "warning"}
+                >
+                  MangoHud {mangohudAvail?.available ? "· ok" : "· missing"}
+                </Chip>
+              </Widget.Content>
+            </Widget>
+
+            {/* GPUs */}
             {data?.gpus && data.gpus.length > 0 && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-                  <Cpu className="size-4 text-neon-cyan" />
-                  Graphics
-                  <Chip size="sm" variant="secondary" className="text-[10px]">
-                    {data.gpus.length} GPU{data.gpus.length !== 1 ? "s" : ""}
-                  </Chip>
-                </label>
-                <div className="flex flex-col gap-3">
+              <Widget>
+                <Widget.Header>
+                  <Widget.Title className="flex items-center gap-1.5">
+                    <Cpu className="text-neon-cyan size-4 shrink-0" aria-hidden />
+                    Graphics
+                    <Chip
+                      size="sm"
+                      variant="secondary"
+                      className="ml-1 text-[10px]"
+                    >
+                      {data.gpus.length} GPU{data.gpus.length !== 1 ? "s" : ""}
+                    </Chip>
+                  </Widget.Title>
+                </Widget.Header>
+                <Widget.Content className="space-y-3">
                   {data.gpus.map((gpu, index) => (
-                    <GlowCard key={index} className="p-5">
-                      <div className="flex items-start gap-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-neon-cyan/10 border border-neon-cyan/20">
-                          <Cpu className="size-5 text-neon-cyan" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-base font-semibold text-text-primary">
+                    <div
+                      key={index}
+                      className="border-border bg-surface-secondary/20 flex items-start gap-3 rounded-xl border p-3"
+                    >
+                      <div className="bg-neon-cyan/10 border-neon-cyan/20 flex size-10 shrink-0 items-center justify-center rounded-xl border">
+                        <Cpu className="text-neon-cyan size-5" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Text.Heading
+                            level={3}
+                            className="text-foreground min-w-0 truncate text-base font-semibold"
+                          >
                             {gpu.name}
-                          </h3>
+                          </Text.Heading>
                           {gpu.driver && (
-                            <p className="mt-0.5 text-xs text-text-muted">
-                              Driver: {gpu.driver}
-                            </p>
+                            <Chip
+                              size="sm"
+                              variant="secondary"
+                              className="text-[10px]"
+                            >
+                              {gpu.driver}
+                            </Chip>
                           )}
-                          <div className="mt-3 flex flex-wrap gap-3">
+                        </div>
+                        {(gpu.vram_mb != null || gpu.temperature != null) && (
+                          <KPIGroup className="flex-wrap gap-0">
                             {gpu.vram_mb != null && (
-                              <div className="flex items-center gap-2 rounded-lg bg-surface-deep border border-separator px-3 py-2">
-                                <MemoryStick className="size-4 text-neon-blue" />
-                                <div>
-                                  <p className="text-[10px] uppercase tracking-wide text-text-muted">
+                              <KPI className="min-w-[120px] flex-1 border-0 shadow-none">
+                                <KPI.Header>
+                                  <KPI.Title className="text-muted flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide">
+                                    <MemoryStick
+                                      className="text-neon-blue size-3 shrink-0"
+                                      aria-hidden
+                                    />
                                     VRAM
-                                  </p>
-                                  <p className="text-sm font-medium text-text-primary">
+                                  </KPI.Title>
+                                </KPI.Header>
+                                <KPI.Content>
+                                  <span className="text-foreground text-lg font-semibold tabular-nums">
                                     {gpu.vram_mb >= 1024
                                       ? `${(gpu.vram_mb / 1024).toFixed(1)} GB`
                                       : `${gpu.vram_mb} MB`}
-                                  </p>
-                                </div>
-                              </div>
+                                  </span>
+                                </KPI.Content>
+                              </KPI>
+                            )}
+                            {gpu.vram_mb != null && gpu.temperature != null && (
+                              <KPIGroup.Separator className="hidden h-8 sm:block" />
                             )}
                             {gpu.temperature != null && (
-                              <div className="flex items-center gap-2 rounded-lg bg-surface-deep border border-separator px-3 py-2">
-                                <Thermometer
-                                  className={`size-4 ${
-                                    gpu.temperature > 80
-                                      ? "text-red-400"
-                                      : gpu.temperature > 60
-                                        ? "text-yellow-400"
-                                        : "text-green-400"
-                                  }`}
-                                />
-                                <div>
-                                  <p className="text-[10px] uppercase tracking-wide text-text-muted">
+                              <KPI className="min-w-[100px] flex-1 border-0 shadow-none">
+                                <KPI.Header>
+                                  <KPI.Title className="text-muted flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide">
+                                    <Thermometer
+                                      className={`size-3 shrink-0 ${
+                                        gpu.temperature > 80
+                                          ? "text-red-400"
+                                          : gpu.temperature > 60
+                                            ? "text-yellow-400"
+                                            : "text-green-400"
+                                      }`}
+                                      aria-hidden
+                                    />
                                     Temp
-                                  </p>
-                                  <p className="text-sm font-medium text-text-primary">
-                                    {gpu.temperature.toFixed(0)}&deg;C
-                                  </p>
-                                </div>
-                              </div>
+                                  </KPI.Title>
+                                </KPI.Header>
+                                <KPI.Content>
+                                  <span className="text-foreground text-lg font-semibold tabular-nums">
+                                    {gpu.temperature.toFixed(0)}°C
+                                  </span>
+                                </KPI.Content>
+                              </KPI>
                             )}
-                          </div>
-                        </div>
+                          </KPIGroup>
+                        )}
                       </div>
-                    </GlowCard>
+                    </div>
                   ))}
-                </div>
-              </div>
+                </Widget.Content>
+              </Widget>
             )}
 
             {/* Power profile */}
             {data && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-                  <BatteryCharging className="size-4 text-neon-cyan" />
-                  Power Profile
-                  {data.power_profiles.length > 0 && data.current_power_profile && (
-                    <Chip
-                      size="sm"
-                      color="accent"
-                      variant="soft"
-                      className="capitalize text-[10px]"
-                    >
-                      {data.current_power_profile}
-                    </Chip>
-                  )}
-                </label>
-                {data.power_profiles.length > 0 ? (
-                  <GlowCard className="p-5">
-                    <p className="mb-4 text-xs leading-relaxed text-text-muted">
-                      Switch between system power profiles. Performance maximises
-                      clocks for gaming, balanced adapts dynamically, and
-                      power-saver (or battery on Pop!_OS) prioritises lower draw
-                      and quieter fans. The change takes effect immediately.
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {data.power_profiles.map((profile) => {
-                        const active =
-                          profile.toLowerCase() ===
-                          data.current_power_profile?.toLowerCase();
-                        const meta =
-                          POWER_PROFILE_META[profile.toLowerCase()] ??
-                          POWER_PROFILE_META["balanced"];
-                        const ProfileIcon = meta?.icon ?? Zap;
+              <Widget>
+                <Widget.Header>
+                  <Widget.Title className="flex items-center gap-1.5">
+                    <BatteryCharging
+                      className="text-neon-cyan size-4 shrink-0"
+                      aria-hidden
+                    />
+                    Power profile
+                    {data.power_profiles.length > 0 &&
+                      data.current_power_profile && (
+                        <Chip
+                          size="sm"
+                          color="accent"
+                          variant="soft"
+                          className="ml-1 text-[10px] capitalize"
+                        >
+                          {data.current_power_profile}
+                        </Chip>
+                      )}
+                  </Widget.Title>
+                </Widget.Header>
+                <Widget.Content
+                  className={
+                    data.power_profiles.length > 0 ? "space-y-3" : undefined
+                  }
+                >
+                  {data.power_profiles.length > 0 ? (
+                    <>
+                      <Text.Paragraph
+                        size="xs"
+                        color="muted"
+                        className="leading-relaxed"
+                      >
+                        Switch between system power profiles. Performance
+                        maximises clocks for gaming, balanced adapts dynamically,
+                        and power-saver (or battery on Pop!_OS) prioritises lower
+                        draw and quieter fans. The change takes effect
+                        immediately.
+                      </Text.Paragraph>
+                      <ItemCardGroup
+                        variant="secondary"
+                        layout="list"
+                        className="overflow-hidden rounded-xl"
+                      >
+                        {data.power_profiles.map((profile) => {
+                          const active =
+                            profile.toLowerCase() ===
+                            data.current_power_profile?.toLowerCase();
+                          const meta =
+                            POWER_PROFILE_META[profile.toLowerCase()] ??
+                            POWER_PROFILE_META["balanced"];
+                          const ProfileIcon = meta?.icon ?? Zap;
 
-                        return (
-                          <button
-                            key={profile}
-                            onClick={() => handleSetProfile(profile)}
-                            className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${
-                              active
-                                ? "border-neon-cyan/40 bg-neon-cyan/10"
-                                : "border-border bg-surface-secondary/30 hover:border-border-secondary"
-                            }`}
-                          >
-                            <div
-                              className={`flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary ${meta?.color ?? "text-text-secondary"}`}
+                          return (
+                            <ItemCard
+                              key={profile}
+                              className={
+                                active
+                                  ? "border-neon-cyan/40 bg-neon-cyan/10 py-3"
+                                  : "py-3"
+                              }
                             >
-                              <ProfileIcon className="size-5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold capitalize text-text-primary">
-                                  {profile}
-                                </span>
-                                {active && (
-                                  <Chip
-                                    size="sm"
-                                    color="accent"
-                                    variant="soft"
-                                    className="text-[10px]"
+                              <ItemCard.Icon
+                                className={`bg-surface-secondary ${meta?.color ?? "text-foreground"}`}
+                              >
+                                <ProfileIcon
+                                  className="size-4 shrink-0"
+                                  aria-hidden
+                                />
+                              </ItemCard.Icon>
+                              <ItemCard.Content className="min-w-0 gap-0.5">
+                                <ItemCard.Title className="flex items-center gap-2 capitalize">
+                                  <span className="truncate">{profile}</span>
+                                  {active && (
+                                    <Chip
+                                      size="sm"
+                                      color="accent"
+                                      variant="soft"
+                                      className="text-[10px]"
+                                    >
+                                      Active
+                                    </Chip>
+                                  )}
+                                </ItemCard.Title>
+                                {meta?.description && (
+                                  <Text.Paragraph
+                                    size="xs"
+                                    color="muted"
+                                    className="leading-snug"
                                   >
-                                    Active
-                                  </Chip>
+                                    {meta.description}
+                                  </Text.Paragraph>
                                 )}
-                              </div>
-                              {meta?.description && (
-                                <p className="mt-0.5 text-xs text-text-muted">
-                                  {meta.description}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </GlowCard>
-                ) : (
-                  <GlowCard className="p-5">
-                    <div className="flex gap-3">
-                      <AlertCircle className="mt-0.5 size-5 shrink-0 text-text-muted" />
-                      <div className="min-w-0 space-y-2 text-xs leading-relaxed text-text-muted">
-                        <p className="font-medium text-text-secondary">
+                              </ItemCard.Content>
+                              <ItemCard.Action>
+                                <Button
+                                  size="sm"
+                                  variant={active ? "secondary" : "primary"}
+                                  isDisabled={
+                                    active || setPowerProfile.isPending
+                                  }
+                                  onPress={() => handleSetProfile(profile)}
+                                >
+                                  {active ? "Active" : "Activate"}
+                                </Button>
+                              </ItemCard.Action>
+                            </ItemCard>
+                          );
+                        })}
+                      </ItemCardGroup>
+                    </>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <AlertCircle
+                        className="text-muted mt-0.5 size-5 shrink-0"
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Text.Paragraph
+                          size="sm"
+                          weight="semibold"
+                          className="text-foreground"
+                        >
                           Profile switching unavailable
-                        </p>
-                        <p>
+                        </Text.Paragraph>
+                        <Text.Paragraph
+                          size="xs"
+                          color="muted"
+                          className="leading-relaxed"
+                        >
                           No supported power tool responded. ProtonShift uses{" "}
-                          <code className="rounded bg-surface-deep px-1 py-0.5 font-mono text-[10px] text-neon-cyan">
+                          <Text.Code className="text-neon-cyan text-[11px]">
                             system76-power
-                          </code>{" "}
+                          </Text.Code>{" "}
                           on Pop!_OS (query:{" "}
-                          <code className="rounded bg-surface-deep px-1 py-0.5 font-mono text-[10px] text-neon-cyan">
+                          <Text.Code className="text-neon-cyan text-[11px]">
                             system76-power profile
-                          </code>
+                          </Text.Code>
                           ) or{" "}
-                          <code className="rounded bg-surface-deep px-1 py-0.5 font-mono text-[10px] text-neon-cyan">
+                          <Text.Code className="text-neon-cyan text-[11px]">
                             powerprofilesctl
-                          </code>{" "}
+                          </Text.Code>{" "}
                           from power-profiles-daemon elsewhere.
-                        </p>
-                        <p>
+                        </Text.Paragraph>
+                        <Text.Paragraph
+                          size="xs"
+                          color="muted"
+                          className="leading-relaxed"
+                        >
                           Sandboxed installs (for example Flatpak) may not see
                           those commands on the host unless permissions allow it.
-                        </p>
+                        </Text.Paragraph>
                       </div>
                     </div>
-                  </GlowCard>
-                )}
-              </div>
+                  )}
+                </Widget.Content>
+              </Widget>
             )}
 
             {/* Displays */}
             {displayData && displayData.monitors.length > 0 && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-                  <Monitor className="size-4 text-neon-cyan" />
-                  Displays
-                  <Chip size="sm" variant="secondary" className="text-[10px]">
-                    {displayData.monitors.length} monitor
-                    {displayData.monitors.length !== 1 ? "s" : ""}
-                  </Chip>
-                  <Chip
-                    size="sm"
+              <Widget>
+                <Widget.Header>
+                  <Widget.Title className="flex flex-wrap items-center gap-1.5">
+                    <Monitor
+                      className="text-neon-cyan size-4 shrink-0"
+                      aria-hidden
+                    />
+                    Displays
+                    <Chip
+                      size="sm"
+                      variant="secondary"
+                      className="ml-1 text-[10px]"
+                    >
+                      {displayData.monitors.length} monitor
+                      {displayData.monitors.length !== 1 ? "s" : ""}
+                    </Chip>
+                    <Chip
+                      size="sm"
+                      variant="secondary"
+                      className="text-[10px] capitalize"
+                    >
+                      {displayData.session_type}
+                    </Chip>
+                  </Widget.Title>
+                </Widget.Header>
+                <Widget.Content>
+                  <ItemCardGroup
                     variant="secondary"
-                    className="capitalize text-[10px]"
+                    layout="list"
+                    className="overflow-hidden rounded-xl"
                   >
-                    {displayData.session_type}
-                  </Chip>
-                </label>
-                <GlowCard className="p-5">
-                  <div className="flex flex-col gap-2">
                     {displayData.monitors.map((monitor) => (
-                      <div
-                        key={monitor.name}
-                        className="flex items-center gap-3 rounded-xl border border-border bg-surface-secondary/30 p-3.5"
-                      >
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary text-neon-blue">
-                          <Monitor className="size-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-text-primary">
-                              {monitor.name}
-                            </span>
+                      <ItemCard key={monitor.name} className="py-3">
+                        <ItemCard.Icon className="bg-surface-secondary text-neon-blue">
+                          <Monitor className="size-4 shrink-0" aria-hidden />
+                        </ItemCard.Icon>
+                        <ItemCard.Content className="min-w-0 gap-0.5">
+                          <ItemCard.Title className="flex items-center gap-2">
+                            <span className="truncate">{monitor.name}</span>
                             {monitor.primary && (
                               <Chip
                                 size="sm"
@@ -363,141 +539,202 @@ export default function SystemPage() {
                                 Primary
                               </Chip>
                             )}
-                          </div>
-                          <p className="mt-0.5 text-xs text-text-muted">
+                          </ItemCard.Title>
+                          <Text.Paragraph
+                            size="xs"
+                            color="muted"
+                            className="leading-snug tabular-nums"
+                          >
                             {monitor.resolution}
                             {monitor.refresh_rate &&
                               ` @ ${monitor.refresh_rate} Hz`}
                             {monitor.position && ` • ${monitor.position}`}
-                          </p>
-                        </div>
-                      </div>
+                          </Text.Paragraph>
+                        </ItemCard.Content>
+                      </ItemCard>
                     ))}
-                  </div>
-                </GlowCard>
-              </div>
+                  </ItemCardGroup>
+                </Widget.Content>
+              </Widget>
             )}
 
             {/* Shader cache */}
             {shaderTotal && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-                  <Layers className="size-4 text-neon-cyan" />
-                  Shader Cache
-                </label>
-                <GlowCard className="p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-neon-purple/10 border border-neon-purple/20">
-                      <HardDrive className="size-5 text-neon-purple" />
+              <Widget>
+                <Widget.Header>
+                  <Widget.Title className="flex items-center gap-1.5">
+                    <Layers
+                      className="text-neon-cyan size-4 shrink-0"
+                      aria-hidden
+                    />
+                    Shader cache
+                    <Chip
+                      size="sm"
+                      variant="secondary"
+                      className="ml-1 font-mono text-[10px] tabular-nums"
+                    >
+                      {shaderTotal.size_human}
+                    </Chip>
+                  </Widget.Title>
+                </Widget.Header>
+                <Widget.Content>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="border-neon-purple/20 bg-neon-purple/10 flex size-10 shrink-0 items-center justify-center rounded-xl border">
+                      <HardDrive className="text-neon-purple size-5" aria-hidden />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-text-primary">
-                          Total size
-                        </span>
-                        <Chip
-                          size="sm"
-                          variant="secondary"
-                          className="font-mono text-[10px]"
-                        >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-3">
+                        <span className="text-foreground font-mono text-lg font-semibold tabular-nums">
                           {shaderTotal.size_human}
-                        </Chip>
+                        </span>
+                        <Text.Paragraph size="xs" color="muted">
+                          combined Vulkan/OpenGL shader cache
+                        </Text.Paragraph>
                       </div>
-                      <p className="mt-0.5 text-xs text-text-muted">
-                        Combined size of all per-game Vulkan/OpenGL shader
-                        caches in{" "}
-                        <code className="text-neon-cyan">
+                      <Text.Paragraph
+                        size="xs"
+                        color="muted"
+                        className="leading-relaxed"
+                      >
+                        Located under{" "}
+                        <Text.Code className="text-neon-cyan text-[11px]">
                           ~/.steam/steam/shadercache/
-                        </code>
-                        . Individual caches can be cleared from each game&apos;s
-                        detail page.
-                      </p>
+                        </Text.Code>
+                        . Clear per game from each Steam game&apos;s detail page.
+                      </Text.Paragraph>
                     </div>
                   </div>
-                </GlowCard>
-              </div>
+                </Widget.Content>
+              </Widget>
             )}
 
             {/* Quick folders */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-                <FolderOpen className="size-4 text-neon-cyan" />
-                Quick Folders
-              </label>
-              <GlowCard className="p-5">
-                <p className="mb-4 text-xs leading-relaxed text-text-muted">
+            <Widget>
+              <Widget.Header>
+                <Widget.Title className="flex items-center gap-1.5">
+                  <FolderOpen
+                    className="text-neon-cyan size-4 shrink-0"
+                    aria-hidden
+                  />
+                  Quick folders
+                  <Chip
+                    size="sm"
+                    variant="secondary"
+                    className="ml-1 text-[10px]"
+                  >
+                    {QUICK_FOLDERS.length}
+                  </Chip>
+                </Widget.Title>
+              </Widget.Header>
+              <Widget.Content className="space-y-3">
+                <Text.Paragraph
+                  size="xs"
+                  color="muted"
+                  className="leading-relaxed"
+                >
                   Open common configuration and data directories in your file
                   manager. Missing folders will be reported — they may not exist
                   until the relevant tool has run at least once.
-                </p>
-                <div className="flex flex-col gap-2">
+                </Text.Paragraph>
+                <ItemCardGroup
+                  variant="secondary"
+                  layout="list"
+                  className="overflow-hidden rounded-xl"
+                >
                   {QUICK_FOLDERS.map((folder) => (
-                    <div
-                      key={folder.path}
-                      className="flex items-center gap-3 rounded-xl border border-border bg-surface-secondary/30 p-3.5 transition-colors hover:border-border-secondary"
-                    >
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary text-neon-cyan">
-                        <FolderOpen className="size-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-text-primary">
+                    <ItemCard key={folder.path} className="py-3">
+                      <ItemCard.Icon className="bg-surface-secondary text-neon-cyan">
+                        <FolderOpen className="size-4 shrink-0" aria-hidden />
+                      </ItemCard.Icon>
+                      <ItemCard.Content className="min-w-0 gap-0.5">
+                        <ItemCard.Title className="truncate">
                           {folder.label}
-                        </p>
-                        <p className="mt-0.5 text-xs text-text-muted">
-                          {folder.description}
-                        </p>
-                        <code className="mt-1 block text-[10px] font-mono text-text-muted/70">
-                          {folder.path}
-                        </code>
-                      </div>
-                      <Tooltip delay={0}>
-                        <Button
-                          isIconOnly
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0"
-                          aria-label={`Open ${folder.label} folder`}
-                          onPress={async () => {
-                            try {
-                              await api.openPath(folder.path);
-                            } catch {
-                              appShowToast(
-                                `Could not open ${folder.label} — folder may not exist yet`,
-                                "error",
-                              );
-                            }
-                          }}
+                        </ItemCard.Title>
+                        <Text.Paragraph
+                          size="xs"
+                          color="muted"
+                          className="leading-snug"
                         >
-                          <FolderOpen className="size-3.5" />
-                        </Button>
-                        <Tooltip.Content>
-                          Open in file manager
-                        </Tooltip.Content>
-                      </Tooltip>
-                    </div>
+                          {folder.description}
+                        </Text.Paragraph>
+                        <Text.Code
+                          className="text-muted/80 mt-0.5 block truncate text-[10px]"
+                          title={folder.path}
+                        >
+                          {folder.path}
+                        </Text.Code>
+                      </ItemCard.Content>
+                      <ItemCard.Action>
+                        <Tooltip delay={0}>
+                          <Button
+                            isIconOnly
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Open ${folder.label} folder`}
+                            onPress={async () => {
+                              try {
+                                await api.openPath(folder.path);
+                              } catch {
+                                appShowToast(
+                                  `Could not open ${folder.label} — folder may not exist yet`,
+                                  "error",
+                                );
+                              }
+                            }}
+                          >
+                            <FolderOpen className="size-3.5 shrink-0" aria-hidden />
+                          </Button>
+                          <Tooltip.Content>Open in file manager</Tooltip.Content>
+                        </Tooltip>
+                      </ItemCard.Action>
+                    </ItemCard>
                   ))}
-                </div>
-              </GlowCard>
-            </div>
+                </ItemCardGroup>
+              </Widget.Content>
+            </Widget>
 
             {/* Info footer */}
-            <GlowCard className="p-4">
-              <div className="flex gap-3">
-                <Info className="mt-0.5 size-4 shrink-0 text-neon-cyan" />
-                <p className="text-xs leading-relaxed text-text-muted">
-                  GPU temperatures and VRAM are read from{" "}
-                  <code className="text-neon-cyan">nvidia-smi</code> (NVIDIA) or{" "}
-                  <code className="text-neon-cyan">/sys/class/drm/</code> hwmon
-                  (AMD/Intel). Power profiles use{" "}
-                  <code className="text-neon-cyan">system76-power</code> on
-                  Pop!_OS or{" "}
-                  <code className="text-neon-cyan">powerprofilesctl</code> on
-                  Ubuntu and Fedora. Display info comes from{" "}
-                  <code className="text-neon-cyan">xrandr</code> (X11) or{" "}
-                  <code className="text-neon-cyan">wlr-randr</code> (Wayland).
-                </p>
-              </div>
-            </GlowCard>
+            <Widget>
+              <Widget.Content className="py-3">
+                <div className="flex items-start gap-3">
+                  <Info
+                    className="text-neon-cyan mt-0.5 size-4 shrink-0"
+                    aria-hidden
+                  />
+                  <Text.Paragraph
+                    size="xs"
+                    color="muted"
+                    className="leading-relaxed"
+                  >
+                    GPU temperatures and VRAM are read from{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      nvidia-smi
+                    </Text.Code>{" "}
+                    (NVIDIA) or{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      /sys/class/drm/
+                    </Text.Code>{" "}
+                    hwmon (AMD/Intel). Power profiles use{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      system76-power
+                    </Text.Code>{" "}
+                    on Pop!_OS or{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      powerprofilesctl
+                    </Text.Code>{" "}
+                    on Ubuntu and Fedora. Display info comes from{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      xrandr
+                    </Text.Code>{" "}
+                    (X11) or{" "}
+                    <Text.Code className="text-neon-cyan text-[11px]">
+                      wlr-randr
+                    </Text.Code>{" "}
+                    (Wayland).
+                  </Text.Paragraph>
+                </div>
+              </Widget.Content>
+            </Widget>
           </>
         )}
       </div>

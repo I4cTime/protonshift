@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "motion/react";
 import {
   Plus,
@@ -10,13 +10,21 @@ import {
   Layers,
   List,
   Code,
-  Search,
   Info,
   FileText,
 } from "lucide-react";
-import { Button, Input, Chip, Spinner, Tooltip } from "@heroui/react";
+import {
+  Button,
+  Chip,
+  Input,
+  Label,
+  SearchField,
+  Spinner,
+  Text,
+  Tooltip,
+} from "@heroui/react";
+import { EmptyState, Widget } from "@heroui-pro/react";
 import { PageShell } from "@/components/page-shell";
-import { GlowCard } from "@/components/glow-card";
 import { EnvPresets } from "@/components/env-presets";
 import { useEnvVars, useSetEnvVars, useEnvPresets } from "@/hooks/use-env";
 import { appShowToast } from "@/lib/app-toast";
@@ -47,19 +55,25 @@ const KNOWN_VARS: Record<string, string> = {
   STEAM_COMPAT_CLIENT_INSTALL_PATH: "Steam install root for Proton lookup",
 };
 
-export default function EnvironmentPage() {
-  const { data: envVars, isLoading } = useEnvVars();
-  const { data: envPresets } = useEnvPresets();
-  const setEnvVars = useSetEnvVars();
+const ENV_FILE_PATH = "~/.config/environment.d/70-protonshift.conf";
 
-  const [vars, setVars] = useState<[string, string][]>([]);
+function entriesFromEnv(env: Record<string, string>): [string, string][] {
+  return Object.entries(env);
+}
+
+function EnvironmentVarsBody({
+  initialEntries,
+  isLoading,
+  envPresets,
+  setEnvVars,
+}: {
+  initialEntries: [string, string][];
+  isLoading: boolean;
+  envPresets: Record<string, Record<string, string>> | undefined;
+  setEnvVars: ReturnType<typeof useSetEnvVars>;
+}) {
+  const [vars, setVars] = useState<[string, string][]>(initialEntries);
   const [filter, setFilter] = useState("");
-
-  useEffect(() => {
-    if (envVars) {
-      setVars(Object.entries(envVars));
-    }
-  }, [envVars]);
 
   function addVar() {
     setVars((prev) => [...prev, ["", ""]]);
@@ -119,158 +133,212 @@ export default function EnvironmentPage() {
   const visibleCount =
     filteredIndices !== null ? filteredIndices.size : vars.length;
 
+  const previewBody = useMemo(
+    () =>
+      vars
+        .filter(([k]) => k.trim())
+        .map(([k, v]) => `${k.trim()}="${v}"`)
+        .join("\n") || "# (empty)",
+    [vars],
+  );
+
   return (
     <PageShell>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="mx-auto max-w-3xl space-y-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-xl font-bold text-neon-cyan">
-              <Terminal className="size-5" />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <Text.Heading
+              level={2}
+              className="text-neon-cyan flex items-center gap-2 text-xl font-bold"
+            >
+              <Terminal className="size-5 shrink-0" aria-hidden />
               Environment Variables
-            </h2>
-            <p className="flex items-center gap-1.5 text-sm text-text-muted mt-1">
-              <FileText className="size-3.5" />
-              ~/.config/environment.d/70-protonshift.conf
-            </p>
+            </Text.Heading>
+            <Text.Paragraph
+              size="xs"
+              color="muted"
+              className="flex items-center gap-1.5"
+            >
+              <FileText className="size-3.5 shrink-0" aria-hidden />
+              <Text.Code className="text-[11px]">{ENV_FILE_PATH}</Text.Code>
+            </Text.Paragraph>
           </div>
           <Button
-            onPress={handleSave}
+            onPress={() => void handleSave()}
             isDisabled={setEnvVars.isPending}
-            className="gap-2"
+            className="gap-1.5"
           >
             {setEnvVars.isPending ? (
               <Spinner size="sm" />
             ) : (
-              <Save className="size-4" />
+              <Save className="size-3.5 shrink-0" aria-hidden />
             )}
             Save
           </Button>
         </div>
 
         {/* Info banner */}
-        <GlowCard className="p-4">
-          <div className="flex gap-3">
-            <Info className="mt-0.5 size-4 shrink-0 text-neon-cyan" />
-            <div className="text-xs leading-relaxed text-text-muted">
-              <p>
-                Variables set here are written to{" "}
-                <code className="text-neon-cyan">
-                  ~/.config/environment.d/70-protonshift.conf
-                </code>{" "}
-                and loaded by systemd on login. They apply to{" "}
-                <strong className="text-text-secondary">
-                  every application
-                </strong>{" "}
-                in your session — Steam, Lutris, Heroic, and terminal-launched
-                games all inherit them.
-              </p>
-              <p className="mt-1.5">
-                Changes take effect after your next{" "}
-                <strong className="text-text-secondary">
-                  logout and login
-                </strong>
-                . Per-game overrides can be set in Steam&apos;s launch options
-                or in the Games page.
-              </p>
+        <Widget>
+          <Widget.Content className="py-3">
+            <div className="flex items-start gap-3">
+              <Info className="text-neon-cyan mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Text.Paragraph size="xs" color="muted" className="leading-relaxed">
+                  Variables set here are written to{" "}
+                  <Text.Code className="text-neon-cyan text-[11px]">
+                    {ENV_FILE_PATH}
+                  </Text.Code>{" "}
+                  and loaded by systemd on login. They apply to{" "}
+                  <strong className="text-foreground font-semibold">
+                    every application
+                  </strong>{" "}
+                  in your session — Steam, Lutris, Heroic, and terminal-launched
+                  games all inherit them.
+                </Text.Paragraph>
+                <Text.Paragraph size="xs" color="muted" className="leading-relaxed">
+                  Changes take effect after your next{" "}
+                  <strong className="text-foreground font-semibold">
+                    logout and login
+                  </strong>
+                  . Per-game overrides can be set in Steam&apos;s launch options
+                  or in the Games page.
+                </Text.Paragraph>
+              </div>
             </div>
-          </div>
-        </GlowCard>
+          </Widget.Content>
+        </Widget>
 
         {/* Presets */}
         {envPresets && Object.keys(envPresets).length > 0 && (
-          <GlowCard className="p-5">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
-              <Layers className="size-4 text-neon-cyan" />
-              Quick Presets
-            </label>
-            <EnvPresets presets={envPresets} onApply={applyPreset} />
-          </GlowCard>
+          <Widget>
+            <Widget.Header>
+              <Widget.Title className="flex items-center gap-1.5">
+                <Layers className="text-neon-cyan size-4 shrink-0" aria-hidden />
+                Quick presets
+                <Chip size="sm" variant="secondary" className="ml-1 text-[10px]">
+                  {Object.keys(envPresets).length}
+                </Chip>
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content>
+              <EnvPresets presets={envPresets} onApply={applyPreset} />
+            </Widget.Content>
+          </Widget>
         )}
 
         {/* Variables editor */}
-        <GlowCard className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <List className="size-4 text-neon-cyan" />
+        <Widget>
+          <Widget.Header>
+            <Widget.Title className="flex items-center gap-1.5">
+              <List className="text-neon-cyan size-4 shrink-0" aria-hidden />
               Variables
               {vars.length > 0 && (
-                <Chip size="sm" variant="secondary" className="text-[10px]">
+                <Chip size="sm" variant="secondary" className="ml-1 text-[10px]">
                   {vars.length}
                 </Chip>
               )}
-            </label>
-          </div>
-
-          {vars.length > 3 && (
-            <div className="relative mb-4">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-text-muted" />
-              <Input
+            </Widget.Title>
+          </Widget.Header>
+          <Widget.Content className="space-y-3">
+            {vars.length > 3 && (
+              <SearchField
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter variables…"
+                onChange={setFilter}
+                onClear={() => setFilter("")}
                 aria-label="Filter variables"
                 variant="secondary"
-                className="w-full pl-9 font-mono text-xs"
-              />
-            </div>
-          )}
+                fullWidth
+              >
+                <SearchField.Group className="w-full">
+                  <SearchField.SearchIcon />
+                  <SearchField.Input
+                    placeholder="Filter variables…"
+                    className="font-mono text-xs"
+                  />
+                  <SearchField.ClearButton />
+                </SearchField.Group>
+              </SearchField>
+            )}
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Spinner size="lg" />
-            </div>
-          ) : vars.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-              <Terminal className="size-8 text-text-muted/50" />
-              <div>
-                <p className="text-sm font-medium text-text-secondary">
-                  No variables yet
-                </p>
-                <p className="mt-1 text-xs text-text-muted">
-                  Add a variable manually or apply a preset above to get
-                  started.
-                </p>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Spinner size="lg" />
               </div>
-              <Button variant="outline" onPress={addVar} className="gap-2">
-                <Plus className="size-4" />
-                Add first variable
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {vars.map(([key, value], index) => {
-                if (filteredIndices !== null && !filteredIndices.has(index))
-                  return null;
-
-                const hint = key.trim() ? KNOWN_VARS[key.trim()] : undefined;
-
-                return (
-                  <motion.div
-                    key={index}
-                    className="group flex items-start gap-2"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.02 }}
+            ) : vars.length === 0 ? (
+              <EmptyState size="md">
+                <EmptyState.Header>
+                  <EmptyState.Media variant="icon">
+                    <Terminal className="size-5" aria-hidden />
+                  </EmptyState.Media>
+                  <EmptyState.Title>No variables yet</EmptyState.Title>
+                  <EmptyState.Description>
+                    Add a variable manually or apply a preset above to get
+                    started.
+                  </EmptyState.Description>
+                </EmptyState.Header>
+                <EmptyState.Content>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={addVar}
+                    className="gap-1.5"
                   >
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <Plus className="size-3.5 shrink-0" aria-hidden />
+                    Add first variable
+                  </Button>
+                </EmptyState.Content>
+              </EmptyState>
+            ) : (
+              <div className="space-y-2">
+                {vars.map(([key, value], index) => {
+                  if (filteredIndices !== null && !filteredIndices.has(index))
+                    return null;
+
+                  const hint = key.trim() ? KNOWN_VARS[key.trim()] : undefined;
+
+                  return (
+                    <motion.div
+                      key={index}
+                      className="group flex min-w-0 flex-col gap-1"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                    >
                       <div className="flex items-center gap-2">
+                        <Label
+                          id={`env-key-${index}`}
+                          className="sr-only"
+                        >
+                          {`Variable key ${index + 1}`}
+                        </Label>
                         <Input
                           value={key}
                           onChange={(e) => updateVar(index, 0, e.target.value)}
                           placeholder="KEY"
-                          aria-label={`Variable key ${index + 1}`}
+                          aria-labelledby={`env-key-${index}`}
                           variant="secondary"
-                          className="flex-1 font-mono"
+                          className="flex-1 font-mono text-xs"
                         />
-                        <span className="shrink-0 text-text-muted">=</span>
+                        <span
+                          aria-hidden
+                          className="text-muted shrink-0 select-none font-mono text-xs"
+                        >
+                          =
+                        </span>
+                        <Label
+                          id={`env-value-${index}`}
+                          className="sr-only"
+                        >
+                          {`Variable value ${index + 1}`}
+                        </Label>
                         <Input
                           value={value}
                           onChange={(e) => updateVar(index, 1, e.target.value)}
                           placeholder="value"
-                          aria-label={`Variable value ${index + 1}`}
+                          aria-labelledby={`env-value-${index}`}
                           variant="secondary"
-                          className="flex-[2] font-mono"
+                          className="flex-[2] font-mono text-xs"
                         />
                         <Tooltip delay={0}>
                           <Button
@@ -281,55 +349,84 @@ export default function EnvironmentPage() {
                             aria-label="Remove variable"
                             className="shrink-0 opacity-50 transition-opacity group-hover:opacity-100"
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-3.5 shrink-0" aria-hidden />
                           </Button>
                           <Tooltip.Content>Remove</Tooltip.Content>
                         </Tooltip>
                       </div>
                       {hint && (
-                        <p className="ml-0.5 text-[11px] leading-snug text-text-muted">
+                        <Text.Paragraph
+                          size="xs"
+                          color="muted"
+                          className="ml-0.5 leading-snug"
+                        >
                           {hint}
-                        </p>
+                        </Text.Paragraph>
                       )}
-                    </div>
-                  </motion.div>
-                );
-              })}
+                    </motion.div>
+                  );
+                })}
 
-              {filteredIndices !== null && visibleCount === 0 && (
-                <p className="py-4 text-center text-xs text-text-muted">
-                  No variables match &ldquo;{filter}&rdquo;
-                </p>
-              )}
+                {filteredIndices !== null && visibleCount === 0 && (
+                  <Text.Paragraph
+                    size="xs"
+                    color="muted"
+                    align="center"
+                    className="py-4"
+                  >
+                    No variables match &ldquo;{filter}&rdquo;
+                  </Text.Paragraph>
+                )}
 
-              <Button
-                variant="outline"
-                onPress={addVar}
-                className="w-full gap-2"
-              >
-                <Plus className="size-4" />
-                Add Variable
-              </Button>
-            </div>
-          )}
-        </GlowCard>
+                <Button
+                  variant="outline"
+                  onPress={addVar}
+                  className="w-full gap-1.5"
+                >
+                  <Plus className="size-3.5 shrink-0" aria-hidden />
+                  Add variable
+                </Button>
+              </div>
+            )}
+          </Widget.Content>
+        </Widget>
 
         {/* Preview */}
         {vars.length > 0 && (
-          <GlowCard className="p-5">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
-              <Code className="size-4 text-neon-cyan" />
-              Preview (70-protonshift.conf)
-            </label>
-            <pre className="rounded-lg border border-border bg-surface-deep p-3 font-mono text-xs text-neon-cyan max-h-48 overflow-auto whitespace-pre-wrap">
-              {vars
-                .filter(([k]) => k.trim())
-                .map(([k, v]) => `${k.trim()}="${v}"`)
-                .join("\n") || "# (empty)"}
-            </pre>
-          </GlowCard>
+          <Widget>
+            <Widget.Header>
+              <Widget.Title className="flex items-center gap-1.5">
+                <Code className="text-neon-cyan size-4 shrink-0" aria-hidden />
+                Preview
+                <Text.Code className="text-muted ml-1 text-[10px]">
+                  70-protonshift.conf
+                </Text.Code>
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content>
+              <pre className="border-border bg-surface-deep text-neon-cyan max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs leading-relaxed">
+                {previewBody}
+              </pre>
+            </Widget.Content>
+          </Widget>
         )}
       </div>
     </PageShell>
+  );
+}
+
+export default function EnvironmentPage() {
+  const { data: envVars, isLoading } = useEnvVars();
+  const { data: envPresets } = useEnvPresets();
+  const setEnvVars = useSetEnvVars();
+
+  return (
+    <EnvironmentVarsBody
+      key={envVars != null ? JSON.stringify(envVars) : "pending"}
+      initialEntries={envVars != null ? entriesFromEnv(envVars) : []}
+      isLoading={isLoading}
+      envPresets={envPresets}
+      setEnvVars={setEnvVars}
+    />
   );
 }

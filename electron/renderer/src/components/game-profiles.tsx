@@ -1,21 +1,25 @@
 "use client";
 
-import { Bookmark, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Bookmark, Save, Trash2, Sparkles } from "lucide-react";
 import {
+  AlertDialog,
   Button,
   Chip,
   Description,
   Disclosure,
   Input,
-  Spinner,
-  TextField,
   Label,
+  Spinner,
+  Text,
+  TextField,
+  Tooltip,
 } from "@heroui/react";
-import { GlowCard } from "./glow-card";
+import { EmptyState, ItemCard, ItemCardGroup, Widget } from "@heroui-pro/react";
+import { InfoHint } from "./info-hint";
 import type { ProfileData } from "@/lib/api";
 import { api } from "@/lib/api";
 import { appShowToast } from "@/lib/app-toast";
-import { useState } from "react";
 
 interface GameProfilesProps {
   gameName: string;
@@ -88,14 +92,18 @@ export function GameProfiles({
         try {
           await api.setEnvVars(profile.env_vars);
           applied.push("env vars");
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       if (profile.power_profile) {
         try {
           await api.setPowerProfile(profile.power_profile);
           applied.push("power profile");
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       appShowToast(`Profile "${name}" loaded (${applied.join(", ")})`);
@@ -113,90 +121,204 @@ export function GameProfiles({
     }
   }
 
+  const profileCount = profileNames?.length ?? 0;
+
   return (
-    <GlowCard className="p-5 space-y-3">
-      <div>
-        <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-          <Bookmark className="size-4 text-neon-cyan" />
+    <Widget>
+      <Widget.Header>
+        <Widget.Title className="flex flex-wrap items-center gap-1.5">
+          <Bookmark className="text-neon-cyan size-4 shrink-0" aria-hidden />
           Profiles
-        </label>
-        <Description>
-          Save or load full launch configurations: launch options, compat tool, env vars, and power profile.
-        </Description>
-      </div>
-
-      <Disclosure isExpanded={isExpanded} onExpandedChange={(v) => {
-        setIsExpanded(v);
-        if (v && !profileName) setProfileName(gameName);
-      }}>
-        <Disclosure.Heading>
-          <Button slot="trigger" variant="ghost" size="sm" className="gap-1.5">
-            <Bookmark className="size-3" />
-            Save Current
-            <Disclosure.Indicator />
-          </Button>
-        </Disclosure.Heading>
-        <Disclosure.Content>
-          <Disclosure.Body className="pt-3">
-            <div className="flex items-end gap-2">
-              <TextField
-                value={profileName}
-                onChange={setProfileName}
-                className="flex-1"
-              >
-                <Label>Profile name</Label>
-                <Input
-                  placeholder="Enter a name..."
-                  variant="secondary"
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveProfile()}
-                />
-              </TextField>
-              <Button
-                size="sm"
-                onPress={handleSaveProfile}
-                isDisabled={!profileName.trim() || saveProfileMut.isPending}
-              >
-                {saveProfileMut.isPending ? <Spinner size="sm" /> : "Save"}
-              </Button>
-            </div>
-          </Disclosure.Body>
-        </Disclosure.Content>
-      </Disclosure>
-
-      {profileNames && profileNames.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {profileNames.map((name) => {
-            const isMatch =
-              name.toLowerCase() === gameName.toLowerCase() ||
-              name.toLowerCase() === gameAppId.toLowerCase();
-            return (
-              <div key={name} className="flex items-center gap-0.5">
-                <Chip
-                  color={isMatch ? "accent" : "default"}
-                  variant={isMatch ? "primary" : "secondary"}
-                  className="cursor-pointer rounded-r-none"
-                  onClick={() => handleLoadProfile(name)}
+          <Chip size="sm" variant="secondary" className="text-[10px]">
+            {profileCount}
+          </Chip>
+        </Widget.Title>
+        <InfoHint label="About profiles">
+          Save or load full launch configurations: launch options, compat tool, env vars, and
+          power profile.
+        </InfoHint>
+      </Widget.Header>
+      <Widget.Content className="space-y-3">
+        <Disclosure
+          isExpanded={isExpanded}
+          onExpandedChange={(v) => {
+            setIsExpanded(v);
+            if (v && !profileName) setProfileName(gameName);
+          }}
+        >
+          <Disclosure.Heading>
+            <Button
+              slot="trigger"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 px-2 text-xs"
+            >
+              <Save className="size-3.5 shrink-0" aria-hidden />
+              Save current configuration
+              <Disclosure.Indicator />
+            </Button>
+          </Disclosure.Heading>
+          <Disclosure.Content>
+            <Disclosure.Body className="pt-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <TextField
+                  value={profileName}
+                  onChange={setProfileName}
+                  className="min-w-0 flex-1"
                 >
-                  {isMatch && <Bookmark className="size-3" />}
-                  {name}
-                </Chip>
+                  <Label className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+                    Profile name
+                  </Label>
+                  <Input
+                    placeholder="e.g. Performance"
+                    variant="secondary"
+                    onKeyDown={(e) => e.key === "Enter" && void handleSaveProfile()}
+                  />
+                </TextField>
                 <Button
-                  isIconOnly
-                  variant="ghost"
                   size="sm"
-                  onPress={() => handleDeleteProfile(name)}
-                  aria-label={`Delete profile ${name}`}
-                  className="rounded-l-none border-l-0 h-auto min-w-6"
+                  onPress={() => void handleSaveProfile()}
+                  isDisabled={!profileName.trim() || saveProfileMut.isPending}
+                  className="shrink-0 gap-1.5 sm:self-end"
                 >
-                  <Trash2 className="size-3" />
+                  {saveProfileMut.isPending ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <Save className="size-3.5 shrink-0" aria-hidden />
+                  )}
+                  Save profile
                 </Button>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-xs text-text-muted">No saved profiles yet.</p>
-      )}
-    </GlowCard>
+              <Text.Paragraph size="xs" color="muted" className="mt-2">
+                Snapshots launch options, compat tool, environment variables, and the active
+                power profile.
+              </Text.Paragraph>
+            </Disclosure.Body>
+          </Disclosure.Content>
+        </Disclosure>
+
+        {profileNames && profileNames.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+              Saved profiles
+            </Label>
+            <ItemCardGroup
+              variant="outline"
+              layout="list"
+              className="overflow-hidden rounded-xl"
+            >
+              {profileNames.map((name) => {
+                const isMatch =
+                  name.toLowerCase() === gameName.toLowerCase() ||
+                  name.toLowerCase() === gameAppId.toLowerCase();
+                return (
+                  <ItemCard key={name} className="py-2">
+                    <ItemCard.Icon>
+                      {isMatch ? (
+                        <Sparkles className="text-neon-cyan size-4" aria-hidden />
+                      ) : (
+                        <Bookmark className="text-muted size-4" aria-hidden />
+                      )}
+                    </ItemCard.Icon>
+                    <ItemCard.Content className="min-w-0 gap-0.5">
+                      <ItemCard.Title className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm">
+                        <span className="truncate" title={name}>
+                          {name}
+                        </span>
+                        {isMatch && (
+                          <Chip size="sm" color="accent" variant="soft" className="text-[10px]">
+                            Matches game
+                          </Chip>
+                        )}
+                      </ItemCard.Title>
+                      <Text.Paragraph
+                        size="xs"
+                        color="muted"
+                        className="leading-snug"
+                      >
+                        Loads launch options, compat tool, env vars, and power profile.
+                      </Text.Paragraph>
+                    </ItemCard.Content>
+                    <ItemCard.Action>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Tooltip delay={0}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2 text-xs"
+                            onPress={() => void handleLoadProfile(name)}
+                          >
+                            Load
+                          </Button>
+                          <Tooltip.Content>Apply this profile to the game</Tooltip.Content>
+                        </Tooltip>
+                        <AlertDialog>
+                          <Tooltip delay={0}>
+                            <Button
+                              isIconOnly
+                              variant="danger-soft"
+                              size="sm"
+                              aria-label={`Delete profile ${name}`}
+                              className="h-8 w-8 min-w-8"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                            <Tooltip.Content>Delete profile</Tooltip.Content>
+                          </Tooltip>
+                          <AlertDialog.Backdrop>
+                            <AlertDialog.Container>
+                              <AlertDialog.Dialog className="sm:max-w-[400px]">
+                                <AlertDialog.CloseTrigger />
+                                <AlertDialog.Header>
+                                  <AlertDialog.Icon status="warning" />
+                                  <AlertDialog.Heading>Delete profile?</AlertDialog.Heading>
+                                </AlertDialog.Header>
+                                <AlertDialog.Body>
+                                  <Description className="text-sm">
+                                    Permanently remove the profile{" "}
+                                    <code className="bg-surface-secondary text-foreground rounded px-1 py-0.5 font-mono text-[12px]">
+                                      {name}
+                                    </code>
+                                    . This cannot be undone.
+                                  </Description>
+                                </AlertDialog.Body>
+                                <AlertDialog.Footer>
+                                  <Button slot="close" variant="tertiary">
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="danger"
+                                    onPress={() => void handleDeleteProfile(name)}
+                                  >
+                                    Delete
+                                  </Button>
+                                </AlertDialog.Footer>
+                              </AlertDialog.Dialog>
+                            </AlertDialog.Container>
+                          </AlertDialog.Backdrop>
+                        </AlertDialog>
+                      </div>
+                    </ItemCard.Action>
+                  </ItemCard>
+                );
+              })}
+            </ItemCardGroup>
+          </div>
+        ) : (
+          <EmptyState className="border-border rounded-xl border border-dashed px-4 py-6">
+            <EmptyState.Header>
+              <EmptyState.Media variant="icon">
+                <Bookmark className="text-neon-cyan size-7 opacity-80" aria-hidden />
+              </EmptyState.Media>
+              <EmptyState.Title>No saved profiles yet</EmptyState.Title>
+              <EmptyState.Description className="text-center">
+                Configure the game on the Setup tab, then save the current state as a reusable
+                profile.
+              </EmptyState.Description>
+            </EmptyState.Header>
+          </EmptyState>
+        )}
+      </Widget.Content>
+    </Widget>
   );
 }

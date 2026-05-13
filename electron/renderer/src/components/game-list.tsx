@@ -1,29 +1,44 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import type { Key, Selection } from "react-aria-components";
 import { Gamepad2, Swords, Joystick, SearchX, FolderOpen } from "lucide-react";
-import { SearchField, Surface, Chip, Separator, Description } from "@heroui/react";
-import { motion, AnimatePresence } from "motion/react";
+import { SearchField, Surface, Chip, Separator } from "@heroui/react";
+import { ListView, EmptyState } from "@heroui-pro/react";
 import type { AnyGame, SteamGame, HeroicGame, LutrisGame } from "@/lib/api";
+import { FOCUS_GAME_SEARCH_EVENT } from "@/lib/command-palette-events";
 
 interface GameListProps {
   steam: SteamGame[];
   heroic: HeroicGame[];
   lutris: LutrisGame[];
-  selectedId: string | null;
+  selectedListKey: string | null;
   onSelect: (game: AnyGame) => void;
 }
 
-function getSourceIcon(source: string) {
+function gameKey(game: AnyGame): string {
+  return `${game.source}:${game.app_id}`;
+}
+
+/** ListView `items` must carry a top-level `id` for collection keys (HeroUI / RAC). */
+type GameListRow = { id: string; game: AnyGame };
+
+function GameSourceGlyph({
+  source,
+  className,
+}: {
+  source: string;
+  className?: string;
+}) {
   switch (source) {
     case "steam":
-      return Gamepad2;
+      return <Gamepad2 className={className} aria-hidden />;
     case "heroic":
-      return Swords;
+      return <Swords className={className} aria-hidden />;
     case "lutris":
-      return Joystick;
+      return <Joystick className={className} aria-hidden />;
     default:
-      return Gamepad2;
+      return <Gamepad2 className={className} aria-hidden />;
   }
 }
 
@@ -32,7 +47,7 @@ function getSourceLabel(game: AnyGame): string {
   return game.source.charAt(0).toUpperCase() + game.source.slice(1);
 }
 
-export function GameList({ steam, heroic, lutris, selectedId, onSelect }: GameListProps) {
+export function GameList({ steam, heroic, lutris, selectedListKey, onSelect }: GameListProps) {
   const [search, setSearch] = useState("");
   const totalCount = steam.length + heroic.length + lutris.length;
 
@@ -43,10 +58,59 @@ export function GameList({ steam, heroic, lutris, selectedId, onSelect }: GameLi
     return games.filter((g) => g.name.toLowerCase().includes(q));
   }, [steam, heroic, lutris, search]);
 
+  const listRows = useMemo(
+    (): GameListRow[] => allGames.map((g) => ({ id: gameKey(g), game: g })),
+    [allGames],
+  );
+
+  const gameByKey = useMemo(
+    () => new Map(listRows.map((r) => [r.id, r.game])),
+    [listRows],
+  );
+
   const isSearching = search.trim().length > 0;
 
+  const selectedKeys = useMemo((): Selection => {
+    if (!selectedListKey) return new Set<Key>();
+    return new Set<Key>([selectedListKey]);
+  }, [selectedListKey]);
+
+  const onSelectionChange = useCallback(
+    (keys: Selection) => {
+      if (keys === "all") return;
+      const id = [...keys][0];
+      if (id == null) return;
+      const g = gameByKey.get(String(id));
+      if (g) onSelect(g);
+    },
+    [gameByKey, onSelect],
+  );
+
+  const onListAction = useCallback(
+    (key: string | number) => {
+      const g = gameByKey.get(String(key));
+      if (g) onSelect(g);
+    },
+    [gameByKey, onSelect],
+  );
+
+  useEffect(() => {
+    function focusSearch() {
+      const input = document.querySelector<HTMLInputElement>(
+        '[aria-label="Search games"] input, input[placeholder="Search games..."]',
+      );
+      input?.focus();
+      input?.select?.();
+    }
+    window.addEventListener(FOCUS_GAME_SEARCH_EVENT, focusSearch);
+    return () => window.removeEventListener(FOCUS_GAME_SEARCH_EVENT, focusSearch);
+  }, []);
+
   return (
-    <Surface variant="secondary" className="flex flex-col h-full backdrop-blur-xl border border-neon-cyan/20 rounded-xl overflow-hidden shadow-card">
+    <Surface
+      variant="secondary"
+      className="flex flex-col h-full backdrop-blur-xl border border-neon-cyan/20 rounded-xl overflow-hidden shadow-card"
+    >
       <div className="p-3 flex flex-col gap-2">
         <SearchField
           value={search}
@@ -56,10 +120,7 @@ export function GameList({ steam, heroic, lutris, selectedId, onSelect }: GameLi
         >
           <SearchField.Group className="w-full">
             <SearchField.SearchIcon />
-            <SearchField.Input
-              placeholder="Search games..."
-              className="w-full"
-            />
+            <SearchField.Input placeholder="Search games..." className="w-full" />
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
@@ -92,66 +153,75 @@ export function GameList({ steam, heroic, lutris, selectedId, onSelect }: GameLi
         )}
       </div>
       <Separator />
-      <div className="flex-1 overflow-y-auto">
-        <AnimatePresence>
-          {allGames.map((game, index) => {
-            const Icon = getSourceIcon(game.source);
-            const active = game.app_id === selectedId;
-            const isHeroicGame = game.source === "heroic";
-            return (
-              <motion.button
-                key={`${game.source}-${game.app_id}`}
-                onClick={() => onSelect(game)}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-3 text-left
-                  transition-colors cursor-pointer
-                  ${active ? "bg-neon-cyan/[0.18]" : "hover:bg-neon-cyan/[0.08]"}
-                `}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ delay: Math.min(index * 0.02, 0.5), duration: 0.25 }}
-                layout
-              >
-                <Icon className={`size-4 shrink-0 ${active ? "text-neon-cyan" : "text-text-muted"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm truncate ${active ? "text-neon-cyan font-medium" : "text-text-primary"}`}>
-                    {game.name}
-                  </p>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs text-text-muted truncate">
-                      {getSourceLabel(game)}
-                    </p>
-                    {isHeroicGame && (
-                      <Chip size="sm" variant="soft" color="accent" className="text-[10px] h-4 px-1.5">
-                        {(game as HeroicGame).store}
-                      </Chip>
-                    )}
-                  </div>
-                </div>
-              </motion.button>
-            );
-          })}
-        </AnimatePresence>
-        {allGames.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-text-muted px-4">
-            {isSearching ? (
-              <>
-                <SearchX className="size-10 mb-3 opacity-50" />
-                <p className="text-sm font-medium">No matches</p>
-                <Description className="text-center mt-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {allGames.length > 0 ? (
+          <ListView
+            aria-label="Games"
+            variant="secondary"
+            selectionMode="single"
+            selectionBehavior="replace"
+            items={listRows}
+            selectedKeys={selectedKeys}
+            onSelectionChange={onSelectionChange}
+            onAction={onListAction}
+            className="min-h-0 border-0 bg-transparent p-0 shadow-none"
+          >
+            {(row) => {
+              const { id: gk, game } = row;
+              const isHeroicGame = game.source === "heroic";
+              const isActive = selectedListKey === gk;
+              return (
+                <ListView.Item id={gk} textValue={game.name} className="rounded-lg">
+                  <ListView.ItemContent>
+                    <GameSourceGlyph
+                      source={game.source}
+                      className={`size-4 shrink-0 ${isActive ? "text-neon-cyan" : "text-muted"}`}
+                    />
+                    <div className="flex min-w-0 flex-col">
+                      <ListView.Title className={isActive ? "text-neon-cyan font-medium" : undefined}>
+                        {game.name}
+                      </ListView.Title>
+                      <div className="flex items-center gap-1.5">
+                        <ListView.Description>{getSourceLabel(game)}</ListView.Description>
+                        {isHeroicGame && (
+                          <Chip size="sm" variant="soft" color="accent" className="h-4 px-1.5 text-[10px]">
+                            {(game as HeroicGame).store}
+                          </Chip>
+                        )}
+                      </div>
+                    </div>
+                  </ListView.ItemContent>
+                </ListView.Item>
+              );
+            }}
+          </ListView>
+        ) : isSearching ? (
+          <div className="flex min-h-[180px] items-center justify-center p-4">
+            <EmptyState size="sm" className="max-w-sm border-border rounded-xl border border-dashed">
+              <EmptyState.Header>
+                <EmptyState.Media variant="icon">
+                  <SearchX className="size-5 text-muted" aria-hidden />
+                </EmptyState.Media>
+                <EmptyState.Title>No matches</EmptyState.Title>
+                <EmptyState.Description className="text-center">
                   No games match &ldquo;{search}&rdquo;. Try a different search term.
-                </Description>
-              </>
-            ) : (
-              <>
-                <FolderOpen className="size-10 mb-3 opacity-50" />
-                <p className="text-sm font-medium">No games discovered</p>
-                <Description className="text-center mt-1">
+                </EmptyState.Description>
+              </EmptyState.Header>
+            </EmptyState>
+          </div>
+        ) : (
+          <div className="flex min-h-[180px] items-center justify-center p-4">
+            <EmptyState size="sm" className="max-w-sm border-border rounded-xl border border-dashed">
+              <EmptyState.Header>
+                <EmptyState.Media variant="icon">
+                  <FolderOpen className="size-5 text-muted" aria-hidden />
+                </EmptyState.Media>
+                <EmptyState.Title>No games discovered</EmptyState.Title>
+                <EmptyState.Description className="text-center">
                   Install games via Steam, Heroic, or Lutris, then restart the app to detect them.
-                </Description>
-              </>
-            )}
+                </EmptyState.Description>
+              </EmptyState.Header>
+            </EmptyState>
           </div>
         )}
       </div>

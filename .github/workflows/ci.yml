@@ -32,6 +32,28 @@ jobs:
       - name: Typecheck
         run: pyright
 
+  python-linux-distros:
+    name: Python (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: debian-bookworm
+            image: python:3.12-slim-bookworm
+          - label: alpine-musl
+            image: python:3.12-alpine
+          - label: ubuntu-24.04
+            image: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run checks in container
+        env:
+          LINUX_MATRIX_IMAGE: ${{ matrix.image }}
+          CONTAINER_ENGINE: docker
+        run: bash scripts/ci/linux-matrix.sh
+
   electron:
     name: Electron
     runs-on: ubuntu-latest

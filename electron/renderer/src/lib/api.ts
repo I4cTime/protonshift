@@ -84,9 +84,10 @@ export const api = {
     }),
 
   getProtontricksVerbs: () =>
-    apiFetch<{ available: boolean; verbs: { id: string; label: string }[] }>(
-      "/protontricks/verbs"
-    ),
+    apiFetch<{
+      available: boolean;
+      verbs: { id: string; label: string; category?: string }[];
+    }>("/protontricks/verbs"),
 
   getPresets: () => apiFetch<LaunchPreset[]>("/presets"),
 
@@ -150,7 +151,61 @@ export const api = {
     apiFetch<{ available: boolean }>("/gamescope/available"),
 
   buildGamescopeCmd: (opts: GamescopeOptions) =>
-    apiFetch<{ command: string }>("/gamescope/build-cmd", { method: "POST", body: opts }),
+    apiFetch<{ command: string; argv?: string[] }>("/gamescope/build-cmd", { method: "POST", body: opts }),
+
+  getScopeBuddyAvailable: () =>
+    apiFetch<ScopeBuddyAvailable>("/scopebuddy/available"),
+
+  getScopeBuddyAutoCaps: () =>
+    apiFetch<ScopeBuddyAutoCaps>("/scopebuddy/auto-capabilities"),
+
+  getScopeBuddyConfig: () =>
+    apiFetch<{ path: string; exists: boolean; config: Record<string, string> }>("/scopebuddy/config"),
+
+  setScopeBuddyConfig: (config: Record<string, string>) =>
+    apiFetch<StatusResponse>("/scopebuddy/config", { method: "PUT", body: { config } }),
+
+  getScopeBuddyPresets: () =>
+    apiFetch<Record<string, Record<string, string>>>("/scopebuddy/presets"),
+
+  listScopeBuddyPerApp: () =>
+    apiFetch<{ key: string; path: string }[]>("/scopebuddy/per-app"),
+
+  getScopeBuddyPerApp: (key: string) =>
+    apiFetch<ScopeBuddyPerAppResponse>(
+      `/scopebuddy/per-app/${encodeURIComponent(key)}`,
+    ),
+
+  setScopeBuddyPerApp: (key: string, config: Record<string, string>) =>
+    apiFetch<StatusResponse>(`/scopebuddy/per-app/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: { config },
+    }),
+
+  deleteScopeBuddyPerApp: (key: string) =>
+    apiFetch<StatusResponse>(`/scopebuddy/per-app/${encodeURIComponent(key)}`, {
+      method: "DELETE",
+    }),
+
+  rescanScopeBuddy: () =>
+    apiFetch<ScopeBuddyAvailable>("/scopebuddy/rescan", { method: "POST" }),
+
+  listScopeBuddyEnvVars: () =>
+    apiFetch<{ name: string; path: string }[]>("/scopebuddy/envvars"),
+
+  getScopeBuddyEnvVars: (name: string) =>
+    apiFetch<ScopeBuddyEnvVarsResponse>(`/scopebuddy/envvars/${encodeURIComponent(name)}`),
+
+  setScopeBuddyEnvVars: (name: string, config: Record<string, string>) =>
+    apiFetch<StatusResponse>(`/scopebuddy/envvars/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: { config },
+    }),
+
+  deleteScopeBuddyEnvVars: (name: string) =>
+    apiFetch<StatusResponse>(`/scopebuddy/envvars/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    }),
 
   getGameFixes: (appId: string) =>
     apiFetch<GameFixData[]>(`/games/${appId}/fixes`),
@@ -332,6 +387,8 @@ export interface ControllerData {
   controller_type: string;
   vendor_id: string;
   product_id: string;
+  bus_type?: string;
+  version?: string;
 }
 
 export interface MonitorData {
@@ -406,6 +463,43 @@ export interface GamescopeOptions {
   borderless: boolean;
   fullscreen: boolean;
   extra_args: string;
+  wrap_with_scopebuddy: boolean;
+  scb_auto_res: boolean;
+  scb_auto_hdr: boolean;
+  scb_auto_vrr: boolean;
+  scb_auto_refresh: boolean;
+  scb_auto_frame_limit: boolean;
+  scb_noscope: boolean;
+}
+
+export interface ScopeBuddyAvailable {
+  available: boolean;
+  binary: string;
+  path: string;
+  version: string;
+  config_dir: string;
+}
+
+export interface ScopeBuddyAutoCaps {
+  kde: boolean;
+  gnome_gdctl: boolean;
+  gnome_randr: boolean;
+  wlroots: boolean;
+  jq: boolean;
+}
+
+export interface ScopeBuddyPerAppResponse {
+  key: string;
+  path: string;
+  exists: boolean;
+  config: Record<string, string>;
+}
+
+export interface ScopeBuddyEnvVarsResponse {
+  name: string;
+  path: string;
+  exists: boolean;
+  config: Record<string, string>;
 }
 
 export interface HeroicWineVersionData {

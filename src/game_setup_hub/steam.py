@@ -12,7 +12,15 @@ import vdf
 
 
 def is_steam_running() -> bool:
-    """Check if Steam client is running. Edit localconfig.vdf with Steam closed."""
+    """True if a process named ``steam`` exists (``pgrep -x steam``).
+
+    This is **not** foreground detection: Steam minimized to the tray, only a
+    web helper showing, or the main window closed while the client stays
+    resident still counts as running. ``ps``/``grep steam`` will also list many
+    related PIDs (``steamwebhelper``, ``reaper``, etc.); we only match the main
+    client binary name ``steam``. Edit ``localconfig.vdf`` with the client
+    fully quit (Exit from tray if needed).
+    """
     try:
         r = subprocess.run(["pgrep", "-x", "steam"], capture_output=True, timeout=2)
         return r.returncode == 0

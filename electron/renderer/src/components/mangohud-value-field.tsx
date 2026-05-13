@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { useMemo } from "react";
+import type { Key } from "@heroui/react";
 import {
   Button,
   Description,
@@ -9,11 +10,10 @@ import {
   Input,
   Label,
   ListBox,
-  NumberField,
-  Select,
-  Slider,
+  Text,
   Tooltip,
 } from "@heroui/react";
+import { CellSlider, InlineSelect, NumberStepper } from "@heroui-pro/react";
 import {
   FolderOpen,
   Gauge,
@@ -66,7 +66,7 @@ const OUTPUT_FOLDER_PRESETS = [
   "/tmp/mangohud_logs",
 ] as const;
 
-/** Logical groups for MangoHud value parameters with descriptions. */
+/** Logical groups for MangoHud value parameters with concise descriptions. */
 const VALUE_GROUPS: readonly {
   title: string;
   description: string;
@@ -77,31 +77,38 @@ const VALUE_GROUPS: readonly {
     title: "Frame limiting",
     icon: Gauge,
     description:
-      "Cap the maximum frame rate to reduce power consumption, heat, and fan noise. Set to 0 or leave empty for unlimited. Common targets: 30 (battery), 60, 120, 144, 165 — match your display refresh rate for tear-free output.",
+      "Cap the maximum frame rate. Match your display refresh for tear-free output.",
     keys: ["fps_limit"],
   },
   {
     title: "Overlay appearance",
     icon: Paintbrush,
     description:
-      "Control where the HUD appears and how it looks. Position anchors to a screen corner or edge, font size scales all overlay text, and background opacity lets you balance readability against gameplay visibility.",
+      "Where the HUD is anchored, how large it is, and how transparent its background looks.",
     keys: ["position", "font_size", "background_alpha"],
   },
   {
     title: "Controls",
     icon: Keyboard,
     description:
-      "Bind a hotkey to show/hide the overlay at runtime. Uses X11 key tokens — combine modifiers with '+' (e.g. Shift_R+F12). Handy for screenshots or when the overlay covers important UI.",
+      "Hotkeys for showing or hiding the overlay at runtime, using X11 key tokens.",
     keys: ["toggle_hud"],
   },
   {
     title: "Logging",
     icon: ScrollText,
     description:
-      "When a log output folder is set, MangoHud writes CSV frame-time logs on each session. Use these for post-session analysis with tools like MangoPlot or custom scripts. If no folder is set, logging is disabled.",
+      "MangoHud writes CSV frame-time logs to this folder. Leave empty to disable.",
     keys: ["output_folder"],
   },
 ];
+
+/* ---------------------------------------------------------------------------
+ * Shared field shell
+ * -------------------------------------------------------------------------*/
+
+const FIELD_LABEL_CLASS =
+  "text-muted text-[10px] font-semibold uppercase tracking-wide";
 
 /* ---------------------------------------------------------------------------
  * Individual field renderers
@@ -113,96 +120,98 @@ interface FieldProps {
 }
 
 function FpsLimitField({ value, onChange }: FieldProps) {
-  const numVal = value === "" ? undefined : Number(value);
+  const numVal = value === "" ? 0 : Number(value);
+  const safe = Number.isFinite(numVal) ? numVal : 0;
 
   return (
-    <NumberField
-      minValue={0}
-      step={1}
-      value={numVal}
-      onChange={(v) => onChange(v === undefined ? "" : String(v))}
-      aria-label="FPS Limit"
-      variant="secondary"
-      fullWidth
-    >
-      <Label>FPS Limit</Label>
-      <NumberField.Group>
-        <NumberField.DecrementButton />
-        <NumberField.Input />
-        <NumberField.IncrementButton />
-      </NumberField.Group>
-      <Description>
-        0 or empty = unlimited. Match your display refresh rate for tear-free
-        output.
+    <div className="space-y-1.5">
+      <Label className={FIELD_LABEL_CLASS}>FPS limit</Label>
+      <NumberStepper
+        aria-label="FPS limit"
+        minValue={0}
+        maxValue={360}
+        step={1}
+        value={safe}
+        onChange={(v) => onChange(v === 0 ? "" : String(v))}
+      >
+        <NumberStepper.Group>
+          <NumberStepper.DecrementButton />
+          <NumberStepper.Value className="min-w-[3rem] font-mono text-sm" />
+          <NumberStepper.IncrementButton />
+        </NumberStepper.Group>
+      </NumberStepper>
+      <Description className="leading-snug">
+        0 = unlimited. Common targets: 30, 60, 120, 144, 165 Hz.
       </Description>
-    </NumberField>
+    </div>
   );
 }
 
 function PositionField({ value, onChange }: FieldProps) {
-  const selectValue = value.trim() === "" ? "__default__" : value;
+  const selectValue: Key = (value.trim() === "" ? "__default__" : value) as Key;
 
   return (
-    <Select
-      className="w-full"
-      value={selectValue}
-      onChange={(v) => {
-        const id = String(v ?? "");
-        onChange(id === "__default__" ? "" : id);
-      }}
-      placeholder="Overlay position on screen"
-    >
-      <Label>Position</Label>
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover>
-        <ListBox>
-          <ListBox.Item
-            id="__default__"
-            textValue="Default (use MangoHud / preset default)"
-          >
-            Default (preset / MangoHud default)
-            <ListBox.ItemIndicator />
-          </ListBox.Item>
-          {MANGOHUD_POSITIONS.map((p) => (
-            <ListBox.Item key={p.id} id={p.id} textValue={p.label}>
-              {p.label}
+    <div className="space-y-1.5">
+      <Label className={FIELD_LABEL_CLASS}>Position</Label>
+      <InlineSelect
+        aria-label="Overlay position"
+        value={selectValue}
+        onChange={(k) => {
+          const id = String(k ?? "");
+          onChange(id === "__default__" ? "" : id);
+        }}
+      >
+        <InlineSelect.Trigger className="font-medium">
+          <InlineSelect.Value />
+          <InlineSelect.Indicator />
+        </InlineSelect.Trigger>
+        <InlineSelect.Popover className="min-w-[200px]">
+          <ListBox>
+            <ListBox.Item
+              id="__default__"
+              textValue="Default (use MangoHud / preset default)"
+            >
+              Default (preset / MangoHud default)
               <ListBox.ItemIndicator />
             </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
-      <Description>
-        Where the HUD is anchored — corners and edges of the screen.
-      </Description>
-    </Select>
+            {MANGOHUD_POSITIONS.map((p) => (
+              <ListBox.Item key={p.id} id={p.id} textValue={p.label}>
+                {p.label}
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </InlineSelect.Popover>
+      </InlineSelect>
+    </div>
   );
 }
 
 function FontSizeField({ value, onChange }: FieldProps) {
-  const numVal = value === "" ? undefined : Number(value);
+  const numVal = value === "" ? 24 : Number(value);
+  const safe = Number.isFinite(numVal) ? Math.min(96, Math.max(8, numVal)) : 24;
 
   return (
-    <NumberField
-      minValue={8}
-      maxValue={96}
-      step={1}
-      value={numVal}
-      onChange={(v) => onChange(v === undefined ? "" : String(v))}
-      aria-label="Font Size"
-      variant="secondary"
-      fullWidth
-    >
-      <Label>Font Size</Label>
-      <NumberField.Group>
-        <NumberField.DecrementButton />
-        <NumberField.Input />
-        <NumberField.IncrementButton />
-      </NumberField.Group>
-      <Description>Typical range 18–32 px. Scales all overlay text.</Description>
-    </NumberField>
+    <div className="space-y-1.5">
+      <Label className={FIELD_LABEL_CLASS}>Font size</Label>
+      <NumberStepper
+        aria-label="Font size"
+        minValue={8}
+        maxValue={96}
+        step={1}
+        value={safe}
+        onChange={(v) => onChange(String(v))}
+      >
+        <NumberStepper.Group>
+          <NumberStepper.DecrementButton />
+          <NumberStepper.Value className="min-w-[3rem] font-mono text-sm" />
+          <NumberStepper.IncrementButton />
+        </NumberStepper.Group>
+      </NumberStepper>
+      <Description className="leading-snug">
+        Typical: 18–32 px.
+      </Description>
+    </div>
   );
 }
 
@@ -212,52 +221,49 @@ function BackgroundAlphaField({ value, onChange }: FieldProps) {
   const sliderVal = hasValue ? Math.min(1, Math.max(0, parsed)) : 0.35;
 
   return (
-    <div className="space-y-3">
-      <Slider
+    <div className="space-y-2">
+      <CellSlider
+        aria-label="Background opacity"
         minValue={0}
         maxValue={1}
         step={0.05}
         value={sliderVal}
+        formatOptions={{ maximumFractionDigits: 2, minimumFractionDigits: 2 }}
         onChange={(v) => onChange(String((v as number).toFixed(2)))}
-        aria-label="Background Opacity"
-        className="w-full"
       >
-        <div className="flex items-center justify-between">
-          <Label>Background Opacity</Label>
-          <Slider.Output className="text-xs tabular-nums font-mono" />
-        </div>
-        <Slider.Track>
-          <Slider.Fill />
-          <Slider.Thumb />
-        </Slider.Track>
-      </Slider>
+        <CellSlider.Track>
+          <CellSlider.Fill />
+          <CellSlider.Thumb />
+          <CellSlider.Label>Background opacity</CellSlider.Label>
+          <CellSlider.Output />
+        </CellSlider.Track>
+      </CellSlider>
       <Input
         type="text"
         inputMode="decimal"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="0.0 – 1.0 (e.g. 0.35 = 35%)"
-        aria-label="Background Opacity exact value"
+        placeholder="0.0 – 1.0 (e.g. 0.35)"
+        aria-label="Background opacity exact value"
         variant="secondary"
         className="w-full font-mono text-xs"
       />
-      <p className="text-[11px] text-text-muted">
-        0 = fully transparent, 1 = solid background. Type an exact value or drag
-        the slider.
-      </p>
+      <Text.Paragraph size="xs" color="muted" className="leading-snug">
+        0 = transparent · 1 = solid. Drag the slider or type an exact value.
+      </Text.Paragraph>
     </div>
   );
 }
 
 function ToggleHudField({ value, onChange }: FieldProps) {
   return (
-    <div className="space-y-2">
-      <Label className="text-xs text-text-muted">Toggle Hotkey</Label>
+    <div className="space-y-1.5">
+      <Label className={FIELD_LABEL_CLASS}>Toggle hotkey</Label>
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g. F12 or Shift_R+F12"
-        aria-label="Toggle Hotkey"
+        aria-label="Toggle hotkey"
         variant="secondary"
         className="w-full font-mono text-sm"
       />
@@ -267,16 +273,13 @@ function ToggleHudField({ value, onChange }: FieldProps) {
             key={preset}
             size="sm"
             variant="secondary"
-            className="h-7 min-h-7 px-2 text-xs font-mono"
+            className="h-7 min-h-7 px-2 font-mono text-xs"
             onPress={() => onChange(preset)}
           >
             {preset}
           </Button>
         ))}
       </div>
-      <Description>
-        Uses MangoHud key tokens (Shift_R, Control_L, Alt_L). Combine with +.
-      </Description>
     </div>
   );
 }
@@ -285,14 +288,14 @@ function OutputFolderField({ value, onChange }: FieldProps) {
   const trimmed = value.trim();
 
   return (
-    <div className="space-y-2">
-      <Label className="text-xs text-text-muted">Log Output Folder</Label>
+    <div className="space-y-1.5">
+      <Label className={FIELD_LABEL_CLASS}>Log output folder</Label>
       <div className="flex gap-2">
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="e.g. ~/mangohud_logs"
-          aria-label="Log Output Folder"
+          aria-label="Log output folder"
           variant="secondary"
           className="min-w-0 flex-1 font-mono text-xs"
         />
@@ -323,16 +326,13 @@ function OutputFolderField({ value, onChange }: FieldProps) {
             key={preset}
             size="sm"
             variant="secondary"
-            className="h-7 min-h-7 px-2 text-xs font-mono"
+            className="h-7 min-h-7 px-2 font-mono text-xs"
             onPress={() => onChange(preset)}
           >
             {preset}
           </Button>
         ))}
       </div>
-      <Description>
-        Folder for MangoHud CSV frame-time logs. Leave empty to disable logging.
-      </Description>
     </div>
   );
 }
@@ -344,8 +344,8 @@ function GenericValueField({
   onChange,
 }: FieldProps & { paramKey: string; label: string }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-xs text-text-muted">{label}</Label>
+    <div className="space-y-1.5">
+      <Label className={FIELD_LABEL_CLASS}>{label}</Label>
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -380,9 +380,61 @@ interface MangoHudValueFieldsGridProps {
   onParamChange: (key: string, next: string) => void;
 }
 
+interface ValueGroupCardProps {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  children: React.ReactNode;
+}
+
+function ValueGroupCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+}: ValueGroupCardProps) {
+  return (
+    <div className="border-border bg-surface-secondary/30 rounded-lg border p-3">
+      <Fieldset className="w-full gap-2">
+        <Fieldset.Legend className="text-muted flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
+          <Icon className="text-neon-cyan size-3.5 shrink-0" aria-hidden />
+          {title}
+        </Fieldset.Legend>
+        <Text.Paragraph size="xs" color="muted" className="leading-snug">
+          {description}
+        </Text.Paragraph>
+        <FieldGroup className="space-y-3">{children}</FieldGroup>
+      </Fieldset>
+    </div>
+  );
+}
+
+function renderField(
+  param: MangoHudParamRowItem,
+  values: Record<string, string>,
+  onParamChange: (key: string, next: string) => void,
+) {
+  const renderer = FIELD_RENDERERS[param.key];
+  const fieldProps: FieldProps = {
+    value: values[param.key] ?? "",
+    onChange: (next) => onParamChange(param.key, next),
+  };
+  if (renderer) {
+    return <div key={param.key}>{renderer(fieldProps)}</div>;
+  }
+  return (
+    <GenericValueField
+      key={param.key}
+      paramKey={param.key}
+      label={param.label}
+      {...fieldProps}
+    />
+  );
+}
+
 /**
  * MangoHud value fields organised into logical `Fieldset` groups with descriptions,
- * using HeroUI `NumberField`, `Slider`, `Select`, and `Fieldset` compounds.
+ * using HeroUI `Fieldset` / `Input` plus Pro `NumberStepper`, `CellSlider`, and `InlineSelect`.
  */
 export function MangoHudValueFieldsGrid({
   valueParams,
@@ -405,92 +457,33 @@ export function MangoHudValueFieldsGrid({
   );
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3">
       {VALUE_GROUPS.map((group) => {
         const groupParams = group.keys
           .map((k) => byKey.get(k))
           .filter((p): p is MangoHudParamRowItem => !!p && p.type === "value");
         if (groupParams.length === 0) return null;
 
-        const GroupIcon = group.icon;
         return (
-          <div
+          <ValueGroupCard
             key={group.title}
-            className="rounded-xl border border-border bg-surface-secondary/30 p-4"
+            title={group.title}
+            description={group.description}
+            icon={group.icon}
           >
-            <Fieldset className="w-full">
-              <Fieldset.Legend className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                <GroupIcon className="size-3.5 text-neon-cyan" />
-                {group.title}
-              </Fieldset.Legend>
-              <p className="mt-1 text-xs leading-relaxed text-text-muted">
-                {group.description}
-              </p>
-              <FieldGroup className="mt-4">
-                {groupParams.map((param) => {
-                  const renderer = FIELD_RENDERERS[param.key];
-                  if (renderer) {
-                    return (
-                      <div key={param.key}>
-                        {renderer({
-                          value: values[param.key] ?? "",
-                          onChange: (next) => onParamChange(param.key, next),
-                        })}
-                      </div>
-                    );
-                  }
-                  return (
-                    <GenericValueField
-                      key={param.key}
-                      paramKey={param.key}
-                      label={param.label}
-                      value={values[param.key] ?? ""}
-                      onChange={(next) => onParamChange(param.key, next)}
-                    />
-                  );
-                })}
-              </FieldGroup>
-            </Fieldset>
-          </div>
+            {groupParams.map((p) => renderField(p, values, onParamChange))}
+          </ValueGroupCard>
         );
       })}
 
       {orphans.length > 0 && (
-        <div className="rounded-xl border border-border bg-surface-secondary/30 p-4">
-          <Fieldset className="w-full">
-            <Fieldset.Legend className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-secondary">
-              <LayoutGrid className="size-3.5 text-neon-cyan" />
-              Other
-            </Fieldset.Legend>
-            <p className="mt-1 text-xs leading-relaxed text-text-muted">
-              Additional value parameters not assigned to a specific category.
-            </p>
-            <FieldGroup className="mt-4">
-              {orphans.map((param) => {
-                const renderer = FIELD_RENDERERS[param.key];
-                if (renderer) {
-                  return (
-                    <div key={param.key}>
-                      {renderer({
-                        value: values[param.key] ?? "",
-                        onChange: (next) => onParamChange(param.key, next),
-                      })}
-                    </div>
-                  );
-                }
-                return (
-                  <GenericValueField
-                    key={param.key}
-                    paramKey={param.key}
-                    label={param.label}
-                    value={values[param.key] ?? ""}
-                    onChange={(next) => onParamChange(param.key, next)}
-                  />
-                );
-              })}
-            </FieldGroup>
-          </Fieldset>
-        </div>
+        <ValueGroupCard
+          title="Other"
+          description="Additional value parameters not assigned to a specific category."
+          icon={LayoutGrid}
+        >
+          {orphans.map((p) => renderField(p, values, onParamChange))}
+        </ValueGroupCard>
       )}
     </div>
   );

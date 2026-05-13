@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Button, Chip, Description } from "@heroui/react";
+import { Button, Chip, Text } from "@heroui/react";
+import { ItemCard, ItemCardGroup } from "@heroui-pro/react";
 import {
   MonitorCog,
   Cpu,
@@ -97,65 +98,67 @@ export function EnvPresets({ presets, onApply }: EnvPresetsProps) {
 
   return (
     <div className="space-y-3">
-      <Description className="text-xs leading-relaxed text-text-muted">
+      <Text.Paragraph size="xs" color="muted" className="leading-relaxed">
         Presets merge into your current variables — existing keys are updated,
         new keys are added, and nothing is removed. Save to write changes to
         disk.
-      </Description>
-      <div className="flex flex-col gap-3">
+      </Text.Paragraph>
+      <ItemCardGroup
+        variant="secondary"
+        layout="list"
+        className="overflow-hidden rounded-xl"
+      >
         {orderedNames.map((name) => {
           const vars = presets[name];
           const meta = PRESET_META[name];
           const varCount = Object.keys(vars).length;
           const Icon = meta?.icon ?? Boxes;
-          const iconColor = meta?.color ?? "text-text-secondary";
+          const iconColor = meta?.color ?? "text-foreground";
 
           return (
-            <div
-              key={name}
-              className="flex items-start gap-4 rounded-xl border border-border bg-surface-secondary/30 p-4 transition-colors hover:border-border-secondary"
-            >
-              <div
-                className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-secondary ${iconColor}`}
-              >
-                <Icon className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">
-                    {meta?.label ?? name}
-                  </span>
+            <ItemCard key={name} className="py-3">
+              <ItemCard.Icon className={`bg-surface-secondary ${iconColor}`}>
+                <Icon className="size-4 shrink-0" aria-hidden />
+              </ItemCard.Icon>
+              <ItemCard.Content className="min-w-0 gap-1">
+                <ItemCard.Title className="flex items-center gap-2">
+                  <span className="truncate">{meta?.label ?? name}</span>
                   <Chip size="sm" variant="secondary" className="text-[10px]">
                     {varCount} var{varCount !== 1 ? "s" : ""}
                   </Chip>
-                </div>
-                <p className="text-xs leading-relaxed text-text-muted">
+                </ItemCard.Title>
+                <Text.Paragraph
+                  size="xs"
+                  color="muted"
+                  className="leading-snug"
+                >
                   {meta?.description ??
                     `Applies ${varCount} environment variable${varCount !== 1 ? "s" : ""}.`}
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                </Text.Paragraph>
+                <div className="flex flex-wrap gap-1 pt-0.5">
                   {Object.entries(vars).map(([k, v]) => (
-                    <code
+                    <Text.Code
                       key={k}
-                      className="rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] font-mono text-text-muted"
+                      className="border-border bg-surface-deep text-muted rounded border px-1.5 py-0.5 text-[10px] leading-tight"
                     >
                       {k}={v}
-                    </code>
+                    </Text.Code>
                   ))}
                 </div>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="shrink-0 self-center"
-                onPress={() => onApply(vars)}
-              >
-                Apply
-              </Button>
-            </div>
+              </ItemCard.Content>
+              <ItemCard.Action>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => onApply(vars)}
+                >
+                  Apply
+                </Button>
+              </ItemCard.Action>
+            </ItemCard>
           );
         })}
-      </div>
+      </ItemCardGroup>
     </div>
   );
 }

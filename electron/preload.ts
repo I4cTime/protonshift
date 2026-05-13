@@ -17,4 +17,5 @@ contextBridge.exposeInMainWorld("electron", {
   closeWindow: (): Promise<void> => ipcRenderer.invoke("window-close"),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window-minimize"),
   toggleMaximize: (): Promise<void> => ipcRenderer.invoke("window-toggle-maximize"),
+  getVersion: (): Promise<string> => ipcRenderer.invoke("get-app-version"),
 });

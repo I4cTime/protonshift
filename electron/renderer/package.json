@@ -1,29 +1,38 @@
 {
   "name": "protonshift-renderer",
-  "version": "0.8.8",
+  "version": "0.9.5",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
+    "@heroui-pro/react": "1.0.0-beta.3",
     "@heroui/react": "latest",
     "@heroui/styles": "latest",
+    "@number-flow/react": "^0.5.10",
     "@tanstack/react-query": "^5.75.0",
     "jotai": "^2.12.0",
     "lucide-react": "^0.475.0",
     "motion": "^12.6.0",
     "next": "^16.2.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-aria-components": "^1.17.0",
+    "react-dom": "^19.1.0",
+    "react-resizable-panels": "^4.10.0",
+    "recharts": "^2.15.4",
+    "tailwind-merge": "^3.4.0",
+    "tailwind-variants": "^3.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.8.0"
   }

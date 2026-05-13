@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@heroui/styles";
+@import "@heroui-pro/react/css";
 
 /* ── Base design tokens (Quantum Void defaults) ─────────────────────── */
 @theme inline {
@@ -391,10 +392,132 @@ select:focus {
      .accordion__trigger { @apply text-lg font-bold; }
    ──────────────────────────────────────────────────────────────────── */
 @layer components {
-  /* Add project-specific HeroUI overrides here */
+  /* ProtonShift — HeroUI Pro Navbar “gaming HUD” chrome */
+  .protonshift-navbar {
+    position: relative;
+    container-type: inline-size;
+    container-name: nav;
+  }
+
+  .protonshift-navbar::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--theme-accent) 18%,
+      var(--theme-secondary) 50%,
+      var(--theme-tertiary) 82%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    opacity: 0.5;
+    pointer-events: none;
+    animation: protonshift-holo-shimmer 6s linear infinite;
+  }
+
+  .protonshift-navbar::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 4px;
+    pointer-events: none;
+    opacity: 0.12;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 3px,
+      var(--separator) 3px,
+      var(--separator) 4px
+    );
+  }
+
+  .protonshift-navbar__sep {
+    transform: skewX(-12deg);
+    border-color: color-mix(in oklab, var(--theme-accent) 35%, transparent);
+  }
+
+  .protonshift-navbar .nav-active-pill-hud::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 6px;
+    height: 6px;
+    border-top: 1px solid var(--theme-accent);
+    border-left: 1px solid var(--theme-accent);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .protonshift-navbar .nav-active-pill-hud::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 6px;
+    height: 6px;
+    border-right: 1px solid var(--theme-accent);
+    border-bottom: 1px solid var(--theme-accent);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .protonshift-navbar .navbar__brand-chroma {
+    text-shadow:
+      1px 0 0 var(--theme-secondary),
+      -1px 0 0 var(--theme-accent);
+  }
+
+  .protonshift-navbar .navbar__item:not([data-current="true"]):hover {
+    @apply text-neon-cyan;
+  }
+
+  .protonshift-navbar .navbar__item[data-current="true"] {
+    @apply text-neon-cyan;
+  }
+
+  .protonshift-navbar .navbar__brand-scanline {
+    background: linear-gradient(90deg, transparent, var(--theme-accent), transparent);
+    background-size: 200% 100%;
+    animation: protonshift-scan 4s linear infinite;
+  }
+
+  @keyframes protonshift-scan {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes protonshift-holo-shimmer {
+    from {
+      background-position: 0% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .protonshift-navbar::after {
+      animation: none;
+    }
+
+    .protonshift-navbar .navbar__brand-scanline {
+      animation: none;
+    }
+  }
 }
 
-/* Electron frameless window: drag to move (see NavBar). Interactive controls use .app-region-no-drag */
+/* Electron frameless: put drag ONLY on spacer gaps, never on wrappers that contain
+   links/buttons — Linux Chromium often ignores nested no-drag and kills nav clicks */
 @layer utilities {
   .app-region-drag {
     -webkit-app-region: drag;

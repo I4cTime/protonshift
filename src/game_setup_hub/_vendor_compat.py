@@ -102,16 +102,32 @@ def _system_site_dirs() -> list[str]:
     return out
 
 
+def _running_under_bundled_runtime() -> bool:
+    """True if launched from the python-build-standalone runtime we ship.
+
+    The Electron main process exec's ``<resources>/python/runtime/bin/python3``
+    when packaged. In that case, the vendored wheels were installed *with*
+    this exact interpreter, so the ABI always matches and the fallback below
+    is dead weight — short-circuit it.
+    """
+    exe = Path(sys.executable).resolve()
+    return any(part == "runtime" for part in exe.parts) and "python" in exe.parts
+
+
 def fixup_vendor_path() -> None:
     """Reorder ``sys.path`` when vendored native extensions don't match.
 
-    On match, this is a no-op. On mismatch, the system + user site-packages
-    directories are inserted at the front of ``sys.path`` so the system copy
-    of any conflicting native package is found before the broken vendored
-    one. The filesystem is never touched.
+    On match (the common case, and always the case under our bundled
+    interpreter), this is a no-op. On mismatch — only possible when running
+    under the host Python as a defensive fallback — the system + user
+    site-packages directories are inserted at the front of ``sys.path`` so
+    the system copy of any conflicting native package is found before the
+    broken vendored one. The filesystem is never touched.
     """
     vendor_dirs = _vendor_dirs()
     if not vendor_dirs:
+        return
+    if _running_under_bundled_runtime():
         return
     if not _has_incompatible_native_pkg(vendor_dirs):
         return

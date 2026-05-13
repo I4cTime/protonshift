@@ -1,14 +1,25 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button, Tooltip } from "@heroui/react";
 import { Minus, Square, X } from "lucide-react";
 
 export function WindowControls() {
-  if (typeof window === "undefined" || !window.electron) {
+  const [electron, setElectron] = useState<
+    NonNullable<typeof window.electron> | null
+  >(null);
+
+  useEffect(() => {
+    const api = window.electron;
+    if (!api) return;
+    queueMicrotask(() => setElectron(api));
+  }, []);
+
+  if (!electron) {
     return null;
   }
 
-  const { minimizeWindow, toggleMaximize, closeWindow } = window.electron;
+  const { minimizeWindow, toggleMaximize, closeWindow } = electron;
 
   return (
     <div className="flex items-center gap-0.5 shrink-0 app-region-no-drag">

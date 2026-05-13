@@ -345,9 +345,9 @@ function startStaticRendererServer(rootDir: string): Promise<number> {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1200,
+    width: 1400,
     height: 800,
-    minWidth: 900,
+    minWidth: 960,
     minHeight: 600,
     title: "ProtonShift",
     icon: getIconPath(),
@@ -378,6 +378,8 @@ function createWindow(): void {
 }
 
 ipcMain.handle("get-api-port", () => apiPort);
+
+ipcMain.handle("get-app-version", () => app.getVersion());
 
 ipcMain.handle("window-close", () => {
   mainWindow?.close();

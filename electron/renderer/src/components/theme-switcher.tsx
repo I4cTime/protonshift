@@ -1,139 +1,106 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import { useAtom } from "jotai";
-import { motion, AnimatePresence } from "motion/react";
-import { Palette, Check, Sun, Moon } from "lucide-react";
-import { themeAtom, THEMES, THEME_IDS, type ThemeId } from "@/lib/theme";
+import { motion } from "motion/react";
+import { Palette, Sun, Moon } from "lucide-react";
+import { Button } from "@heroui/react";
+import { HoverCard } from "@heroui-pro/react";
+import { themeAtom, THEMES, THEME_IDS } from "@/lib/theme";
 
 export function ThemeSwitcher() {
   const [themeId, setThemeId] = useAtom(themeAtom);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  const current = THEMES[themeId];
+  const activeTheme = THEMES[themeId];
 
   return (
-    <div className="relative" ref={ref}>
-      <motion.button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl border-2 border-neon-cyan/40 bg-surface-deep/60 text-text-secondary hover:border-neon-cyan hover:text-neon-cyan transition-all hover:shadow-glow-sm"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        aria-label="Switch theme"
-      >
-        <Palette className="size-5" />
-        <div className="flex gap-1.5">
-          <span
-            className="size-4 rounded-full ring-2 ring-white/30 shadow-lg"
-            style={{ backgroundColor: current.accent }}
-          />
-          <span
-            className="size-4 rounded-full ring-2 ring-white/30 shadow-lg"
-            style={{ backgroundColor: current.secondary }}
-          />
-        </div>
-      </motion.button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="absolute right-0 top-full mt-3 w-72 rounded-2xl bg-surface-elevated border-2 border-neon-cyan/30 shadow-glow-md overflow-hidden backdrop-blur-2xl z-[100]"
-            initial={{ opacity: 0, y: -10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.9 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
-            <div className="px-4 pt-3 pb-2">
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                Choose Theme
-              </p>
-            </div>
-            <div className="px-2 pb-2 space-y-1">
-              {THEME_IDS.map((id) => (
-                <ThemeOption
-                  key={id}
-                  id={id}
-                  active={id === themeId}
-                  onSelect={(t) => {
-                    setThemeId(t);
-                    setOpen(false);
-                  }}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ThemeOption({
-  id,
-  active,
-  onSelect,
-}: {
-  id: ThemeId;
-  active: boolean;
-  onSelect: (id: ThemeId) => void;
-}) {
-  const meta = THEMES[id];
-  const isLight = meta.colorScheme === "light";
-  const ModeIcon = isLight ? Sun : Moon;
-
-  return (
-    <motion.button
-      onClick={() => onSelect(id)}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
-        active
-          ? "bg-neon-cyan/15 border-2 border-neon-cyan/50 shadow-glow-sm"
-          : "border-2 border-transparent hover:bg-surface-mid hover:border-neon-cyan/20"
-      }`}
-      whileHover={{ x: 3 }}
-      whileTap={{ scale: 0.97 }}
-    >
-      {/* Color preview strip */}
-      <div
-        className={`w-12 h-8 rounded-lg flex overflow-hidden shrink-0 outline outline-2 ${
-          active ? "outline-neon-cyan" : "outline-white/15"
-        }`}
-      >
-        <div className="flex-1" style={{ backgroundColor: meta.surface }} />
-        <div className="flex-1" style={{ backgroundColor: meta.accent }} />
-        <div className="flex-1" style={{ backgroundColor: meta.secondary }} />
-      </div>
-
-      <div className="flex flex-col items-start min-w-0 flex-1">
-        <span className={`text-sm font-semibold truncate ${active ? "text-neon-cyan" : "text-text-primary"}`}>
-          {meta.label}
-        </span>
-        <span className="flex items-center gap-1 text-[11px] text-text-muted">
-          <ModeIcon className="size-3" />
-          <span className="capitalize">{meta.colorScheme} mode</span>
-        </span>
-      </div>
-
-      {active && (
-        <motion.div
-          className="shrink-0 size-6 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: meta.accent }}
-          layoutId="theme-check"
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+    <HoverCard openDelay={120} closeDelay={200}>
+      <HoverCard.Trigger>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label="Switch theme"
+          className="app-region-no-drag relative size-9 rounded-lg border border-border bg-surface-deep/80 text-foreground hover:border-neon-cyan/50 hover:bg-surface-secondary"
         >
-          <Check className="size-3.5 text-white" strokeWidth={3} />
-        </motion.div>
-      )}
-    </motion.button>
+          <Palette className="size-4" aria-hidden />
+          <span
+            className="pointer-events-none absolute bottom-1 right-1 size-1.5 rounded-full ring-1 ring-background"
+            style={{ backgroundColor: activeTheme.accent }}
+            aria-hidden
+          />
+        </Button>
+      </HoverCard.Trigger>
+      <HoverCard.Content placement="bottom" className="w-72 p-3" offset={8}>
+        <HoverCard.Arrow />
+        <div className="grid grid-cols-2 gap-2">
+          {THEME_IDS.map((id) => {
+            const t = THEMES[id];
+            const ModeIcon = t.colorScheme === "light" ? Sun : Moon;
+            const active = id === themeId;
+            return (
+              <Button
+                key={id}
+                type="button"
+                variant="ghost"
+                aria-pressed={active}
+                aria-label={`Switch to ${t.label} theme`}
+                onPress={() => setThemeId(id)}
+                className={`relative flex h-auto min-h-[5.75rem] w-full flex-col items-stretch gap-0 overflow-hidden rounded-xl border p-0 transition-colors ${
+                  active ? "border-neon-cyan/60 shadow-glow-sm" : "border-border hover:border-neon-cyan/30"
+                }`}
+                style={{ backgroundColor: t.surface }}
+              >
+                <div className="flex flex-col gap-1.5 p-2.5 text-left">
+                  <div className="flex items-center justify-between">
+                    <span className="flex gap-0.5">
+                      <span
+                        className="size-2 shrink-0 rounded-full ring-1 ring-white/25"
+                        style={{ backgroundColor: t.accent }}
+                        aria-hidden
+                      />
+                      <span
+                        className="size-2 shrink-0 rounded-full ring-1 ring-white/25"
+                        style={{ backgroundColor: t.secondary }}
+                        aria-hidden
+                      />
+                      <span className="size-2 shrink-0 rounded-full bg-white/25 ring-1 ring-white/20" aria-hidden />
+                    </span>
+                    <ModeIcon className="size-3 shrink-0" style={{ color: t.accent }} aria-hidden />
+                  </div>
+                  <div
+                    className="h-1.5 w-full rounded-full"
+                    style={{ backgroundColor: t.accent, opacity: 0.85 }}
+                    aria-hidden
+                  />
+                  <div className="flex gap-1" aria-hidden>
+                    <span className="h-2.5 flex-1 rounded-full bg-white/10" />
+                    <span
+                      className="h-2.5 w-6 shrink-0 rounded-full"
+                      style={{ backgroundColor: t.secondary, opacity: 0.7 }}
+                    />
+                  </div>
+                  <span
+                    className="mt-0.5 text-left text-[11px] font-semibold tracking-wide"
+                    style={{
+                      color: t.colorScheme === "light" ? "rgba(15,23,42,0.88)" : "rgba(255,255,255,0.92)",
+                    }}
+                  >
+                    {t.label}
+                  </span>
+                </div>
+                {active && (
+                  <motion.span
+                    layoutId="theme-active-frame"
+                    className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-neon-cyan/70"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    aria-hidden
+                  />
+                )}
+              </Button>
+            );
+          })}
+        </div>
+      </HoverCard.Content>
+    </HoverCard>
   );
 }

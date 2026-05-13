@@ -17,7 +17,11 @@ from ...gamescope import (
 )
 from ...paths import PathValidationError, validate_user_path
 from ...prefix import delete_prefix, get_prefix_info
-from ...protontricks import COMMON_VERBS, is_protontricks_available, run_protontricks
+from ...protontricks import (
+    COMMON_VERBS_GROUPED,
+    is_protontricks_available,
+    run_protontricks,
+)
 from ...shader_cache import (
     clear_shader_cache,
     get_shader_cache_info,
@@ -57,7 +61,11 @@ async def trigger_protontricks(app_id: str, body: ProtontricksRequest) -> Status
 async def list_protontricks_verbs() -> dict[str, Any]:
     return {
         "available": is_protontricks_available(),
-        "verbs": [{"id": v[0], "label": v[1]} for v in COMMON_VERBS],
+        "verbs": [
+            {"id": verb_id, "label": label, "category": category}
+            for category, verbs in COMMON_VERBS_GROUPED
+            for verb_id, label in verbs
+        ],
     }
 
 
@@ -85,6 +93,13 @@ async def gamescope_build(body: GamescopeBuildRequest) -> dict[str, Any]:
         borderless=body.borderless,
         fullscreen=body.fullscreen,
         extra_args=body.extra_args,
+        wrap_with_scopebuddy=body.wrap_with_scopebuddy,
+        scb_auto_res=body.scb_auto_res,
+        scb_auto_hdr=body.scb_auto_hdr,
+        scb_auto_vrr=body.scb_auto_vrr,
+        scb_auto_refresh=body.scb_auto_refresh,
+        scb_auto_frame_limit=body.scb_auto_frame_limit,
+        scb_noscope=body.scb_noscope,
     )
     return {
         "command": build_gamescope_cmd(opts),

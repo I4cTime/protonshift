@@ -59,6 +59,16 @@ _TOOL_SPECIFIC_PATHS: dict[str, tuple[str, ...]] = {
         "/usr/bin/wlr-randr",
         "/usr/local/bin/wlr-randr",
     ),
+    "scopebuddy": (
+        "/usr/bin/scopebuddy",
+        "/usr/local/bin/scopebuddy",
+        os.path.expanduser("~/.local/bin/scopebuddy"),
+    ),
+    "scb": (
+        "/usr/bin/scb",
+        "/usr/local/bin/scb",
+        os.path.expanduser("~/.local/bin/scb"),
+    ),
 }
 
 
@@ -91,3 +101,22 @@ def find_tool(name: str) -> str | None:
 def is_tool_available(name: str) -> bool:
     """Return True if *name* can be found anywhere on the system."""
     return find_tool(name) is not None
+
+
+def find_scopebuddy() -> tuple[str, str] | None:
+    """Return ``(invoke_name, absolute_path)`` for ScopeBuddy.
+
+    Prefers the short ``scb`` binary when present, else ``scopebuddy``.
+    """
+    scb = find_tool("scb")
+    if scb:
+        return ("scb", scb)
+    scopebuddy = find_tool("scopebuddy")
+    if scopebuddy:
+        return ("scopebuddy", scopebuddy)
+    return None
+
+
+def is_scopebuddy_available() -> bool:
+    """Return True if ``scb`` or ``scopebuddy`` is on the system."""
+    return find_scopebuddy() is not None

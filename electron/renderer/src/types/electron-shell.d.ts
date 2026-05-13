@@ -7,6 +7,8 @@ declare global {
       closeWindow: () => Promise<void>;
       minimizeWindow: () => Promise<void>;
       toggleMaximize: () => Promise<void>;
+      /** Read the packaged Electron app version (== electron/package.json#version). */
+      getVersion: () => Promise<string>;
     };
   }
 }

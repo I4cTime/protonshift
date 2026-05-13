@@ -1,6 +1,7 @@
 "use client";
 
 import { NavBar } from "./nav-bar";
+import { AppCommand } from "./app-command";
 import { AmbientBlobs } from "./ambient-blobs";
 import { motion, AnimatePresence } from "motion/react";
 import type { ReactNode } from "react";
@@ -19,6 +20,7 @@ export function PageShell({ children }: PageShellProps) {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <AmbientBlobs />
+      <AppCommand />
       <NavBar />
       <AnimatePresence mode="wait">
         <motion.main

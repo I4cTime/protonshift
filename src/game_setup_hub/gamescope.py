@@ -5,7 +5,7 @@ from __future__ import annotations
 import shlex
 from dataclasses import dataclass
 
-from game_setup_hub.tool_check import is_tool_available
+from game_setup_hub.tool_check import find_scopebuddy, is_tool_available
 
 
 @dataclass
@@ -23,6 +23,13 @@ class GamescopeOptions:
     borderless: bool = True
     fullscreen: bool = True
     extra_args: str = ""
+    wrap_with_scopebuddy: bool = False
+    scb_auto_res: bool = False
+    scb_auto_hdr: bool = False
+    scb_auto_vrr: bool = False
+    scb_auto_refresh: bool = False
+    scb_auto_frame_limit: bool = False
+    scb_noscope: bool = False
 
 
 def is_gamescope_available() -> bool:
@@ -30,13 +37,44 @@ def is_gamescope_available() -> bool:
     return is_tool_available("gamescope")
 
 
+def build_scopebuddy_wrap_cmd(opts: GamescopeOptions) -> str:
+    """Shell prefix: ``SCB_AUTO_*=1 … scb --`` for Steam-style launch options."""
+    bits: list[str] = []
+    if opts.scb_auto_res:
+        bits.append("SCB_AUTO_RES=1")
+    if opts.scb_auto_hdr:
+        bits.append("SCB_AUTO_HDR=1")
+    if opts.scb_auto_vrr:
+        bits.append("SCB_AUTO_VRR=1")
+    if opts.scb_auto_refresh:
+        bits.append("SCB_AUTO_REFRESH=1")
+    if opts.scb_auto_frame_limit:
+        bits.append("SCB_AUTO_FRAME_LIMIT=1")
+    if opts.scb_noscope:
+        bits.append("SCB_NOSCOPE=1")
+    found = find_scopebuddy()
+    invoke = found[0] if found else "scb"
+    bits.append(invoke)
+    bits.append("--")
+    return " ".join(bits)
+
+
 def build_gamescope_argv(opts: GamescopeOptions) -> list[str]:
     """Build a gamescope argv list from options.
+
+    When ``wrap_with_scopebuddy`` is true, returns a token list suitable for
+    display only (prepend env assignments are not a single POSIX argv).
 
     `extra_args` is parsed via :func:`shlex.split` so quoted segments and
     escapes are preserved correctly. The trailing ``--`` separator is always
     appended so the caller can append the wrapped command directly.
     """
+    if opts.wrap_with_scopebuddy:
+        try:
+            return shlex.split(build_scopebuddy_wrap_cmd(opts), posix=True)
+        except ValueError:
+            return ["scb", "--"]
+
     parts: list[str] = ["gamescope"]
 
     if opts.output_width > 0 and opts.output_height > 0:
@@ -76,9 +114,11 @@ def build_gamescope_argv(opts: GamescopeOptions) -> list[str]:
 
 
 def build_gamescope_cmd(opts: GamescopeOptions) -> str:
-    """Build a shell-safe gamescope command string from options.
+    """Build a shell-safe prefix for launch options.
 
-    Returned value is suitable for copy/paste into a launch options field.
-    Use :func:`build_gamescope_argv` when actually exec-ing the command.
+    Either a raw ``gamescope … --`` line or ``SCB_*=1 … scb --`` when wrapping
+    with ScopeBuddy. Suitable for copy/paste into Steam launch options.
     """
+    if opts.wrap_with_scopebuddy:
+        return build_scopebuddy_wrap_cmd(opts)
     return shlex.join(build_gamescope_argv(opts))

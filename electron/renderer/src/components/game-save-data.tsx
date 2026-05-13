@@ -1,16 +1,18 @@
 "use client";
 
-import { Archive, RotateCcw } from "lucide-react";
+import { Archive, FolderOpen, RotateCcw } from "lucide-react";
 import {
   Button,
   Chip,
-  Description,
   Disclosure,
+  Label,
   Separator,
   Spinner,
+  Text,
   Tooltip,
 } from "@heroui/react";
-import { GlowCard } from "./glow-card";
+import { ItemCard, ItemCardGroup, Widget } from "@heroui-pro/react";
+import { InfoHint } from "./info-hint";
 import type { SaveLocationData, BackupInfoData } from "@/lib/api";
 import { appShowToast } from "@/lib/app-toast";
 
@@ -62,82 +64,124 @@ export function GameSaveData({
   }
 
   return (
-    <GlowCard className="p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-            <Archive className="size-4 text-neon-blue" />
-            Save Data
-          </label>
-          <Description>
-            Detected save game locations and backup history. Backup creates a timestamped .tar.gz archive.
-          </Description>
+    <Widget>
+      <Widget.Header>
+        <Widget.Title className="flex flex-wrap items-center gap-1.5">
+          <Archive className="text-neon-blue size-4 shrink-0" aria-hidden />
+          Save data
+          <Chip size="sm" variant="secondary" className="text-[10px]">
+            {savesData.length} location{savesData.length === 1 ? "" : "s"}
+          </Chip>
+        </Widget.Title>
+        <div className="flex shrink-0 items-center gap-1">
+          <InfoHint label="About save data">
+            Detected save locations and backup history. Backup creates a timestamped archive
+            (.tar.gz).
+          </InfoHint>
+          <Button
+            variant="outline"
+            size="sm"
+            onPress={handleBackupAll}
+            isDisabled={backupSavesMut.isPending}
+            className="gap-1.5"
+          >
+            {backupSavesMut.isPending ? <Spinner size="sm" /> : <Archive className="size-3" />}
+            Backup all
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onPress={handleBackupAll}
-          isDisabled={backupSavesMut.isPending}
-          className="gap-1.5"
-        >
-          {backupSavesMut.isPending ? <Spinner size="sm" /> : <Archive className="size-3" />}
-          Backup All
-        </Button>
-      </div>
+      </Widget.Header>
+      <Widget.Content className="space-y-3">
+        <Text.Paragraph size="xs" color="muted">
+          Paths below are scanned from the prefix. Backup before risky changes.
+        </Text.Paragraph>
 
-      <div className="space-y-2">
-        {savesData.map((save) => (
-          <div key={save.path} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-deep border border-separator">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-text-primary">{save.label}</p>
-              <p className="text-xs text-text-muted font-mono truncate">{save.path}</p>
-            </div>
-            <Chip size="sm" variant="secondary" className="ml-2 shrink-0">{save.size_human}</Chip>
-          </div>
-        ))}
-      </div>
+        <ItemCardGroup variant="outline" layout="list" className="overflow-hidden rounded-xl">
+          {savesData.map((save) => (
+            <ItemCard key={save.path} className="py-2">
+              <ItemCard.Icon>
+                <FolderOpen className="text-muted size-4" aria-hidden />
+              </ItemCard.Icon>
+              <ItemCard.Content className="min-w-0">
+                <ItemCard.Title className="truncate text-sm">{save.label}</ItemCard.Title>
+                <ItemCard.Description className="min-w-0">
+                  <Text.Code
+                    className="text-muted block truncate text-[11px]"
+                    title={save.path}
+                  >
+                    {save.path}
+                  </Text.Code>
+                </ItemCard.Description>
+              </ItemCard.Content>
+              <ItemCard.Action>
+                <Chip size="sm" variant="secondary" className="shrink-0 text-[10px]">
+                  {save.size_human}
+                </Chip>
+              </ItemCard.Action>
+            </ItemCard>
+          ))}
+        </ItemCardGroup>
 
-      {backupsData && backupsData.length > 0 && (
-        <>
-          <Separator />
-          <Disclosure defaultExpanded={false}>
-            <Disclosure.Heading>
-              <Button slot="trigger" variant="ghost" size="sm" className="gap-1.5 text-xs">
-                <Archive className="size-3" />
-                Backups ({backupsData.length})
-                <Disclosure.Indicator />
-              </Button>
-            </Disclosure.Heading>
-            <Disclosure.Content>
-              <Disclosure.Body className="pt-2">
-                <div className="space-y-1">
-                  {backupsData.slice(0, 5).map((backup) => (
-                    <div key={backup.path} className="flex items-center justify-between text-xs p-2 rounded-lg bg-surface-deep border border-separator">
-                      <span className="text-text-secondary">{backup.filename}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-text-muted">{backup.size_human}</span>
-                        <Tooltip delay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            size="sm"
-                            onPress={() => handleRestore(backup.path)}
-                            aria-label="Restore backup"
-                            isDisabled={restoreSavesMut.isPending}
-                          >
-                            {restoreSavesMut.isPending ? <Spinner size="sm" /> : <RotateCcw className="size-3" />}
-                          </Button>
-                          <Tooltip.Content>Restore this backup</Tooltip.Content>
-                        </Tooltip>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Disclosure.Body>
-            </Disclosure.Content>
-          </Disclosure>
-        </>
-      )}
-    </GlowCard>
+        {backupsData && backupsData.length > 0 && (
+          <>
+            <Separator />
+            <Disclosure defaultExpanded={false}>
+              <Disclosure.Heading>
+                <Button slot="trigger" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs">
+                  <Archive className="size-3.5 shrink-0" />
+                  Backups
+                  <Chip size="sm" variant="secondary" className="text-[10px]">
+                    {backupsData.length}
+                  </Chip>
+                  <Disclosure.Indicator />
+                </Button>
+              </Disclosure.Heading>
+              <Disclosure.Content>
+                <Disclosure.Body className="space-y-2 pt-2">
+                  <Label className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+                    Recent archives
+                  </Label>
+                  <ItemCardGroup variant="outline" layout="list" className="overflow-hidden rounded-xl">
+                    {backupsData.slice(0, 5).map((backup) => (
+                      <ItemCard key={backup.path} className="py-2">
+                        <ItemCard.Icon>
+                          <Archive className="text-muted size-4" aria-hidden />
+                        </ItemCard.Icon>
+                        <ItemCard.Content className="min-w-0">
+                          <ItemCard.Title className="truncate text-xs font-medium">
+                            {backup.filename}
+                          </ItemCard.Title>
+                          <ItemCard.Description className="text-muted text-[10px]">
+                            {backup.size_human}
+                          </ItemCard.Description>
+                        </ItemCard.Content>
+                        <ItemCard.Action>
+                          <Tooltip delay={0}>
+                            <Button
+                              isIconOnly
+                              variant="outline"
+                              size="sm"
+                              onPress={() => handleRestore(backup.path)}
+                              aria-label="Restore this backup"
+                              isDisabled={restoreSavesMut.isPending}
+                            >
+                              {restoreSavesMut.isPending ? (
+                                <Spinner size="sm" />
+                              ) : (
+                                <RotateCcw className="size-3.5" />
+                              )}
+                            </Button>
+                            <Tooltip.Content>Restore into primary save folder</Tooltip.Content>
+                          </Tooltip>
+                        </ItemCard.Action>
+                      </ItemCard>
+                    ))}
+                  </ItemCardGroup>
+                </Disclosure.Body>
+              </Disclosure.Content>
+            </Disclosure>
+          </>
+        )}
+      </Widget.Content>
+    </Widget>
   );
 }

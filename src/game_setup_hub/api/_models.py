@@ -189,6 +189,17 @@ class GamescopeBuildRequest(BaseModel):
     borderless: bool = True
     fullscreen: bool = True
     extra_args: str = ""
+    wrap_with_scopebuddy: bool = False
+    scb_auto_res: bool = False
+    scb_auto_hdr: bool = False
+    scb_auto_vrr: bool = False
+    scb_auto_refresh: bool = False
+    scb_auto_frame_limit: bool = False
+    scb_noscope: bool = False
+
+
+class ScopeBuddyConfigRequest(BaseModel):
+    config: dict[str, str]
 
 
 class ShaderCacheResponse(BaseModel):
@@ -254,3 +265,11 @@ class HeroicTogglesRequest(BaseModel):
 class StatusResponse(BaseModel):
     success: bool
     message: str = ""
+
+
+class ScopeBuddyPerAppRequest(BaseModel):
+    config: dict[str, str]
+
+
+class ScopeBuddyEnvVarsRequest(BaseModel):
+    config: dict[str, str]

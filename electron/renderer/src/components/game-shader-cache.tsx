@@ -4,13 +4,15 @@ import { Sparkles, Trash2 } from "lucide-react";
 import {
   Button,
   Chip,
-  Description,
   AlertDialog,
+  Description,
   Spinner,
   Meter,
   Label,
+  Text,
 } from "@heroui/react";
-import { GlowCard } from "./glow-card";
+import { Widget } from "@heroui-pro/react";
+import { InfoHint } from "./info-hint";
 import type { ShaderCacheInfo } from "@/lib/api";
 import { appShowToast } from "@/lib/app-toast";
 
@@ -23,7 +25,7 @@ interface GameShaderCacheProps {
   };
 }
 
-const MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB for scale
+const MAX_CACHE_BYTES = 5 * 1024 * 1024 * 1024;
 
 export function GameShaderCache({
   shaderData,
@@ -42,19 +44,20 @@ export function GameShaderCache({
   const meterValue = Math.min((shaderData.size_bytes / MAX_CACHE_BYTES) * 100, 100);
 
   return (
-    <GlowCard className="p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-            <Sparkles className="size-4 text-neon-blue" />
-            Shader Cache
-          </label>
-          <Description>
-            Pre-compiled shader pipelines for this game. Clearing forces recompilation on next launch.
-          </Description>
-        </div>
-        <div className="flex items-center gap-3">
-          <Chip size="sm" variant="secondary">{shaderData.size_human}</Chip>
+    <Widget>
+      <Widget.Header>
+        <Widget.Title className="flex flex-wrap items-center gap-1.5">
+          <Sparkles className="text-neon-blue size-4 shrink-0" aria-hidden />
+          Shader cache
+          <Chip size="sm" variant="secondary" className="text-[10px]">
+            {shaderData.size_human}
+          </Chip>
+        </Widget.Title>
+        <div className="flex shrink-0 items-center gap-1">
+          <InfoHint label="About shader cache">
+            Pre-compiled pipelines for this Steam title. Clearing forces recompilation on next launch
+            (possible stutter).
+          </InfoHint>
           <AlertDialog>
             <Button variant="danger-soft" size="sm" className="gap-1.5">
               <Trash2 className="size-3" />
@@ -66,19 +69,24 @@ export function GameShaderCache({
                   <AlertDialog.CloseTrigger />
                   <AlertDialog.Header>
                     <AlertDialog.Icon status="warning" />
-                    <AlertDialog.Heading>Clear Shader Cache?</AlertDialog.Heading>
+                    <AlertDialog.Heading>Clear shader cache?</AlertDialog.Heading>
                   </AlertDialog.Header>
                   <AlertDialog.Body>
-                    <p>This will delete all cached shaders for this game. The game will need to recompile shaders on next launch, which may cause temporary stuttering.</p>
+                    <Description className="text-sm">
+                      Deletes cached shaders for this game. The next launch will recompile shaders,
+                      which may cause temporary stutter.
+                    </Description>
                   </AlertDialog.Body>
                   <AlertDialog.Footer>
-                    <Button slot="close" variant="tertiary">Cancel</Button>
+                    <Button slot="close" variant="tertiary">
+                      Cancel
+                    </Button>
                     <Button
                       variant="danger"
                       onPress={handleClear}
                       isDisabled={clearShaderMut.isPending}
                     >
-                      {clearShaderMut.isPending ? <Spinner size="sm" /> : "Clear Cache"}
+                      {clearShaderMut.isPending ? <Spinner size="sm" /> : "Clear cache"}
                     </Button>
                   </AlertDialog.Footer>
                 </AlertDialog.Dialog>
@@ -86,14 +94,34 @@ export function GameShaderCache({
             </AlertDialog.Backdrop>
           </AlertDialog>
         </div>
-      </div>
-
-      <Meter aria-label="Shader cache size" value={meterValue} className="w-full" color={meterValue > 80 ? "warning" : "accent"}>
-        <Label className="sr-only">Cache size</Label>
-        <Meter.Track>
-          <Meter.Fill />
-        </Meter.Track>
-      </Meter>
-    </GlowCard>
+      </Widget.Header>
+      <Widget.Content className="space-y-2">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <Label
+            id="shader-cache-meter-label"
+            className="text-muted text-[10px] font-semibold uppercase tracking-wide"
+          >
+            Relative size
+          </Label>
+          <Text.Paragraph
+            size="xs"
+            color="muted"
+            className="text-[10px] tabular-nums"
+          >
+            cap ref. 5 GB
+          </Text.Paragraph>
+        </div>
+        <Meter
+          aria-labelledby="shader-cache-meter-label"
+          value={meterValue}
+          className="w-full"
+          color={meterValue > 80 ? "warning" : "accent"}
+        >
+          <Meter.Track>
+            <Meter.Fill />
+          </Meter.Track>
+        </Meter>
+      </Widget.Content>
+    </Widget>
   );
 }

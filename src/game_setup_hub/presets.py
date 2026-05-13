@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from game_setup_hub.tool_check import is_tool_available
+from game_setup_hub.tool_check import is_scopebuddy_available, is_tool_available
 
 
 @dataclass
@@ -23,6 +23,8 @@ class LaunchPreset:
             return is_tool_available("gamemoderun")
         if "MANGOHUD" in self.value:
             return is_tool_available("mangohud")
+        if self.name == "ScopeBuddy" or " scb --" in self.value or " scopebuddy --" in self.value:
+            return is_scopebuddy_available()
         return True
 
 
@@ -50,6 +52,13 @@ LAUNCH_PRESETS: list[LaunchPreset] = [
         name="Proton Log",
         value="PROTON_LOG=1",
         description="Write Proton debug log to /tmp/proton_*.log. Useful for troubleshooting.",
+    ),
+    LaunchPreset(
+        name="ScopeBuddy",
+        value="SCB_AUTO_RES=1 SCB_AUTO_HDR=1 SCB_AUTO_VRR=1 scb --",
+        description="Wrap with ScopeBuddy: auto resolution, HDR, and VRR from the primary display.",
+        install_command="curl -fsSL https://raw.githubusercontent.com/HikariKnight/ScopeBuddy/refs/heads/main/bin/scopebuddy | sudo tee /usr/local/bin/scopebuddy && sudo chmod +x /usr/local/bin/scopebuddy",
+        install_url="https://github.com/OpenGamingCollective/ScopeBuddy",
     ),
 ]
 

@@ -1,17 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Gamepad2, Swords, Joystick, Settings } from "lucide-react";
-import { Alert, Description, Skeleton } from "@heroui/react";
+import { Alert, Skeleton } from "@heroui/react";
+import { EmptyState } from "@heroui-pro/react";
 import { PageShell } from "@/components/page-shell";
 import { GameList } from "@/components/game-list";
 import { GameDetail } from "@/components/game-detail";
 import { useGames } from "@/hooks/use-games";
 import type { AnyGame } from "@/lib/api";
 
+function gameListKey(game: AnyGame): string {
+  return `${game.source}:${game.app_id}`;
+}
+
 export default function GamesPage() {
   const { data, isLoading, error } = useGames();
   const [selected, setSelected] = useState<AnyGame | null>(null);
+
+  const selectedListKey = useMemo(
+    () => (selected ? gameListKey(selected) : null),
+    [selected],
+  );
 
   return (
     <PageShell>
@@ -56,7 +66,7 @@ export default function GamesPage() {
               steam={data?.steam ?? []}
               heroic={data?.heroic ?? []}
               lutris={data?.lutris ?? []}
-              selectedId={selected?.app_id ?? null}
+              selectedListKey={selectedListKey}
               onSelect={setSelected}
             />
           </div>
@@ -64,23 +74,39 @@ export default function GamesPage() {
             {selected ? (
               <GameDetail game={selected} />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-                <Gamepad2 className="size-12 opacity-40 text-neon-cyan" />
-                <p className="text-lg font-semibold text-neon-cyan opacity-80">
-                  Select a game
-                </p>
-                <Description className="text-center max-w-sm">
-                  Choose a game from the list to configure launch options, compatibility tools, and performance settings.
-                </Description>
-                <div className="flex items-center gap-4 mt-2 text-xs text-text-muted">
-                  <span className="flex items-center gap-1.5"><Gamepad2 className="size-3.5" /> Steam</span>
-                  <span className="flex items-center gap-1.5"><Swords className="size-3.5" /> Heroic</span>
-                  <span className="flex items-center gap-1.5"><Joystick className="size-3.5" /> Lutris</span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-text-muted opacity-60">
-                  <Settings className="size-3" />
-                  <span>Proton, MangoHud, Gamescope, env vars, profiles &amp; more</span>
-                </div>
+              <div className="flex h-full min-h-[280px] items-center justify-center">
+                <EmptyState className="max-w-md border-border rounded-2xl border border-dashed px-4 py-8">
+                  <EmptyState.Header>
+                    <EmptyState.Media variant="icon">
+                      <Gamepad2 className="size-8 text-neon-cyan opacity-80" aria-hidden />
+                    </EmptyState.Media>
+                    <EmptyState.Title>Select a game</EmptyState.Title>
+                    <EmptyState.Description className="text-center">
+                      Choose a game from the list to configure launch options, compatibility tools, and performance
+                      settings.
+                    </EmptyState.Description>
+                  </EmptyState.Header>
+                  <EmptyState.Content className="flex flex-col items-center gap-3 pt-2">
+                    <div className="text-muted flex flex-wrap items-center justify-center gap-4 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <Gamepad2 className="size-3.5" aria-hidden />
+                        Steam
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Swords className="size-3.5" aria-hidden />
+                        Heroic
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Joystick className="size-3.5" aria-hidden />
+                        Lutris
+                      </span>
+                    </div>
+                    <div className="text-muted flex items-center gap-1.5 text-xs opacity-70">
+                      <Settings className="size-3" aria-hidden />
+                      <span>Proton, MangoHud, Gamescope, env vars, profiles and more</span>
+                    </div>
+                  </EmptyState.Content>
+                </EmptyState>
               </div>
             )}
           </div>

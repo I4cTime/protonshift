@@ -1,15 +1,17 @@
 {
   "name": "protonshift",
-  "version": "0.9.0",
+  "version": "0.9.5",
   "description": "Linux game configuration toolkit",
   "main": "dist/main.js",
   "scripts": {
     "dev": "concurrently \"pnpm --filter protonshift-renderer dev\" \"pnpm run dev:electron\"",
     "dev:electron": "tsc && electron . --log-level=1",
+    "dev:electron:debug": "tsc && PROTONSHIFT_DEVTOOLS=1 electron . --log-level=1",
     "build:renderer": "pnpm --filter protonshift-renderer build",
     "build:electron": "tsc",
     "build": "pnpm run build:renderer && pnpm run build:electron",
-    "vendor-python": "bash scripts/vendor-python-deps.sh",
+    "fetch-python": "bash scripts/fetch-python.sh",
+    "vendor-python": "pnpm run fetch-python && bash scripts/vendor-python-deps.sh",
     "dist": "pnpm run vendor-python && pnpm run build && electron-builder --publish never",
     "dist:appimage": "pnpm run vendor-python && pnpm run build && electron-builder --linux AppImage --publish never",
     "dist:deb": "pnpm run vendor-python && pnpm run build && electron-builder --linux deb --publish never",
@@ -18,7 +20,13 @@
   },
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "sharp", "electron-winstaller"]
+    "onlyBuiltDependencies": [
+      "electron",
+      "sharp",
+      "electron-winstaller",
+      "@heroui-pro/react",
+      "heroui-pro"
+    ]
   },
   "dependencies": {
     "electron-is-dev": "^3.0.1"
@@ -70,6 +78,21 @@
         "from": "python-vendor",
         "to": "python/vendor",
         "filter": ["**/*"]
+      },
+      {
+        "from": "python-runtime",
+        "to": "python/runtime",
+        "filter": [
+          "**/*",
+          "!bin/pip*",
+          "!bin/pydoc*",
+          "!bin/idle*",
+          "!bin/python*-config",
+          "!lib/python*/site-packages/pip",
+          "!lib/python*/site-packages/pip-*.dist-info",
+          "!share/man/**",
+          "!share/doc/**"
+        ]
       }
     ],
     "linux": {
@@ -85,11 +108,11 @@
       }
     },
     "deb": {
-      "depends": ["python3 (>= 3.12)", "python3-pydantic"],
+      "depends": [],
       "maintainer": "I4cTime <I4cTime@users.noreply.github.com>"
     },
     "rpm": {
-      "depends": ["python3 >= 3.12", "python3-pydantic"],
+      "depends": [],
       "fpm": ["--rpm-summary", "Linux game configuration toolkit"]
     },
     "flatpak": {
