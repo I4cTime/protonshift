@@ -1,6 +1,6 @@
 {
   "name": "protonshift-renderer",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,7 @@
     "jotai": "^2.12.0",
     "lucide-react": "^0.475.0",
     "motion": "^12.6.0",
-    "next": "^16.2.3",
+    "next": "^16.2.6",
     "react": "^19.1.0",
     "react-aria-components": "^1.17.0",
     "react-dom": "^19.1.0",
