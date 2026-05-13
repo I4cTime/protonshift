@@ -74,6 +74,11 @@ jobs:
           cache-dependency-path: electron/pnpm-lock.yaml
 
       - name: Install dependencies
+        env:
+          # @heroui-pro/react has a postinstall step that fetches the real dist
+          # from the HeroUI Pro registry. Without this token it stops at the
+          # skeleton package and tsc cannot resolve `@heroui-pro/react`.
+          HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck (main)
