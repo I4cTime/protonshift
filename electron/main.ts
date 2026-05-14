@@ -269,7 +269,12 @@ function startStaticRendererServer(rootDir: string): Promise<number> {
           res.writeHead(400).end();
           return;
         }
-        if (pathname.includes("..")) {
+        // Reject true directory-traversal segments (".."/".") but allow dots
+        // inside filenames — Turbopack's content-hashed chunk names can contain
+        // consecutive dots, e.g. `16-.0wq_hn57..css`. A naive `includes("..")`
+        // check 403s the CSS bundle and renders the app completely unstyled.
+        const segments = pathname.split("/").filter((s) => s.length > 0);
+        if (segments.some((s) => s === ".." || s === ".")) {
           res.writeHead(403).end();
           return;
         }

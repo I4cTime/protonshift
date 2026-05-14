@@ -114,7 +114,7 @@ export function NavBar() {
                 </span>
                 <div className="navbar__brand-scanline h-[2px] w-full max-w-[7.5rem] rounded-full opacity-90" aria-hidden />
                 <p className="text-muted hidden font-mono text-[10px] leading-tight tracking-wide @6xl/nav:block">
-                  {appVersion ? `v${appVersion}` : "v0.9.6"} · Linux gaming HUD
+                  {appVersion ? `v${appVersion}` : "v0.9.7"} · Linux gaming HUD
                 </p>
               </div>
             </Link>
