@@ -7,6 +7,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .host import host_run
+
 
 @dataclass
 class GPUInfo:
@@ -21,7 +23,7 @@ def get_gpu_info() -> list[GPUInfo]:
     gpus: list[GPUInfo] = []
     # NVIDIA
     try:
-        r = subprocess.run(
+        r = host_run(
             ["nvidia-smi", "--query-gpu=name,driver_version,memory.total,temperature.gpu",
              "--format=csv,noheader,nounits"],
             capture_output=True,
@@ -91,7 +93,7 @@ def _read_hwmon_temp(device_path: Path) -> float | None:
 def _system76_power_profile_query() -> subprocess.CompletedProcess[str] | None:
     """Run `system76-power profile` (no args). Newer CLI prints `Power Profile: …` plus details."""
     try:
-        return subprocess.run(
+        return host_run(
             ["system76-power", "profile"],
             capture_output=True,
             text=True,
@@ -113,7 +115,7 @@ def get_power_profiles() -> list[str]:
     # every profile name, not just the active one. Each block starts with
     # `[* ]<name>:` at column 0.
     try:
-        r = subprocess.run(["powerprofilesctl", "list"], capture_output=True, text=True, timeout=3)
+        r = host_run(["powerprofilesctl", "list"], capture_output=True, text=True, timeout=3)
         if r.returncode == 0:
             profiles = [
                 m.group(1)
@@ -140,7 +142,7 @@ def get_current_power_profile() -> str | None:
         if first and ":" not in first and len(first) < 40:
             return first.lower()
     try:
-        r = subprocess.run(["powerprofilesctl", "get"], capture_output=True, text=True, timeout=3)
+        r = host_run(["powerprofilesctl", "get"], capture_output=True, text=True, timeout=3)
         if r.returncode == 0 and r.stdout:
             return r.stdout.strip()
     except FileNotFoundError:
@@ -152,7 +154,7 @@ def set_power_profile(profile: str) -> tuple[bool, str]:
     """Set power profile. Returns (success, message)."""
     profile_lower = profile.lower()
     try:
-        r = subprocess.run(
+        r = host_run(
             ["system76-power", "profile", profile_lower],
             capture_output=True,
             text=True,
@@ -164,7 +166,7 @@ def set_power_profile(profile: str) -> tuple[bool, str]:
     except FileNotFoundError:
         pass
     try:
-        r = subprocess.run(
+        r = host_run(
             ["powerprofilesctl", "set", profile_lower],
             capture_output=True,
             text=True,

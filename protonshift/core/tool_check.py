@@ -19,10 +19,7 @@ import subprocess
 from functools import lru_cache
 from pathlib import Path
 
-
-def _in_flatpak() -> bool:
-    """True when running inside a Flatpak sandbox."""
-    return os.path.exists("/.flatpak-info") or "FLATPAK_ID" in os.environ
+from .host import host_run, in_flatpak
 
 
 def _host_which(name: str) -> str | None:
@@ -33,11 +30,11 @@ def _host_which(name: str) -> str | None:
     read as missing. Needs the ``org.freedesktop.Flatpak`` talk-name (granted in
     the manifest). ``name`` is always an internal constant, never user input.
     """
-    if not _in_flatpak():
+    if not in_flatpak():
         return None
     try:
-        result = subprocess.run(
-            ["flatpak-spawn", "--host", "sh", "-c", f"command -v {shlex.quote(name)}"],
+        result = host_run(
+            ["sh", "-c", f"command -v {shlex.quote(name)}"],
             capture_output=True,
             text=True,
             timeout=3,
