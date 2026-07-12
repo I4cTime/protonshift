@@ -5,5 +5,7 @@ build/
 dist/
 *.egg-info/
 .flatpak-builder/
+build-dir/
 repo/
+.flatpak/
 .qmlls.ini

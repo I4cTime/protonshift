@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ProtonShift
+GenericName=Linux Gaming Setup
+Comment=Configure Proton, gamescope, MangoHud and your Steam library
+Exec=protonshift
+Icon=io.github.protonshift
+Terminal=false
+Categories=Utility;
+Keywords=proton;steam;gamescope;mangohud;wine;linux gaming;deck;
+StartupNotify=true
+StartupWMClass=protonshift
