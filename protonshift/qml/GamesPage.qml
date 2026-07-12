@@ -20,6 +20,12 @@ RowLayout {
         })
     }
 
+    // selecting a game drives the launch-options controller
+    Connections {
+        target: library
+        function onSelectedChanged() { launch.appId = library.selectedAppId }
+    }
+
     // ============================ LIST =====================================
     PsCard {
         Layout.preferredWidth: 420
@@ -285,6 +291,89 @@ RowLayout {
                             font.pixelSize: Theme.fsCaption
                         }
                     }
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            // --- launch options (writes localconfig.vdf, fail-closed) ---
+            RowLayout {
+                Layout.fillWidth: true
+                PsSectionHeader {
+                    Layout.fillWidth: true
+                    text: "Launch options"
+                    subtitle: "Written to Steam's localconfig.vdf"
+                }
+                BusyIndicator {
+                    running: launch.loading
+                    visible: launch.loading
+                    implicitWidth: 20; implicitHeight: 20
+                }
+            }
+
+            // read-failure: no editor shown, so a save can't overwrite (#20)
+            Rectangle {
+                Layout.fillWidth: true
+                visible: launch.loadError.length > 0
+                radius: Theme.radiusSm
+                color: "#2a1216"
+                border.color: Theme.danger
+                border.width: 1
+                implicitHeight: loErr.implicitHeight + 2 * Theme.spaceSm
+                Text {
+                    id: loErr
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    wrapMode: Text.WordWrap
+                    color: "#f2a3ab"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                    text: launch.loadError
+                }
+            }
+
+            EnvField {
+                id: loField
+                Layout.fillWidth: true
+                mono: true
+                visible: !launch.loadError.length
+                enabled: launch.loaded
+                placeholder: "gamescope -f -- %command%"
+                Component.onCompleted: text = launch.text
+                onEdited: launch.setText(newText)
+                Connections {
+                    target: launch
+                    function onStateChanged() {
+                        if (!loField.editing) loField.text = launch.text
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: !launch.loadError.length
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    text: launch.status
+                    wrapMode: Text.WordWrap
+                    color: (launch.status.indexOf("failed") >= 0
+                            || launch.status.indexOf("Not saved") >= 0)
+                           ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                Text {
+                    visible: launch.dirty
+                    text: "● unsaved"
+                    color: Theme.primaryBright
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Save to Steam"
+                    enabled: launch.loaded && launch.dirty
+                    onClicked: launch.save()
                 }
             }
 
