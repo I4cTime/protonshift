@@ -417,7 +417,168 @@ RowLayout {
                 }
             }
 
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            // --- per-game overrides ---
+            PsSectionHeader {
+                Layout.fillWidth: true
+                text: "Per-game tweaks"
+                subtitle: "gamescope/ScopeBuddy overrides just for this game"
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                PsButton {
+                    text: "ScopeBuddy override…"
+                    primary: false
+                    onClicked: {
+                        perAppScb.appId = library.selected.appId
+                        scbOverrideDialog.open()
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
+
             Item { Layout.fillHeight: true }
+        }
+    }
+
+    // ============================ PER-GAME SCB DIALOG =======================
+    PsDialog {
+        id: scbOverrideDialog
+        objectName: "scbOverrideDialog"
+        width: 620
+        title: "ScopeBuddy override"
+        subtitle: (library.selected.name || "") + " · AppID/" + (perAppScb.appId || "") + ".conf"
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: perAppScb.exists ? "Existing override" : "No override yet — add keys to create one."
+                    color: perAppScb.exists ? Theme.muted : Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                BusyIndicator {
+                    running: perAppScb.loading; visible: perAppScb.loading
+                    implicitWidth: 20; implicitHeight: 20
+                }
+            }
+
+            // known-key chips
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spaceXs
+                Repeater {
+                    model: perAppScb.knownKeys
+                    delegate: Rectangle {
+                        required property string modelData
+                        implicitWidth: chip.implicitWidth + 18
+                        implicitHeight: 24
+                        radius: 12
+                        color: ch.hovered ? Theme.surfaceElevated : Theme.bgDeep
+                        border.color: ch.hovered ? Theme.primary : Theme.border
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                        HoverHandler { id: ch }
+                        TapHandler { onTapped: if (perAppScb.loaded) perAppScb.addKey(modelData) }
+                        Text {
+                            id: chip
+                            anchors.centerIn: parent
+                            text: "+ " + modelData
+                            color: ch.hovered ? Theme.primaryBright : Theme.muted
+                            font.family: Theme.monoFamily
+                            font.pixelSize: 10
+                        }
+                    }
+                }
+            }
+
+            ListView {
+                id: scbRows
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 40), 260)
+                clip: true
+                spacing: 6
+                model: perAppScb.model
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+
+                delegate: RowLayout {
+                    id: r
+                    required property int index
+                    required property string key
+                    required property string value
+                    width: ListView.view.width
+                    spacing: Theme.spaceSm
+                    Connections {
+                        target: perAppScb.model
+                        function onDataChanged(tl, br) {
+                            if (r.index < tl.row || r.index > br.row) return
+                            if (!kf.editing) kf.text = r.key
+                            if (!vf.editing) vf.text = r.value
+                        }
+                    }
+                    EnvField {
+                        id: kf; Layout.preferredWidth: 200; mono: true; placeholder: "SCB_KEY"
+                        Component.onCompleted: text = r.key
+                        onEdited: perAppScb.model.setKey(r.index, newText)
+                    }
+                    EnvField {
+                        id: vf; Layout.fillWidth: true; mono: true; placeholder: "value"
+                        Component.onCompleted: text = r.value
+                        onEdited: perAppScb.model.setValue(r.index, newText)
+                    }
+                    Rectangle {
+                        width: 28; height: 28; radius: Theme.radiusSm
+                        color: rmv.hovered ? "#2a1216" : "transparent"
+                        border.width: 1
+                        border.color: rmv.hovered ? Theme.danger : Theme.border
+                        Text { anchors.centerIn: parent; text: "✕"; color: rmv.hovered ? Theme.danger : Theme.muted; font.pixelSize: 12 }
+                        HoverHandler { id: rmv }
+                        TapHandler { onTapped: perAppScb.model.removeRow(r.index) }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                PsButton {
+                    text: "+ Add row"; primary: false
+                    enabled: perAppScb.loaded
+                    onClicked: perAppScb.model.addRow()
+                }
+                PsButton {
+                    text: "Delete override"; primary: false
+                    visible: perAppScb.exists
+                    onClicked: perAppScb.deleteOverride()
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: perAppScb.status
+                    color: perAppScb.status.indexOf("failed") >= 0
+                           || perAppScb.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                Text {
+                    visible: perAppScb.dirty
+                    text: "● unsaved"
+                    color: Theme.primaryBright
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Save"
+                    enabled: perAppScb.loaded && perAppScb.dirty
+                    onClicked: perAppScb.save()
+                }
+            }
         }
     }
 }

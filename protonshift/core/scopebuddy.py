@@ -232,3 +232,25 @@ def list_per_app_overrides() -> list[dict[str, str]]:
     if not SCOPEBUDDY_APPID_DIR.is_dir():
         return []
     return [{"key": p.stem, "path": str(p)} for p in sorted(SCOPEBUDDY_APPID_DIR.glob("*.conf"))]
+
+
+def read_per_app_config(app_key: str) -> tuple[bool, dict[str, str]]:
+    """``(exists, config)`` for a per-app override. Comment/quote-safe parse."""
+    path = per_app_conf_path(app_key)
+    return path.is_file(), parse_scb_conf(path)
+
+
+def write_per_app_config(app_key: str, cfg: dict[str, str]) -> bool:
+    """Write a per-app override (creates ``AppID/`` as needed, merge-preserving)."""
+    path = per_app_conf_path(app_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return write_scb_conf(path, cfg)
+
+
+def delete_per_app_config(app_key: str) -> bool:
+    """Remove a per-app override file."""
+    try:
+        per_app_conf_path(app_key).unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False

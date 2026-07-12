@@ -10,6 +10,7 @@ from .games_controller import GamesController
 from .gamescope_controller import GamescopeController
 from .launch_controller import LaunchOptionsController
 from .mangohud_controller import MangoHudController
+from .per_app_scopebuddy_controller import PerAppScopeBuddyController
 from .scopebuddy_controller import ScopeBuddyController
 from .system_controller import SystemController
 
@@ -19,6 +20,7 @@ __all__ = [
     "GamesController",
     "LaunchOptionsController",
     "MangoHudController",
+    "PerAppScopeBuddyController",
     "ScopeBuddyController",
     "SystemController",
 ]
