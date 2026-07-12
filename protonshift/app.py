@@ -21,6 +21,7 @@ from .controllers import (
     GamesController,
     LaunchOptionsController,
     MangoHudController,
+    ScopeBuddyController,
 )
 
 QML_DIR = Path(__file__).parent / "qml"
@@ -43,12 +44,14 @@ def main() -> int:
     env = EnvController()
     launch = LaunchOptionsController()
     mangohud = MangoHudController()
+    scopebuddy = ScopeBuddyController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
     ctx.setContextProperty("env", env)
     ctx.setContextProperty("launch", launch)
     ctx.setContextProperty("mangohud", mangohud)
+    ctx.setContextProperty("scopebuddy", scopebuddy)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

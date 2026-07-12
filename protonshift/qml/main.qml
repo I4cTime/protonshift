@@ -17,7 +17,7 @@ ApplicationWindow {
     GlowBackground { anchors.fill: parent }
 
     property int currentPage: 0
-    readonly property var pages: ["Library", "Environment", "MangoHud", "Gamescope"]
+    readonly property var pages: ["Library", "Environment", "MangoHud", "ScopeBuddy", "Gamescope"]
 
     ColumnLayout {
         anchors.fill: parent
@@ -122,6 +122,10 @@ ApplicationWindow {
                 Layout.fillHeight: true
             }
             MangoHudPage {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+            ScopeBuddyPage {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
             }
