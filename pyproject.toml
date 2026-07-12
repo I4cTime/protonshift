@@ -1,0 +1,30 @@
+[project]
+name = "protonshift"
+version = "0.1.0"
+description = "Native Qt Quick edition of ProtonShift — a Linux gaming setup tool"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+dependencies = [
+    "PySide6>=6.6,<7",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "pytest"]
+
+[project.scripts]
+protonshift = "protonshift.app:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["protonshift*"]
+
+[tool.setuptools.package-data]
+protonshift = ["qml/**/*.qml", "qml/**/qmldir"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"

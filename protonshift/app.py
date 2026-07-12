@@ -1,0 +1,49 @@
+"""Application entry point.
+
+Boots a QML engine, registers the controllers as context properties, and loads
+the root window. This is the whole shell — compare with the old Electron
+``main.ts`` + ``preload.ts`` + FastAPI launch dance.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+
+from . import __version__
+from .controllers import GamescopeController
+
+QML_DIR = Path(__file__).parent / "qml"
+
+
+def main() -> int:
+    app = QGuiApplication(sys.argv)
+    app.setApplicationName("ProtonShift")
+    app.setOrganizationName("ProtonShift")
+    app.setApplicationVersion(__version__)
+
+    engine = QQmlApplicationEngine()
+
+    # Make the `App` QML module (Theme singleton + Ps* components) importable.
+    engine.addImportPath(str(QML_DIR))
+
+    # Controllers exposed to QML. Kept alive by holding references here.
+    gamescope = GamescopeController()
+    ctx = engine.rootContext()
+    ctx.setContextProperty("gamescope", gamescope)
+    ctx.setContextProperty("appVersion", __version__)
+
+    engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))
+    if not engine.rootObjects():
+        print("error: failed to load QML root object", file=sys.stderr)
+        return 1
+
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

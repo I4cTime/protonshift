@@ -1,0 +1,62 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import App
+
+// A labelled toggle row: title + optional subtitle on the left, violet switch
+// on the right. Emits `toggled(checked)` on user interaction.
+RowLayout {
+    id: row
+    property alias text: title.text
+    property string subtitle: ""
+    property bool checked: false
+    signal toggled(bool value)
+
+    spacing: Theme.space
+    Layout.fillWidth: true
+
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 1
+        Text {
+            id: title
+            color: Theme.text
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fsSmall
+            font.weight: Font.Medium
+        }
+        Text {
+            text: row.subtitle
+            visible: row.subtitle.length > 0
+            color: Theme.faint
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fsCaption
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+    }
+
+    Switch {
+        id: sw
+        checked: row.checked
+        onToggled: row.toggled(checked)
+
+        indicator: Rectangle {
+            implicitWidth: 46
+            implicitHeight: 26
+            radius: 13
+            color: sw.checked ? Theme.primary : Theme.surfaceElevated
+            border.color: sw.checked ? Theme.primaryBright : Theme.border
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Rectangle {
+                width: 20; height: 20; radius: 10
+                y: 3
+                x: sw.checked ? parent.width - width - 3 : 3
+                color: "#ffffff"
+                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            }
+        }
+    }
+}

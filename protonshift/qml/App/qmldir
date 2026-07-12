@@ -1,0 +1,9 @@
+module App
+singleton Theme 1.0 Theme.qml
+PsCard 1.0 PsCard.qml
+PsButton 1.0 PsButton.qml
+PsSwitchRow 1.0 PsSwitchRow.qml
+PsNumberField 1.0 PsNumberField.qml
+PsSlider 1.0 PsSlider.qml
+PsSectionHeader 1.0 PsSectionHeader.qml
+GlowBackground 1.0 GlowBackground.qml

@@ -1,0 +1,45 @@
+# ProtonShift Flatpak manifest (skeleton).
+#
+# Strategy: freedesktop runtime + PySide6 wheel via pip. The PySide6 wheel
+# bundles its own Qt, so we don't depend on the KDE runtime's Qt version
+# matching — this trades a larger image (~PySide6's bundled Qt) for a build that
+# Just Works. Optimizing onto org.kde.Platform (no bundled Qt) is a later step.
+#
+# The one manual step before this builds offline: generate `pip-sources.yml`
+# from PySide6 with flatpak-pip-generator, then uncomment the module below.
+#   flatpak-pip-generator --runtime=org.freedesktop.Sdk//24.08 PySide6
+#
+# Build:  flatpak-builder --user --install --force-clean build-dir flatpak/io.github.protonshift.yml
+app-id: io.github.protonshift
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+command: protonshift
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # ProtonShift reads game libraries and writes Steam/Heroic configs.
+  - --filesystem=home
+  - --filesystem=~/.steam
+  - --filesystem=~/.local/share/Steam
+  - --filesystem=~/.var/app/com.valvesoftware.Steam
+  - --filesystem=~/.config/heroic
+  - --filesystem=~/.var/app/com.heroicgameslauncher.hgl
+  # so the built command can be run / tools detected on the host
+  - --talk-name=org.freedesktop.Flatpak
+
+modules:
+  # 1. PySide6 (generated) — uncomment after running flatpak-pip-generator:
+  # - pip-sources.yml
+
+  # 2. ProtonShift itself
+  - name: protonshift
+    buildsystem: simple
+    build-commands:
+      - pip3 install --prefix=/app --no-build-isolation --no-deps .
+    sources:
+      - type: dir
+        path: ..
