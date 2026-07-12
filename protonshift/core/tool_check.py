@@ -13,9 +13,41 @@ no changes.
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
+import subprocess
 from functools import lru_cache
 from pathlib import Path
+
+
+def _in_flatpak() -> bool:
+    """True when running inside a Flatpak sandbox."""
+    return os.path.exists("/.flatpak-info") or "FLATPAK_ID" in os.environ
+
+
+def _host_which(name: str) -> str | None:
+    """Look a binary up on the HOST from inside a sandbox via flatpak-spawn.
+
+    ``shutil.which`` only sees the sandbox filesystem, so host-installed tools
+    (gamescope, mangohud, protontricks live on the host, not in our runtime)
+    read as missing. Needs the ``org.freedesktop.Flatpak`` talk-name (granted in
+    the manifest). ``name`` is always an internal constant, never user input.
+    """
+    if not _in_flatpak():
+        return None
+    try:
+        result = subprocess.run(
+            ["flatpak-spawn", "--host", "sh", "-c", f"command -v {shlex.quote(name)}"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (FileNotFoundError, OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode == 0:
+        line = result.stdout.strip().splitlines()
+        return line[0] if line and line[0].startswith("/") else None
+    return None
 
 _EXTRA_BIN_DIRS: tuple[str, ...] = (
     "/usr/bin",
@@ -98,7 +130,8 @@ def find_tool(name: str) -> str | None:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
 
-    return None
+    # Last resort: ask the host (only does anything inside a Flatpak sandbox).
+    return _host_which(name)
 
 
 def is_tool_available(name: str) -> bool:
