@@ -15,7 +15,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
 from . import __version__
-from .controllers import GamescopeController, GamesController
+from .controllers import EnvController, GamescopeController, GamesController
 
 QML_DIR = Path(__file__).parent / "qml"
 
@@ -34,9 +34,11 @@ def main() -> int:
     # Controllers exposed to QML. Kept alive by holding references here.
     gamescope = GamescopeController()
     library = GamesController()
+    env = EnvController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
+    ctx.setContextProperty("env", env)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))
