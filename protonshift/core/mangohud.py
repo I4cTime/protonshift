@@ -1,14 +1,13 @@
 """MangoHud configuration management.
 
-Lifted from the old backend. Two changes:
+Lifted from the old backend. Three changes:
 * ``read_mangohud_config`` lets a real read error (OSError) propagate instead of
   swallowing it into ``{}`` — the controller distinguishes "couldn't read" from
   "empty config" and refuses to save over an unread file (same safety as env).
 * per-game listing uses ``removeprefix`` not ``replace`` (review #L1), so a name
   like ``wine-my_wine-game`` no longer collapses its inner ``wine-``.
-
-Known follow-up: comments in a hand-edited MangoHud.conf are still dropped on
-save (review #L2) — proper preservation is a later pass.
+* ``write_mangohud_config`` merges into the existing file, preserving comments
+  and blank lines (review #L2) instead of rewriting from the dict.
 """
 
 from __future__ import annotations
@@ -124,16 +123,47 @@ def read_mangohud_config(path: Path | None = None) -> dict[str, str]:
     return config
 
 
+def _format_param(key: str, value: str) -> str:
+    return f"{key}={value}" if value else key
+
+
 def write_mangohud_config(config: dict[str, str], path: Path | None = None) -> bool:
-    """Write a MangoHud config file from key-value pairs (atomic)."""
+    """Write a MangoHud config, merging into the existing file (review #L2).
+
+    Comments and blank lines are preserved in place; parameter lines are updated
+    from ``config``; parameters no longer in ``config`` are dropped; new ones are
+    appended. Not bash, so no block handling is needed — just line-oriented merge.
+    """
     if path is None:
         path = MANGOHUD_GLOBAL_CONF
-    lines: list[str] = []
+    try:
+        existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    except OSError:
+        return False
+
+    written: set[str] = set()
+    out: list[str] = []
+    for raw in existing:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            out.append(raw)  # comment / blank — keep verbatim
+            continue
+        key = stripped.partition("=")[0].strip() if "=" in stripped else stripped
+        if key in config:
+            out.append(_format_param(key, config[key]))
+            written.add(key)
+        # else: parameter removed in the UI — drop it
+
     for key, value in config.items():
-        lines.append(f"{key}={value}" if value else key)
+        if key and key not in written:
+            out.append(_format_param(key, value))
+
+    body = "\n".join(out)
+    if body and not body.endswith("\n"):
+        body += "\n"
     try:
         MANGOHUD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        atomic_write_text(path, "\n".join(lines) + "\n")
+        atomic_write_text(path, body)
         return True
     except OSError:
         return False
