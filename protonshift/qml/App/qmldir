@@ -6,5 +6,6 @@ PsSwitchRow 1.0 PsSwitchRow.qml
 PsNumberField 1.0 PsNumberField.qml
 PsSlider 1.0 PsSlider.qml
 PsSectionHeader 1.0 PsSectionHeader.qml
+PsSelect 1.0 PsSelect.qml
 EnvField 1.0 EnvField.qml
 GlowBackground 1.0 GlowBackground.qml

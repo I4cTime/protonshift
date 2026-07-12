@@ -296,6 +296,46 @@ RowLayout {
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
+            // --- proton version (writes config.vdf, fail-closed) ---
+            PsSectionHeader {
+                Layout.fillWidth: true
+                text: "Proton version"
+                subtitle: "Compatibility tool · written to Steam's config.vdf"
+            }
+            PsSelect {
+                id: protonSelect
+                Layout.fillWidth: true
+                enabled: launch.protonLoaded
+                model: launch.protonTools
+                displayMap: ({
+                    "": "Steam default",
+                    "proton_experimental": "Proton Experimental",
+                    "proton_9_0": "Proton 9.0 (Beta)",
+                    "proton_8_0": "Proton 8.0",
+                    "proton_7_0": "Proton 7.0"
+                })
+                onChosen: launch.setProton(value)
+                function syncCurrent() {
+                    currentIndex = launch.protonTools.indexOf(launch.protonCurrent)
+                }
+                Component.onCompleted: syncCurrent()
+                Connections {
+                    target: launch
+                    function onProtonChanged() { protonSelect.syncCurrent() }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: launch.protonStatus.length > 0
+                text: launch.protonStatus
+                wrapMode: Text.WordWrap
+                color: launch.protonStatus.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
             // --- launch options (writes localconfig.vdf, fail-closed) ---
             RowLayout {
                 Layout.fillWidth: true

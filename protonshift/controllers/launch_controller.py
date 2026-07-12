@@ -21,8 +21,13 @@ class LaunchOptionsController(QObject):
     dirtyChanged = Signal()
     statusChanged = Signal()
 
+    protonChanged = Signal()
+    protonStatusChanged = Signal()
+
     _loadResult = Signal(str, bool, str)  # app_id, ok, value
     _saveResult = Signal(str, bool)  # app_id, ok
+    _protonResult = Signal(str, bool, str, list)  # app_id, ok, current, tools
+    _protonSaveResult = Signal(str, bool, str)  # app_id, ok, tool_name
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -33,8 +38,15 @@ class LaunchOptionsController(QObject):
         self._dirty = False
         self._status = ""
         self._error = ""
+        # proton / compat tool
+        self._proton_tools: list[str] = []
+        self._proton_current = ""
+        self._proton_loaded = False
+        self._proton_status = ""
         self._loadResult.connect(self._on_loaded)
         self._saveResult.connect(self._on_saved)
+        self._protonResult.connect(self._on_proton_loaded)
+        self._protonSaveResult.connect(self._on_proton_saved)
 
     # --- selection ------------------------------------------------------------
 
@@ -49,10 +61,14 @@ class LaunchOptionsController(QObject):
         self._app_id = value
         self._dirty = False
         self._status = ""
+        self._proton_status = ""
+        self._proton_loaded = False
         self.appIdChanged.emit()
         self.dirtyChanged.emit()
         self.statusChanged.emit()
+        self.protonStatusChanged.emit()
         self._reload()
+        self._reload_proton()
 
     # --- editable / state -----------------------------------------------------
 
@@ -91,6 +107,35 @@ class LaunchOptionsController(QObject):
     def status(self) -> str:
         return self._status
 
+    # --- proton / compat tool -------------------------------------------------
+
+    @Property("QStringList", notify=protonChanged)
+    def protonTools(self) -> list:  # noqa: N802
+        return self._proton_tools
+
+    @Property(str, notify=protonChanged)
+    def protonCurrent(self) -> str:  # noqa: N802
+        return self._proton_current
+
+    @Property(bool, notify=protonChanged)
+    def protonLoaded(self) -> bool:  # noqa: N802
+        return self._proton_loaded
+
+    @Property(str, notify=protonStatusChanged)
+    def protonStatus(self) -> str:  # noqa: N802
+        return self._proton_status
+
+    @Slot(str)
+    def setProton(self, tool_name: str) -> None:  # noqa: N802
+        """Immediately persist a Proton selection to config.vdf (fail-closed)."""
+        if not self._proton_loaded or not self._app_id:
+            return
+        if tool_name == self._proton_current:
+            return
+        threading.Thread(
+            target=self._proton_save_work, args=(self._app_id, tool_name), daemon=True
+        ).start()
+
     # --- actions --------------------------------------------------------------
 
     @Slot()
@@ -125,6 +170,56 @@ class LaunchOptionsController(QObject):
 
         root, _ = discover_games()
         return get_localconfig_path(root) if root else None
+
+    def _reload_proton(self) -> None:
+        if not self._app_id:
+            self._proton_tools = []
+            self._proton_current = ""
+            self._proton_loaded = False
+            self.protonChanged.emit()
+            return
+        threading.Thread(target=self._proton_load_work, args=(self._app_id,), daemon=True).start()
+
+    def _proton_load_work(self, app_id: str) -> None:
+        from ..core.compat_tool import get_config_vdf_path, read_compat_tool
+        from ..core.steam import discover_games, get_available_proton_tools
+
+        root, _ = discover_games()
+        if not root:
+            self._protonResult.emit(app_id, False, "", [])
+            return
+        tools = get_available_proton_tools(root)
+        ok, current = read_compat_tool(get_config_vdf_path(root), app_id)
+        self._protonResult.emit(app_id, ok, current, tools)
+
+    def _proton_save_work(self, app_id: str, tool_name: str) -> None:
+        from ..core.compat_tool import get_config_vdf_path, set_compat_tool
+        from ..core.steam import discover_games
+
+        root, _ = discover_games()
+        ok = bool(root) and set_compat_tool(get_config_vdf_path(root), app_id, tool_name)
+        self._protonSaveResult.emit(app_id, ok, tool_name)
+
+    def _on_proton_loaded(self, app_id: str, ok: bool, current: str, tools: list) -> None:
+        if app_id != self._app_id:
+            return
+        self._proton_tools = tools
+        self._proton_current = current
+        self._proton_loaded = ok
+        self._proton_status = "" if ok else "Couldn't read config.vdf."
+        self.protonChanged.emit()
+        self.protonStatusChanged.emit()
+
+    def _on_proton_saved(self, app_id: str, ok: bool, tool_name: str) -> None:
+        if app_id != self._app_id:
+            return
+        if ok:
+            self._proton_current = tool_name
+            self._proton_status = "Proton set — quit Steam first (it rewrites config.vdf on exit)."
+        else:
+            self._proton_status = "Couldn't write config.vdf."
+        self.protonChanged.emit()
+        self.protonStatusChanged.emit()
 
     def _load_work(self, app_id: str) -> None:
         from ..core.vdf_config import read_launch_options

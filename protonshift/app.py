@@ -53,6 +53,11 @@ def main() -> int:
         print("error: failed to load QML root object", file=sys.stderr)
         return 1
 
+    # Tear the engine down while the controllers are still alive; otherwise
+    # every binding re-evaluates against nulled context properties on exit and
+    # floods stderr with harmless-but-ugly TypeErrors.
+    app.aboutToQuit.connect(engine.deleteLater)
+
     return app.exec()
 
 
