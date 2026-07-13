@@ -19,7 +19,8 @@ protonshift/
       PsButton.qml PsCard.qml PsSwitchRow.qml PsNumberField.qml
       PsSlider.qml PsSectionHeader.qml GlowBackground.qml
 flatpak/
-  io.github.protonshift.yml
+  io.github.i4ctime.protonshift.yml   # local build (network + pip)
+  flathub/                            # offline Flathub manifest + vendored deps
 ```
 
 ## Current status — vertical slice

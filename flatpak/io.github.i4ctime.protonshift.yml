@@ -11,10 +11,10 @@
 #
 # Build + install:
 #   flatpak run org.flatpak.Builder --user --install --force-clean \
-#     build-dir flatpak/io.github.protonshift.yml
+#     build-dir flatpak/io.github.i4ctime.protonshift.yml
 # Run:
-#   flatpak run io.github.protonshift
-app-id: io.github.protonshift
+#   flatpak run io.github.i4ctime.protonshift
+app-id: io.github.i4ctime.protonshift
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
@@ -65,12 +65,12 @@ modules:
         - --share=network
     build-commands:
       - pip3 install --prefix=${FLATPAK_DEST} --no-warn-script-location PySide6 vdf .
-      - install -Dm644 flatpak/io.github.protonshift.desktop
-          ${FLATPAK_DEST}/share/applications/io.github.protonshift.desktop
-      - install -Dm644 flatpak/io.github.protonshift.metainfo.xml
-          ${FLATPAK_DEST}/share/metainfo/io.github.protonshift.metainfo.xml
-      - install -Dm644 flatpak/io.github.protonshift.svg
-          ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/io.github.protonshift.svg
+      - install -Dm644 flatpak/io.github.i4ctime.protonshift.desktop
+          ${FLATPAK_DEST}/share/applications/io.github.i4ctime.protonshift.desktop
+      - install -Dm644 flatpak/io.github.i4ctime.protonshift.metainfo.xml
+          ${FLATPAK_DEST}/share/metainfo/io.github.i4ctime.protonshift.metainfo.xml
+      - install -Dm644 flatpak/io.github.i4ctime.protonshift.svg
+          ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/io.github.i4ctime.protonshift.svg
     sources:
       - type: dir
         path: ..

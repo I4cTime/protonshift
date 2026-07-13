@@ -37,6 +37,9 @@ def main() -> int:
     app.setApplicationName("ProtonShift")
     app.setOrganizationName("ProtonShift")
     app.setApplicationVersion(__version__)
+    # Ties the Wayland/X11 window to the .desktop file (icon, StartupWMClass),
+    # which must equal the Flatpak app-id for Flathub.
+    app.setDesktopFileName("io.github.i4ctime.protonshift")
 
     engine = QQmlApplicationEngine()
 

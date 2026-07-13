@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.protonshift</id>
+  <id>io.github.i4ctime.protonshift</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
 
@@ -25,7 +25,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">io.github.protonshift.desktop</launchable>
+  <launchable type="desktop-id">io.github.i4ctime.protonshift.desktop</launchable>
 
   <categories>
     <category>Game</category>

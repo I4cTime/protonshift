@@ -4,9 +4,9 @@ Two build variants share one manifest shape.
 
 ## Local build (works today)
 
-`io.github.protonshift.yml` allows network during the build and pip-installs
-PySide6 + vdf straight into `/app`. This is the fast path to a running package —
-including on a Steam Deck in Desktop Mode.
+`io.github.i4ctime.protonshift.yml` allows network during the build and
+pip-installs PySide6 + vdf straight into `/app`. This is the fast path to a
+running package — including on a Steam Deck in Desktop Mode.
 
 ```bash
 # one-time tooling
@@ -14,25 +14,21 @@ flatpak install -y flathub org.flatpak.Builder org.freedesktop.Sdk//24.08
 
 # build + install into the user flatpak installation
 flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir io.github.protonshift.yml
+  build-dir io.github.i4ctime.protonshift.yml
 
-flatpak run io.github.protonshift
+flatpak run io.github.i4ctime.protonshift
 ```
 
-## Flathub build (offline — follow-up)
+## Flathub build (offline)
 
-Flathub forbids network access during the build, so PySide6 must be vendored:
+Lives in [`flathub/`](flathub/). It is a *different* manifest: Flathub forbids
+build-time network, and — importantly — PySide6 must **not** be pip-vendored.
+`flatpak-pip-generator` refuses PySide6 and points to `io.qt.PySide.BaseApp`,
+which is the correct way to ship it (PySide6 built against `org.kde.Platform`,
+no 150 MB Qt duplication). We vendor only the tiny pure-Python `vdf`.
 
-1. `pip install requirements-parser`
-2. Fetch the generator from
-   [flatpak/flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools/tree/master/pip):
-   ```bash
-   flatpak-pip-generator --runtime=org.freedesktop.Sdk//24.08 PySide6 vdf
-   ```
-   → produces `python3-modules.yml` with pinned wheel URLs + hashes.
-3. In the manifest: drop the `--share=network` build-arg and the `pip3 install
-   PySide6 vdf` step; add `- python3-modules.yml` before the `protonshift` module
-   and keep only `pip3 install --prefix=${FLATPAK_DEST} .`.
+See [`flathub/README.md`](flathub/README.md) for the build/test commands and the
+submission checklist. Regenerate vendored deps with `flathub/gen-vendor.sh`.
 
 ## Size note (KDE runtime)
 
@@ -43,14 +39,15 @@ not before.
 
 ## Assets in this dir
 
-- `io.github.protonshift.yml` — the manifest
-- `io.github.protonshift.desktop` — launcher entry
-- `io.github.protonshift.metainfo.xml` — AppStream (name, summary, release notes)
-- `io.github.protonshift.svg` — app icon (violet chevrons)
+- `io.github.i4ctime.protonshift.yml` — the local manifest
+- `io.github.i4ctime.protonshift.desktop` — launcher entry
+- `io.github.i4ctime.protonshift.metainfo.xml` — AppStream (name, summary, release notes)
+- `io.github.i4ctime.protonshift.svg` — app icon (violet chevrons)
+- `flathub/` — the offline Flathub manifest + vendored deps + submission checklist
 
 ## App ID
 
-Currently `io.github.protonshift`. For a Flathub submission the ID must map to a
-domain/repo you control — likely `io.github.i4ctime.protonshift` (repo is
-`I4cTime/protonshift`). Renaming touches all four filenames above plus the
-manifest `app-id`; do it as one step at submission time.
+`io.github.i4ctime.protonshift` — maps to `github.com/I4cTime` as Flathub
+requires. The app sets `QGuiApplication.setDesktopFileName()` to the same ID so
+the Wayland/X11 window picks up the icon and `StartupWMClass`. Both manifests,
+all three asset files, and the `.metainfo.xml` `<id>`/`<launchable>` use it.
