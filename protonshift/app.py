@@ -19,6 +19,7 @@ from .controllers import (
     DisplayController,
     EnvController,
     FixesController,
+    GamepadController,
     GameToolsController,
     GamescopeController,
     GamesController,
@@ -70,6 +71,7 @@ def main() -> int:
     fixes = FixesController()
     scb_envvars = ScopeBuddyEnvvarsController()
     heroic = HeroicController()
+    gamepad = GamepadController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
@@ -88,6 +90,7 @@ def main() -> int:
     ctx.setContextProperty("fixes", fixes)
     ctx.setContextProperty("scbEnvvars", scb_envvars)
     ctx.setContextProperty("heroic", heroic)
+    ctx.setContextProperty("gamepad", gamepad)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

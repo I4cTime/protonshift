@@ -27,6 +27,8 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
+  # game controllers (gamepad tester)
+  - --device=input
   # ProtonShift reads game libraries and writes Steam/Heroic configs.
   - --filesystem=home
   - --filesystem=~/.steam
