@@ -5,26 +5,13 @@ import App
 
 ApplicationWindow {
     id: window
-    // stays hidden until the splash finishes, then fades up
-    visible: false
-    opacity: 0
+    visible: true
     width: 1040
     height: 720
     minimumWidth: 840
     minimumHeight: 560
     title: "ProtonShift"
     color: Theme.bg
-
-    Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutQuad } }
-
-    // branded startup splash — reveals the main window when it fades out
-    Splash {
-        id: splash
-        onFinished: {
-            window.visible = true
-            window.opacity = 1
-        }
-    }
 
     // ambient animated background
     GlowBackground { anchors.fill: parent }
@@ -155,5 +142,12 @@ ApplicationWindow {
                 Layout.fillHeight: true
             }
         }
+    }
+
+    // branded startup overlay — covers the UI briefly, then dissolves.
+    // Last child, so it sits above everything (header, tabs, pages).
+    Splash {
+        anchors.fill: parent
+        z: 1000
     }
 }
