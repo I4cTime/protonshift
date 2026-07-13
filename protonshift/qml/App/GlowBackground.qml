@@ -25,7 +25,7 @@ Item {
             id: blobA
             width: 460; height: 460; radius: width / 2
             color: Theme.primaryDeep
-            opacity: 0.28
+            opacity: 0.28 * Theme.ambientStrength
             x: -80; y: -120
             SequentialAnimation on x {
                 loops: Animation.Infinite
@@ -37,7 +37,7 @@ Item {
             id: blobB
             width: 520; height: 520; radius: width / 2
             color: Theme.glow
-            opacity: 0.20
+            opacity: 0.20 * Theme.ambientStrength
             x: root.width - 360; y: root.height - 380
             SequentialAnimation on y {
                 loops: Animation.Infinite

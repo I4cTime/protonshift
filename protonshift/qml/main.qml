@@ -13,6 +13,12 @@ ApplicationWindow {
     title: "ProtonShift"
     color: Theme.bg
 
+    // theme: drive the Theme singleton from the persisted/ resolved choice
+    Binding { target: Theme; property: "themeName"; value: themeCtl.resolvedTheme }
+
+    // smooth cross-fade when the palette changes
+    Behavior on color { ColorAnimation { duration: 220 } }
+
     // ambient animated background
     GlowBackground { anchors.fill: parent }
 
@@ -98,6 +104,119 @@ ApplicationWindow {
             }
 
             Item { Layout.fillWidth: true }
+
+            // --- theme picker ---
+            Rectangle {
+                id: themeBtn
+                implicitWidth: themeRow.implicitWidth + 2 * Theme.spaceSm
+                implicitHeight: 30
+                radius: Theme.radiusSm
+                color: themeHover.hovered || themeMenu.visible ? Theme.surfaceElevated : Theme.surface
+                border.color: themeMenu.visible ? Theme.primary : Theme.border
+                border.width: 1
+                Behavior on color { ColorAnimation { duration: 120 } }
+
+                function labelFor(choice) {
+                    if (choice === "system") return "System"
+                    for (var i = 0; i < themeCtl.themes.length; i++)
+                        if (themeCtl.themes[i].id === choice) return themeCtl.themes[i].label
+                    return choice
+                }
+
+                RowLayout {
+                    id: themeRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    // swatch of the active palette
+                    Rectangle {
+                        width: 14; height: 14; radius: 4
+                        color: Theme.surface
+                        border.color: Theme.border; border.width: 1
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 8; height: 8; radius: 4
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: Theme.gradA }
+                                GradientStop { position: 1.0; color: Theme.gradB }
+                            }
+                        }
+                    }
+                    Text {
+                        text: themeBtn.labelFor(themeCtl.choice)
+                        color: Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                        font.weight: Font.DemiBold
+                    }
+                    Text { text: "▾"; color: Theme.faint; font.pixelSize: 10 }
+                }
+                HoverHandler { id: themeHover }
+                TapHandler { onTapped: themeMenu.open() }
+
+                Popup {
+                    id: themeMenu
+                    y: themeBtn.height + 6
+                    x: themeBtn.width - width
+                    width: 200
+                    padding: 6
+                    background: Rectangle {
+                        radius: Theme.radiusSm
+                        color: Theme.surface
+                        border.color: Theme.borderStrong
+                        border.width: 1
+                    }
+                    contentItem: ColumnLayout {
+                        spacing: 2
+                        // System (auto) row
+                        Repeater {
+                            model: [{ id: "system", label: "System (auto)" }].concat(themeCtl.themes)
+                            delegate: Rectangle {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                implicitWidth: 188
+                                implicitHeight: 34
+                                radius: Theme.radiusSm
+                                property bool active: themeCtl.choice === modelData.id
+                                color: active ? Theme.surfaceElevated : (rowHov.hovered ? Theme.bgDeep : "transparent")
+                                HoverHandler { id: rowHov }
+                                TapHandler { onTapped: { themeCtl.setTheme(modelData.id); themeMenu.close() } }
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: Theme.spaceSm
+                                    anchors.rightMargin: Theme.spaceSm
+                                    spacing: Theme.spaceSm
+                                    // swatch (system shows a split light/dark)
+                                    Rectangle {
+                                        width: 18; height: 18; radius: 5
+                                        color: modelData.id === "system" ? Theme.bg
+                                               : Theme.palettes[modelData.id].bg
+                                        border.color: Theme.border; border.width: 1
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: 9; height: 9; radius: 4.5
+                                            color: modelData.id === "system" ? Theme.primary
+                                                   : Theme.palettes[modelData.id].primary
+                                        }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: modelData.label
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fsSmall
+                                        font.weight: parent.parent.active ? Font.DemiBold : Font.Normal
+                                    }
+                                    Text {
+                                        visible: parent.parent.active
+                                        text: "✓"; color: Theme.primaryBright; font.pixelSize: 13; font.bold: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             Text {
                 text: "v" + appVersion

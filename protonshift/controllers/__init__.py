@@ -23,6 +23,7 @@ from .saves_controller import SavesController
 from .scopebuddy_controller import ScopeBuddyController
 from .scopebuddy_envvars_controller import ScopeBuddyEnvvarsController
 from .system_controller import SystemController
+from .theme_controller import ThemeController
 
 __all__ = [
     "DisplayController",
@@ -43,4 +44,5 @@ __all__ = [
     "ScopeBuddyController",
     "ScopeBuddyEnvvarsController",
     "SystemController",
+    "ThemeController",
 ]

@@ -34,6 +34,7 @@ from .controllers import (
     ScopeBuddyController,
     ScopeBuddyEnvvarsController,
     SystemController,
+    ThemeController,
 )
 
 QML_DIR = Path(__file__).parent / "qml"
@@ -72,6 +73,7 @@ def main() -> int:
     scb_envvars = ScopeBuddyEnvvarsController()
     heroic = HeroicController()
     gamepad = GamepadController()
+    theme = ThemeController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
@@ -91,6 +93,7 @@ def main() -> int:
     ctx.setContextProperty("scbEnvvars", scb_envvars)
     ctx.setContextProperty("heroic", heroic)
     ctx.setContextProperty("gamepad", gamepad)
+    ctx.setContextProperty("themeCtl", theme)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))
