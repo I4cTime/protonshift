@@ -16,6 +16,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 
 from . import __version__
 from .controllers import (
+    DisplayController,
     EnvController,
     GamescopeController,
     GamesController,
@@ -49,6 +50,7 @@ def main() -> int:
     mangohud = MangoHudController()
     scopebuddy = ScopeBuddyController()
     system = SystemController()
+    display = DisplayController()
     per_app_scb = PerAppScopeBuddyController()
     per_game_mango = PerGameMangoHudController()
     ctx = engine.rootContext()
@@ -59,6 +61,7 @@ def main() -> int:
     ctx.setContextProperty("mangohud", mangohud)
     ctx.setContextProperty("scopebuddy", scopebuddy)
     ctx.setContextProperty("system", system)
+    ctx.setContextProperty("display", display)
     ctx.setContextProperty("perAppScb", per_app_scb)
     ctx.setContextProperty("perGameMango", per_game_mango)
     ctx.setContextProperty("appVersion", __version__)

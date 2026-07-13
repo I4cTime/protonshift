@@ -5,6 +5,7 @@ Each controller wraps one slice of the domain core and exposes it to QML as
 same domain logic behind it, but called in-process instead of over HTTP.
 """
 
+from .display_controller import DisplayController
 from .env_controller import EnvController
 from .games_controller import GamesController
 from .gamescope_controller import GamescopeController
@@ -16,6 +17,7 @@ from .scopebuddy_controller import ScopeBuddyController
 from .system_controller import SystemController
 
 __all__ = [
+    "DisplayController",
     "EnvController",
     "GamescopeController",
     "GamesController",
