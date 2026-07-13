@@ -7,6 +7,7 @@ same domain logic behind it, but called in-process instead of over HTTP.
 
 from .display_controller import DisplayController
 from .env_controller import EnvController
+from .fixes_controller import FixesController
 from .game_tools_controller import GameToolsController
 from .games_controller import GamesController
 from .gamescope_controller import GamescopeController
@@ -14,13 +15,16 @@ from .launch_controller import LaunchOptionsController
 from .mangohud_controller import MangoHudController
 from .per_app_scopebuddy_controller import PerAppScopeBuddyController
 from .per_game_mangohud_controller import PerGameMangoHudController
+from .profiles_controller import ProfilesController
 from .protontricks_controller import ProtontricksController
+from .saves_controller import SavesController
 from .scopebuddy_controller import ScopeBuddyController
 from .system_controller import SystemController
 
 __all__ = [
     "DisplayController",
     "EnvController",
+    "FixesController",
     "GameToolsController",
     "GamescopeController",
     "GamesController",
@@ -28,7 +32,9 @@ __all__ = [
     "MangoHudController",
     "PerAppScopeBuddyController",
     "PerGameMangoHudController",
+    "ProfilesController",
     "ProtontricksController",
+    "SavesController",
     "ScopeBuddyController",
     "SystemController",
 ]

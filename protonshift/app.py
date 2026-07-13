@@ -18,6 +18,7 @@ from . import __version__
 from .controllers import (
     DisplayController,
     EnvController,
+    FixesController,
     GameToolsController,
     GamescopeController,
     GamesController,
@@ -25,7 +26,9 @@ from .controllers import (
     MangoHudController,
     PerAppScopeBuddyController,
     PerGameMangoHudController,
+    ProfilesController,
     ProtontricksController,
+    SavesController,
     ScopeBuddyController,
     SystemController,
 )
@@ -60,6 +63,9 @@ def main() -> int:
     per_game_mango = PerGameMangoHudController()
     protontricks = ProtontricksController()
     game_tools = GameToolsController()
+    profiles = ProfilesController()
+    saves = SavesController()
+    fixes = FixesController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
@@ -73,6 +79,9 @@ def main() -> int:
     ctx.setContextProperty("perGameMango", per_game_mango)
     ctx.setContextProperty("protontricks", protontricks)
     ctx.setContextProperty("gameTools", game_tools)
+    ctx.setContextProperty("profiles", profiles)
+    ctx.setContextProperty("saves", saves)
+    ctx.setContextProperty("fixes", fixes)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

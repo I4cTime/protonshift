@@ -254,3 +254,87 @@ def delete_per_app_config(app_key: str) -> bool:
         return True
     except OSError:
         return False
+
+
+# --------------------------------------------------------------------------- #
+# Named envvar snippets (envvars/<name>.conf)
+# --------------------------------------------------------------------------- #
+
+def envvars_path(name: str) -> Path:
+    """Path to ``envvars/<sanitized>.conf`` for a named env-var snippet."""
+    safe = sanitize_filename(name.replace(":", "_").replace("/", "_"), fallback="profile")
+    return SCOPEBUDDY_ENVVARS_DIR / f"{safe}.conf"
+
+
+def list_envvars() -> list[dict[str, str]]:
+    """List existing envvars snippet files under ``envvars/``."""
+    if not SCOPEBUDDY_ENVVARS_DIR.is_dir():
+        return []
+    return [{"name": p.stem, "path": str(p)} for p in sorted(SCOPEBUDDY_ENVVARS_DIR.glob("*.conf"))]
+
+
+def read_envvars(name: str) -> tuple[bool, dict[str, str]]:
+    """``(exists, config)`` for a named snippet; comment/quote-safe parse."""
+    path = envvars_path(name)
+    exists = path.is_file()
+    return exists, (parse_scb_conf(path) if exists else {})
+
+
+def write_envvars(name: str, cfg: dict[str, str]) -> bool:
+    """Write a named env-var snippet (merge-preserving)."""
+    path = envvars_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return write_scb_conf(path, cfg)
+
+
+def delete_envvars(name: str) -> bool:
+    """Remove a named env-var snippet file."""
+    try:
+        envvars_path(name).unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False
+
+
+# --------------------------------------------------------------------------- #
+# SCB_AUTO_* capability detection
+# --------------------------------------------------------------------------- #
+
+def _gdctl_supports_json(gdctl_path: str) -> bool:
+    """True if this gdctl understands ``--format=json`` (GNOME 47+)."""
+    try:
+        r = subprocess.run(  # noqa: S603 — path from find_tool, constant args
+            [gdctl_path, "show", "--help"],
+            capture_output=True, text=True, timeout=3,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "json" in (r.stdout + r.stderr).lower()
+
+
+def detect_auto_capabilities() -> dict[str, bool]:
+    """Which ``SCB_AUTO_*`` backends are likely usable on this session.
+
+    ScopeBuddy's auto res/HDR/VRR features shell out to a display tool + ``jq``
+    to read the primary monitor. This reports which backend is present so the
+    UI can tell the user whether the auto toggles will actually do anything.
+    """
+    jq = is_tool_available("jq")
+    kde = (
+        bool(os.environ.get("KDE_FULL_SESSION"))
+        and bool(find_tool("kscreen-doctor"))
+        and jq
+    )
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+    is_gnome = "GNOME" in desktop or (os.environ.get("DESKTOP_SESSION") or "").lower() == "gnome"
+    gdctl_path = find_tool("gdctl")
+    gnome_gdctl = bool(is_gnome and jq and gdctl_path and _gdctl_supports_json(gdctl_path))
+    wlroots = bool(find_tool("wlr-randr")) and jq
+    return {
+        "kde": kde,
+        "gnome_gdctl": gnome_gdctl,
+        "gnome_randr": bool(find_tool("gnome-randr")),
+        "wlroots": wlroots,
+        "jq": jq,
+        "any": bool(kde or gnome_gdctl or wlroots),
+    }

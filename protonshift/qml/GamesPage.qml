@@ -29,6 +29,10 @@ RowLayout {
             gameTools.prefixPath = library.selected.compatdataPath || ""
             gameTools.installPath = library.selected.installPath || ""
             detailCard.confirmDelete = false
+            profiles.appId = library.selectedAppId
+            saves.appId = library.selectedAppId
+            saves.prefixPath = library.selected.compatdataPath || ""
+            fixes.appId = library.selectedAppId
             if (library.selectedAppId.length > 0) gameTools.refresh()
         }
     }
@@ -608,6 +612,31 @@ RowLayout {
                 }
                 Item { Layout.fillWidth: true }
             }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                PsButton {
+                    text: "Known fixes…"
+                    primary: false
+                    onClicked: { fixes.appId = library.selected.appId; fixesDialog.open() }
+                }
+                PsButton {
+                    text: "Profiles…"
+                    primary: false
+                    onClicked: { profiles.appId = library.selected.appId; profiles.refresh(); profilesDialog.open() }
+                }
+                PsButton {
+                    text: "Save backups…"
+                    primary: false
+                    onClicked: {
+                        saves.appId = library.selected.appId
+                        saves.prefixPath = library.selected.compatdataPath || ""
+                        saves.refresh()
+                        savesDialog.open()
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
 
             Item { Layout.fillHeight: true }
         }
@@ -1046,6 +1075,258 @@ RowLayout {
                         protontricks.installVerbs(verbs)
                     }
                 }
+            }
+        }
+    }
+
+    // ============================ KNOWN FIXES DIALOG =======================
+    PsDialog {
+        id: fixesDialog
+        objectName: "fixesDialog"
+        width: 680
+        title: "Known fixes"
+        subtitle: (library.selected.name || "") + " · appends to launch options"
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            Text {
+                Layout.fillWidth: true
+                visible: fixes.fixes.length === 0
+                text: "No known fixes for this game yet."
+                color: Theme.faint
+                font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 40), 320)
+                clip: true; spacing: 8
+                model: fixes.fixes
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: Rectangle {
+                    required property var modelData
+                    width: ListView.view.width
+                    implicitHeight: fxCol.implicitHeight + 2 * Theme.spaceSm
+                    radius: Theme.radiusSm
+                    color: Theme.bgDeep
+                    border.color: Theme.border; border.width: 1
+                    ColumnLayout {
+                        id: fxCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spaceSm
+                        spacing: 3
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.title
+                                color: Theme.text
+                                font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
+                            }
+                            Rectangle {
+                                implicitWidth: srcLbl.implicitWidth + 12; implicitHeight: 16; radius: 8
+                                color: Theme.surfaceElevated
+                                Text { id: srcLbl; anchors.centerIn: parent; text: modelData.source; color: Theme.muted; font.pixelSize: 9; font.family: Theme.fontFamily }
+                            }
+                            PsButton {
+                                text: "Apply"; primary: false
+                                enabled: launch.loaded
+                                onClicked: { launch.appendPreset(modelData.snippet); fixesDialog.close() }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.description
+                            wrapMode: Text.WordWrap
+                            color: Theme.muted
+                            font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                        }
+                        Text {
+                            text: modelData.snippet
+                            color: Theme.primaryBright
+                            font.family: Theme.monoFamily; font.pixelSize: 10
+                        }
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: !launch.loaded
+                text: "Select the game's launch options load before applying (open the detail pane)."
+                color: Theme.faint; wrapMode: Text.WordWrap
+                font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+        }
+    }
+
+    // ============================ PROFILES DIALOG ==========================
+    PsDialog {
+        id: profilesDialog
+        objectName: "profilesDialog"
+        width: 620
+        title: "Configuration profiles"
+        subtitle: (library.selected.name || "") + " · launch + Proton + env + power"
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 38; radius: Theme.radiusSm
+                    color: Theme.bgDeep
+                    border.width: profName.activeFocus ? 2 : 1
+                    border.color: profName.activeFocus ? Theme.primary : Theme.border
+                    TextField {
+                        id: profName
+                        anchors.fill: parent; anchors.leftMargin: Theme.spaceSm; anchors.rightMargin: Theme.spaceSm
+                        verticalAlignment: TextInput.AlignVCenter
+                        placeholderText: "New profile name…"
+                        placeholderTextColor: Theme.faint
+                        color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
+                        selectByMouse: true; background: Item {}
+                    }
+                }
+                PsButton {
+                    text: "Save current"
+                    enabled: profName.text.length > 0 && !profiles.busy
+                    onClicked: { profiles.saveCurrent(profName.text); profName.text = "" }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: profiles.profiles.length === 0
+                text: "No saved profiles. Capture the current launch options, Proton, env vars and power profile above."
+                wrapMode: Text.WordWrap
+                color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 0), 240)
+                clip: true; spacing: 6
+                model: profiles.profiles
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: Rectangle {
+                    required property string modelData
+                    width: ListView.view.width; implicitHeight: 42; radius: Theme.radiusSm
+                    color: Theme.bgDeep; border.color: Theme.border; border.width: 1
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: Theme.spaceSm; anchors.rightMargin: Theme.spaceSm
+                        spacing: Theme.spaceSm
+                        Text {
+                            Layout.fillWidth: true; text: modelData
+                            color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
+                        }
+                        PsButton { text: "Apply"; primary: false; enabled: !profiles.busy; onClicked: profiles.apply(modelData) }
+                        PsButton { text: "Delete"; primary: false; danger: true; enabled: !profiles.busy; onClicked: profiles.deleteProfile(modelData) }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                BusyIndicator { running: profiles.busy; visible: profiles.busy; implicitWidth: 18; implicitHeight: 18 }
+                Text {
+                    Layout.fillWidth: true; text: profiles.status
+                    wrapMode: Text.WordWrap
+                    color: profiles.status.indexOf("Couldn't") >= 0 || profiles.status.indexOf("Nothing") >= 0 ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+            }
+        }
+    }
+
+    // ============================ SAVE BACKUPS DIALOG ======================
+    PsDialog {
+        id: savesDialog
+        objectName: "savesDialog"
+        width: 680
+        title: "Save backups"
+        subtitle: (library.selected.name || "") + " · discovered saves are zipped; restores go to a safe folder"
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            PsSectionHeader { Layout.fillWidth: true; text: "Detected saves" }
+            Text {
+                Layout.fillWidth: true
+                visible: saves.saves.length === 0 && !saves.busy
+                text: "No save folders detected (Proton prefix + Steam userdata scanned)."
+                wrapMode: Text.WordWrap
+                color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+            Repeater {
+                model: saves.saves
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true; spacing: Theme.spaceSm
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 0
+                        Text { text: modelData.label; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption; font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; text: modelData.path; elide: Text.ElideMiddle; color: Theme.faint; font.family: Theme.monoFamily; font.pixelSize: 10 }
+                    }
+                    Text { text: modelData.size; color: Theme.muted; font.family: Theme.monoFamily; font.pixelSize: Theme.fsCaption }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                PsButton {
+                    text: "Back up now"; enabled: saves.saves.length > 0 && !saves.busy
+                    onClicked: saves.backup()
+                }
+                BusyIndicator { running: saves.busy; visible: saves.busy; implicitWidth: 18; implicitHeight: 18 }
+                Item { Layout.fillWidth: true }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            PsSectionHeader { Layout.fillWidth: true; text: "Backups" }
+            Text {
+                Layout.fillWidth: true
+                visible: saves.backups.length === 0
+                text: "No backups yet."
+                color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 0), 200)
+                clip: true; spacing: 6
+                model: saves.backups
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: Rectangle {
+                    required property var modelData
+                    width: ListView.view.width; implicitHeight: 42; radius: Theme.radiusSm
+                    color: Theme.bgDeep; border.color: Theme.border; border.width: 1
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: Theme.spaceSm; anchors.rightMargin: Theme.spaceSm
+                        spacing: Theme.spaceSm
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: 0
+                            Text { text: modelData.created; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption }
+                            Text { text: modelData.filename + " · " + modelData.size; color: Theme.faint; font.family: Theme.monoFamily; font.pixelSize: 10 }
+                        }
+                        PsButton { text: "Restore"; primary: false; enabled: !saves.busy; onClicked: saves.restore(modelData.path) }
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: saves.status.length > 0
+                text: saves.status
+                wrapMode: Text.WordWrap
+                color: saves.status.indexOf("failed") >= 0 ? Theme.danger : Theme.success
+                font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
             }
         }
     }
