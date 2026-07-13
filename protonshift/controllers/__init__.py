@@ -19,6 +19,7 @@ from .profiles_controller import ProfilesController
 from .protontricks_controller import ProtontricksController
 from .saves_controller import SavesController
 from .scopebuddy_controller import ScopeBuddyController
+from .scopebuddy_envvars_controller import ScopeBuddyEnvvarsController
 from .system_controller import SystemController
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "ProtontricksController",
     "SavesController",
     "ScopeBuddyController",
+    "ScopeBuddyEnvvarsController",
     "SystemController",
 ]

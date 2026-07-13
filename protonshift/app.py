@@ -30,6 +30,7 @@ from .controllers import (
     ProtontricksController,
     SavesController,
     ScopeBuddyController,
+    ScopeBuddyEnvvarsController,
     SystemController,
 )
 
@@ -66,6 +67,7 @@ def main() -> int:
     profiles = ProfilesController()
     saves = SavesController()
     fixes = FixesController()
+    scb_envvars = ScopeBuddyEnvvarsController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
@@ -82,6 +84,7 @@ def main() -> int:
     ctx.setContextProperty("profiles", profiles)
     ctx.setContextProperty("saves", saves)
     ctx.setContextProperty("fixes", fixes)
+    ctx.setContextProperty("scbEnvvars", scb_envvars)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

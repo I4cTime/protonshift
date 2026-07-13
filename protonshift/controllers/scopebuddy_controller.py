@@ -15,6 +15,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from ..core.scopebuddy import (
     SCB_KNOWN_KEYS,
     SCOPEBUDDY_PRESETS,
+    detect_auto_capabilities,
     scopebuddy_available_info,
 )
 from .env_controller import EnvVarsModel  # generic key/value list model
@@ -43,6 +44,7 @@ class ScopeBuddyController(QObject):
         self._status = ""
         self._known = list(SCB_KNOWN_KEYS)
         self._presets = list(SCOPEBUDDY_PRESETS.keys())
+        self._auto_caps = detect_auto_capabilities()
         self._loadResult.connect(self._on_loaded)
         self.reload()
 
@@ -71,6 +73,11 @@ class ScopeBuddyController(QObject):
     @Property("QStringList", constant=True)
     def presetNames(self) -> list:  # noqa: N802
         return self._presets
+
+    @Property("QVariantMap", constant=True)
+    def autoCaps(self) -> dict:  # noqa: N802
+        """Which SCB_AUTO_* backends this session can actually drive."""
+        return self._auto_caps
 
     # --- reactive -------------------------------------------------------------
 

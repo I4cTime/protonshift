@@ -52,6 +52,54 @@ RowLayout {
                 }
             }
 
+            // SCB_AUTO_* capability indicator: which display backend can drive
+            // auto resolution / HDR / VRR on this session.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceXs
+                Text {
+                    text: "Auto res/HDR/VRR:"
+                    color: Theme.muted
+                    font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+                Repeater {
+                    model: [
+                        { l: "KDE", ok: scopebuddy.autoCaps.kde === true },
+                        { l: "GNOME", ok: scopebuddy.autoCaps.gnome_gdctl === true },
+                        { l: "wlroots", ok: scopebuddy.autoCaps.wlroots === true },
+                        { l: "jq", ok: scopebuddy.autoCaps.jq === true }
+                    ]
+                    delegate: Rectangle {
+                        required property var modelData
+                        implicitWidth: capLbl.implicitWidth + 14
+                        implicitHeight: 18
+                        radius: 9
+                        color: modelData.ok ? "#12281f" : Theme.bgDeep
+                        border.color: modelData.ok ? Theme.success : Theme.border
+                        border.width: 1
+                        Text {
+                            id: capLbl
+                            anchors.centerIn: parent
+                            text: (modelData.ok ? "✓ " : "· ") + modelData.l
+                            color: modelData.ok ? Theme.success : Theme.faint
+                            font.family: Theme.fontFamily; font.pixelSize: 10
+                        }
+                    }
+                }
+                Text {
+                    visible: scopebuddy.autoCaps.any !== true
+                    text: "— no supported backend detected"
+                    color: Theme.faint
+                    font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Env snippets…"
+                    primary: false
+                    onClicked: scbSnippetsDialog.open()
+                }
+            }
+
             Rectangle {
                 Layout.fillWidth: true
                 visible: !scopebuddy.available
@@ -276,6 +324,161 @@ RowLayout {
                 }
             }
             Item { Layout.fillHeight: true }
+        }
+    }
+
+    // ============================ ENV SNIPPETS DIALOG ======================
+    PsDialog {
+        id: scbSnippetsDialog
+        objectName: "scbSnippetsDialog"
+        width: 660
+        title: "ScopeBuddy env snippets"
+        subtitle: "Reusable envvars/*.conf snippets" + (scbEnvvars.name ? " · editing “" + scbEnvvars.name + "”" : "")
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            // snippet picker + create
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    text: "Snippets:"
+                    color: Theme.muted
+                    font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.spaceXs
+                    Repeater {
+                        model: scbEnvvars.snippets
+                        delegate: Rectangle {
+                            required property string modelData
+                            implicitWidth: snLbl.implicitWidth + 18
+                            implicitHeight: 24
+                            radius: 12
+                            property bool active: scbEnvvars.name === modelData
+                            color: active ? Theme.surfaceElevated : (snh.hovered ? Theme.surface : Theme.bgDeep)
+                            border.color: active ? Theme.primary : Theme.border
+                            border.width: active ? 2 : 1
+                            HoverHandler { id: snh }
+                            TapHandler { onTapped: scbEnvvars.select(modelData) }
+                            Text {
+                                id: snLbl; anchors.centerIn: parent; text: modelData
+                                color: active ? Theme.primaryBright : Theme.muted
+                                font.family: Theme.monoFamily; font.pixelSize: 10
+                            }
+                        }
+                    }
+                    Text {
+                        visible: scbEnvvars.snippets.length === 0
+                        text: "none yet"
+                        color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: 10
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 36; radius: Theme.radiusSm
+                    color: Theme.bgDeep
+                    border.width: newSnip.activeFocus ? 2 : 1
+                    border.color: newSnip.activeFocus ? Theme.primary : Theme.border
+                    TextField {
+                        id: newSnip
+                        anchors.fill: parent; anchors.leftMargin: Theme.spaceSm; anchors.rightMargin: Theme.spaceSm
+                        verticalAlignment: TextInput.AlignVCenter
+                        placeholderText: "New snippet name…"; placeholderTextColor: Theme.faint
+                        color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
+                        selectByMouse: true; background: Item {}
+                    }
+                }
+                PsButton {
+                    text: "New"; primary: false
+                    enabled: newSnip.text.length > 0
+                    onClicked: { scbEnvvars.create(newSnip.text); newSnip.text = "" }
+                }
+            }
+
+            // known-key chips
+            Flow {
+                Layout.fillWidth: true
+                visible: scbEnvvars.loaded
+                spacing: Theme.spaceXs
+                Repeater {
+                    model: scbEnvvars.knownKeys
+                    delegate: Rectangle {
+                        required property string modelData
+                        implicitWidth: kc.implicitWidth + 18; implicitHeight: 24; radius: 12
+                        color: kch.hovered ? Theme.surfaceElevated : Theme.bgDeep
+                        border.color: kch.hovered ? Theme.primary : Theme.border; border.width: 1
+                        HoverHandler { id: kch }
+                        TapHandler { onTapped: scbEnvvars.addKey(modelData) }
+                        Text { id: kc; anchors.centerIn: parent; text: "+ " + modelData; color: kch.hovered ? Theme.primaryBright : Theme.muted; font.family: Theme.monoFamily; font.pixelSize: 10 }
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: !scbEnvvars.loaded
+                text: "Pick a snippet above or create one to edit its keys."
+                color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 0), 220)
+                visible: scbEnvvars.loaded
+                clip: true; spacing: 6
+                model: scbEnvvars.model
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: RowLayout {
+                    id: sr
+                    required property int index
+                    required property string key
+                    required property string value
+                    width: ListView.view.width; spacing: Theme.spaceSm
+                    Connections {
+                        target: scbEnvvars.model
+                        function onDataChanged(tl, br) {
+                            if (sr.index < tl.row || sr.index > br.row) return
+                            if (!skf.editing) skf.text = sr.key
+                            if (!svf.editing) svf.text = sr.value
+                        }
+                    }
+                    EnvField { id: skf; Layout.preferredWidth: 200; mono: true; placeholder: "SCB_KEY"; Component.onCompleted: text = sr.key; onEdited: scbEnvvars.model.setKey(sr.index, newText) }
+                    EnvField { id: svf; Layout.fillWidth: true; mono: true; placeholder: "value"; Component.onCompleted: text = sr.value; onEdited: scbEnvvars.model.setValue(sr.index, newText) }
+                    Rectangle {
+                        width: 28; height: 28; radius: Theme.radiusSm
+                        color: srm.hovered ? "#2a1216" : "transparent"
+                        border.width: 1; border.color: srm.hovered ? Theme.danger : Theme.border
+                        Text { anchors.centerIn: parent; text: "✕"; color: srm.hovered ? Theme.danger : Theme.muted; font.pixelSize: 12 }
+                        HoverHandler { id: srm }
+                        TapHandler { onTapped: scbEnvvars.model.removeRow(sr.index) }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                PsButton { text: "+ Add row"; primary: false; enabled: scbEnvvars.loaded; onClicked: scbEnvvars.model.addRow() }
+                PsButton { text: "Delete snippet"; primary: false; danger: true; visible: scbEnvvars.exists; onClicked: scbEnvvars.deleteSnippet() }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: scbEnvvars.status
+                    color: scbEnvvars.status.indexOf("failed") >= 0 || scbEnvvars.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+                Text { visible: scbEnvvars.dirty; text: "● unsaved"; color: Theme.primaryBright; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption }
+                PsButton { text: "Save"; enabled: scbEnvvars.loaded && scbEnvvars.dirty; onClicked: scbEnvvars.save() }
+            }
         }
     }
 }
