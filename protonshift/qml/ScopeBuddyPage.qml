@@ -32,7 +32,7 @@ RowLayout {
                     implicitWidth: verLbl.implicitWidth + 16
                     implicitHeight: 22
                     radius: 11
-                    color: "#12281f"
+                    color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14)
                     border.color: Theme.success
                     border.width: 1
                     Text {
@@ -74,7 +74,7 @@ RowLayout {
                         implicitWidth: capLbl.implicitWidth + 14
                         implicitHeight: 18
                         radius: 9
-                        color: modelData.ok ? "#12281f" : Theme.bgDeep
+                        color: modelData.ok ? Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14) : Theme.bgDeep
                         border.color: modelData.ok ? Theme.success : Theme.border
                         border.width: 1
                         Text {

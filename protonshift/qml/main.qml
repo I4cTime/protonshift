@@ -69,40 +69,6 @@ ApplicationWindow {
                 }
             }
 
-            Item { width: Theme.spaceLg }
-
-            // --- tabs ---
-            RowLayout {
-                spacing: Theme.spaceXs
-                Repeater {
-                    model: window.pages
-                    delegate: Rectangle {
-                        required property int index
-                        required property string modelData
-                        implicitWidth: tabLbl.implicitWidth + 2 * Theme.space
-                        implicitHeight: 32
-                        radius: Theme.radiusSm
-                        property bool active: window.currentPage === index
-                        color: active ? Theme.surfaceElevated
-                                      : (tabHover.hovered ? Theme.surface : "transparent")
-                        border.width: active ? 1 : 0
-                        border.color: Theme.borderStrong
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                        HoverHandler { id: tabHover }
-                        TapHandler { onTapped: window.currentPage = index }
-                        Text {
-                            id: tabLbl
-                            anchors.centerIn: parent
-                            text: modelData
-                            color: parent.active ? Theme.text : Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fsSmall
-                            font.weight: parent.active ? Font.DemiBold : Font.Normal
-                        }
-                    }
-                }
-            }
-
             Item { Layout.fillWidth: true }
 
             // --- theme picker ---
@@ -223,6 +189,39 @@ ApplicationWindow {
                 color: Theme.faint
                 font.family: Theme.monoFamily
                 font.pixelSize: Theme.fsCaption
+            }
+        }
+
+        // --- tabs (wrap to a second line on narrow windows) ----------------
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.spaceXs
+            Repeater {
+                model: window.pages
+                delegate: Rectangle {
+                    required property int index
+                    required property string modelData
+                    implicitWidth: tabLbl.implicitWidth + 2 * Theme.space
+                    implicitHeight: 32
+                    radius: Theme.radiusSm
+                    property bool active: window.currentPage === index
+                    color: active ? Theme.surfaceElevated
+                                  : (tabHover.hovered ? Theme.surface : "transparent")
+                    border.width: active ? 1 : 0
+                    border.color: Theme.borderStrong
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    HoverHandler { id: tabHover }
+                    TapHandler { onTapped: window.currentPage = index }
+                    Text {
+                        id: tabLbl
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: parent.active ? Theme.text : Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsSmall
+                        font.weight: parent.active ? Font.DemiBold : Font.Normal
+                    }
+                }
             }
         }
 

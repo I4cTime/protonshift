@@ -253,7 +253,7 @@ RowLayout {
                                 implicitWidth: prefixLbl.implicitWidth + 12
                                 implicitHeight: 18
                                 radius: 9
-                                color: "#12281f"
+                                color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14)
                                 border.color: Theme.success
                                 border.width: 1
                                 Text {
@@ -326,7 +326,7 @@ RowLayout {
                     implicitWidth: statusLbl.implicitWidth + 16
                     implicitHeight: 22
                     radius: 11
-                    color: library.selected.hasPrefix ? "#12281f" : Theme.surfaceElevated
+                    color: library.selected.hasPrefix ? Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14) : Theme.surfaceElevated
                     border.width: 1
                     border.color: library.selected.hasPrefix ? Theme.success : Theme.border
                     Text {
