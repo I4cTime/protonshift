@@ -20,12 +20,46 @@ def _to_dict(g: SteamGame) -> dict:
     return {
         "appId": g.app_id,
         "name": g.name,
+        "source": "steam",
+        "store": "steam",
         "installDir": g.install_dir,
         "lastPlayed": g.last_played,
         "hasPrefix": g.has_compatdata,
         "installPath": str(g.install_path) if g.install_path else "",
         "compatdataPath": str(g.compatdata_path) if g.compatdata_path else "",
         "libraryPath": str(g.library_path),
+    }
+
+
+def _heroic_to_dict(g) -> dict:
+    prefix = str(g.prefix_path) if g.prefix_path else ""
+    return {
+        "appId": g.app_id,
+        "name": g.name,
+        "source": "heroic",
+        "store": g.store,  # "epic" | "gog"
+        "installDir": "",
+        "lastPlayed": 0,
+        "hasPrefix": bool(prefix),
+        "installPath": str(g.install_path) if g.install_path else "",
+        "compatdataPath": prefix,
+        "libraryPath": "",
+    }
+
+
+def _lutris_to_dict(g) -> dict:
+    prefix = str(g.prefix_path) if g.prefix_path else ""
+    return {
+        "appId": g.app_id,
+        "name": g.name,
+        "source": "lutris",
+        "store": "lutris",
+        "installDir": "",
+        "lastPlayed": 0,
+        "hasPrefix": bool(prefix),
+        "installPath": str(g.install_path) if g.install_path else "",
+        "compatdataPath": prefix,
+        "libraryPath": "",
     }
 
 
@@ -64,6 +98,14 @@ class GamesController(QObject):
     def steamFound(self) -> bool:  # noqa: N802
         return self._steam_found
 
+    @Property("QVariantMap", notify=gamesChanged)
+    def sourceCounts(self) -> dict:  # noqa: N802
+        """Per-source game counts for the library filter (steam/heroic/lutris)."""
+        counts: dict[str, int] = {"steam": 0, "heroic": 0, "lutris": 0}
+        for g in self._games:
+            counts[g.get("source", "steam")] = counts.get(g.get("source", "steam"), 0) + 1
+        return counts
+
     @Property(str, notify=selectedChanged)
     def selectedAppId(self) -> str:  # noqa: N802
         return self._selected_app_id
@@ -95,9 +137,23 @@ class GamesController(QObject):
     # --- worker ---------------------------------------------------------------
 
     def _work(self) -> None:
+        from ..core.heroic import discover_heroic_games
+        from ..core.lutris import discover_lutris_games
+
         invalidate_discovery_cache()
         root, games = discover_games()
-        self._resultReady.emit(root is not None, [_to_dict(g) for g in games])
+        merged = [_to_dict(g) for g in games]
+        # Heroic (Epic/GOG) and Lutris games sit alongside Steam ones, tagged by
+        # source so the UI can filter and gate Steam-only actions.
+        try:
+            merged += [_heroic_to_dict(g) for g in discover_heroic_games()]
+        except Exception:  # noqa: BLE001 — a broken Heroic install must not kill discovery
+            pass
+        try:
+            merged += [_lutris_to_dict(g) for g in discover_lutris_games()]
+        except Exception:  # noqa: BLE001
+            pass
+        self._resultReady.emit(root is not None, merged)
 
     def _on_result(self, steam_found: bool, games: list) -> None:
         self._steam_found = steam_found

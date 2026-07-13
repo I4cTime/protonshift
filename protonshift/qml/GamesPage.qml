@@ -10,13 +10,15 @@ RowLayout {
     spacing: Theme.spaceLg
 
     property string query: ""
-    // re-evaluates when the query OR the underlying list changes
+    property string sourceFilter: "all"   // all | steam | heroic | lutris
+    // re-evaluates when the query, source filter, OR the underlying list changes
     property var filtered: {
-        if (query.length === 0)
-            return library.games
         var q = query.toLowerCase()
+        var src = sourceFilter
         return library.games.filter(function (g) {
-            return g.name.toLowerCase().indexOf(q) >= 0
+            if (src !== "all" && (g.source || "steam") !== src) return false
+            if (q.length > 0 && g.name.toLowerCase().indexOf(q) < 0) return false
+            return true
         })
     }
 
@@ -33,6 +35,7 @@ RowLayout {
             saves.appId = library.selectedAppId
             saves.prefixPath = library.selected.compatdataPath || ""
             fixes.appId = library.selectedAppId
+            heroic.appId = (library.selected.source === "heroic") ? library.selectedAppId : ""
             if (library.selectedAppId.length > 0) gameTools.refresh()
         }
     }
@@ -99,6 +102,43 @@ RowLayout {
                     selectByMouse: true
                     background: Item {}
                     onTextChanged: page.query = text
+                }
+            }
+
+            // source filter (only shown when there's more than one source)
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spaceXs
+                visible: (library.sourceCounts.heroic > 0) || (library.sourceCounts.lutris > 0)
+                Repeater {
+                    model: [
+                        { k: "all", l: "All", n: library.count },
+                        { k: "steam", l: "Steam", n: library.sourceCounts.steam || 0 },
+                        { k: "heroic", l: "Heroic", n: library.sourceCounts.heroic || 0 },
+                        { k: "lutris", l: "Lutris", n: library.sourceCounts.lutris || 0 }
+                    ]
+                    delegate: Rectangle {
+                        required property var modelData
+                        visible: modelData.k === "all" || modelData.n > 0
+                        implicitWidth: sfLbl.implicitWidth + 18
+                        implicitHeight: 24
+                        radius: 12
+                        property bool active: page.sourceFilter === modelData.k
+                        color: active ? Theme.surfaceElevated : (sfh.hovered ? Theme.surface : Theme.bgDeep)
+                        border.color: active ? Theme.primary : Theme.border
+                        border.width: active ? 2 : 1
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                        HoverHandler { id: sfh }
+                        TapHandler { onTapped: page.sourceFilter = modelData.k }
+                        Text {
+                            id: sfLbl
+                            anchors.centerIn: parent
+                            text: modelData.l + " " + modelData.n
+                            color: active ? Theme.primaryBright : Theme.muted
+                            font.family: Theme.fontFamily; font.pixelSize: 10
+                            font.weight: active ? Font.DemiBold : Font.Normal
+                        }
+                    }
                 }
             }
 
@@ -175,10 +215,36 @@ RowLayout {
                                     font.weight: Font.Medium
                                 }
                                 Text {
-                                    text: "App " + modelData.appId
+                                    text: (modelData.source === "steam")
+                                          ? "App " + modelData.appId
+                                          : (modelData.store === "epic" ? "Epic"
+                                             : modelData.store === "gog" ? "GOG"
+                                             : "Lutris") + " · " + modelData.appId
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
                                     color: Theme.faint
                                     font.family: Theme.monoFamily
                                     font.pixelSize: Theme.fsCaption
+                                }
+                            }
+
+                            // source badge for non-Steam games
+                            Rectangle {
+                                visible: modelData.source !== "steam"
+                                implicitWidth: srcBadge.implicitWidth + 12
+                                implicitHeight: 18
+                                radius: 9
+                                color: Theme.surfaceElevated
+                                border.color: Theme.primary
+                                border.width: 1
+                                Text {
+                                    id: srcBadge
+                                    anchors.centerIn: parent
+                                    text: modelData.source === "heroic" ? "Heroic" : "Lutris"
+                                    color: Theme.primaryBright
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 10
+                                    font.weight: Font.DemiBold
                                 }
                             }
 
@@ -218,6 +284,9 @@ RowLayout {
         property bool hasSelection: Object.keys(library.selected).length > 0
         // two-step guard for the destructive prefix delete
         property bool confirmDelete: false
+        // Steam-only sections (Proton/launch options/per-game tweaks) hide for
+        // Heroic/Lutris games, which get their own controls.
+        property bool isSteam: (library.selected.source || "steam") === "steam"
 
         // placeholder
         Text {
@@ -306,6 +375,12 @@ RowLayout {
                     }
                 }
             }
+
+            // ===== Steam-only: Proton + launch options + presets =====
+            ColumnLayout {
+              Layout.fillWidth: true
+              spacing: Theme.space
+              visible: detailCard.isSteam
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
@@ -461,6 +536,8 @@ RowLayout {
                 }
             }
 
+            } // ===== end Steam-only (Proton + launch options + presets) =====
+
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             // --- prefix + shader cache maintenance ---
@@ -536,11 +613,13 @@ RowLayout {
                 PsButton {
                     text: "Launch"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: gameTools.launchGame()
                 }
                 PsButton {
                     text: "Open in Steam"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: gameTools.openInSteam()
                 }
                 PsButton {
@@ -559,6 +638,7 @@ RowLayout {
                 PsButton {
                     text: "Clear shader cache"
                     primary: false
+                    visible: detailCard.isSteam
                     enabled: gameTools.info.shaderExists === true && !gameTools.busy
                     onClicked: gameTools.clearShaderCache()
                 }
@@ -573,6 +653,12 @@ RowLayout {
                     }
                 }
             }
+
+            // ===== Steam-only: per-game tweaks + fixes/profiles/saves =====
+            ColumnLayout {
+              Layout.fillWidth: true
+              spacing: Theme.space
+              visible: detailCard.isSteam
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
@@ -636,6 +722,93 @@ RowLayout {
                     }
                 }
                 Item { Layout.fillWidth: true }
+            }
+            } // ===== end Steam-only (per-game tweaks + fixes/profiles/saves) =====
+
+            // ===== Heroic-only: per-game wine/proton config =====
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.space
+                visible: library.selected.source === "heroic"
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+                RowLayout {
+                    Layout.fillWidth: true
+                    PsSectionHeader {
+                        Layout.fillWidth: true
+                        text: "Heroic settings"
+                        subtitle: heroic.config.exists ? "GamesConfig · saved on change"
+                                                       : "No per-game config yet — toggling creates one"
+                    }
+                    BusyIndicator { running: heroic.loading; visible: heroic.loading; implicitWidth: 20; implicitHeight: 20 }
+                }
+
+                // wine/proton version
+                PsSectionHeader { Layout.fillWidth: true; text: "Wine / Proton version" }
+                PsSelect {
+                    Layout.fillWidth: true
+                    enabled: heroic.wineVersions.length > 0
+                    model: heroic.wineVersions.map(function (v) { return v.name })
+                    Component.onCompleted: currentIndex = Math.max(0, model.indexOf(heroic.config.wineName))
+                    onChosen: {
+                        for (var i = 0; i < heroic.wineVersions.length; i++) {
+                            if (heroic.wineVersions[i].name === value) {
+                                heroic.setWineVersion(value, heroic.wineVersions[i].bin, heroic.wineVersions[i].type)
+                                break
+                            }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: heroic.wineVersions.length === 0
+                    text: "No wine/proton builds found under Heroic's tools dir."
+                    wrapMode: Text.WordWrap
+                    color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+
+                // toggles
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: Theme.spaceLg
+                    rowSpacing: Theme.spaceXs
+                    Repeater {
+                        model: [
+                            { k: "enableEsync", l: "Esync" },
+                            { k: "enableFsync", l: "Fsync" },
+                            { k: "autoInstallDxvk", l: "Auto-install DXVK" },
+                            { k: "autoInstallVkd3d", l: "Auto-install VKD3D" },
+                            { k: "showMangohud", l: "MangoHud overlay" },
+                            { k: "useGameMode", l: "GameMode" },
+                            { k: "nvidiaPrime", l: "NVIDIA dGPU (Prime)" }
+                        ]
+                        delegate: PsSwitchRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            text: modelData.l
+                            checked: heroic.config[modelData.k] === true
+                            onToggled: heroic.setToggle(modelData.k, value)
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spaceSm
+                    PsButton { text: "Launch via Heroic"; primary: false; onClicked: heroic.launch() }
+                    PsButton {
+                        text: "Open prefix"; primary: false
+                        enabled: (library.selected.compatdataPath || "").length > 0
+                        onClicked: gameTools.openFolder(library.selected.compatdataPath)
+                    }
+                    Item { Layout.fillWidth: true }
+                    Text {
+                        text: heroic.status
+                        color: heroic.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                        font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                    }
+                }
             }
 
             Item { Layout.fillHeight: true }
