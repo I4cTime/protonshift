@@ -13,6 +13,7 @@ from .launch_controller import LaunchOptionsController
 from .mangohud_controller import MangoHudController
 from .per_app_scopebuddy_controller import PerAppScopeBuddyController
 from .per_game_mangohud_controller import PerGameMangoHudController
+from .protontricks_controller import ProtontricksController
 from .scopebuddy_controller import ScopeBuddyController
 from .system_controller import SystemController
 
@@ -25,6 +26,7 @@ __all__ = [
     "MangoHudController",
     "PerAppScopeBuddyController",
     "PerGameMangoHudController",
+    "ProtontricksController",
     "ScopeBuddyController",
     "SystemController",
 ]

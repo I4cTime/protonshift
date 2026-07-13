@@ -444,6 +444,15 @@ RowLayout {
                         mangoOverrideDialog.open()
                     }
                 }
+                PsButton {
+                    text: "Winetricks…"
+                    primary: false
+                    onClicked: {
+                        protontricks.appId = library.selected.appId
+                        protontricks.gameName = library.selected.name
+                        protontricksDialog.open()
+                    }
+                }
                 Item { Layout.fillWidth: true }
             }
 
@@ -698,6 +707,191 @@ RowLayout {
                     text: "Save"
                     enabled: perGameMango.loaded && perGameMango.dirty
                     onClicked: perGameMango.save()
+                }
+            }
+        }
+    }
+
+    // ============================ PROTONTRICKS DIALOG ======================
+    PsDialog {
+        id: protontricksDialog
+        objectName: "protontricksDialog"
+        width: 680
+        title: "Winetricks"
+        subtitle: (protontricks.gameName || "") + " · protontricks " + (protontricks.appId || "")
+
+        // track selected verbs locally; cleared whenever the dialog (re)opens
+        property var selected: ({})
+        onOpened: selected = ({})
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            // not-installed notice
+            Rectangle {
+                Layout.fillWidth: true
+                visible: !protontricks.available
+                radius: Theme.radiusSm
+                color: "#2a1216"
+                border.color: Theme.danger
+                border.width: 1
+                implicitHeight: naText.implicitHeight + 2 * Theme.spaceSm
+                Text {
+                    id: naText
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    wrapMode: Text.WordWrap
+                    color: "#f2a3ab"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                    text: "protontricks isn't installed. Install it from your package manager, or the "
+                          + "Flathub package com.github.Matoking.protontricks."
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: protontricks.available
+                text: "Install common components into this game's Proton prefix, or open the full "
+                      + "winetricks GUI. Installs run in the background and may download."
+                wrapMode: Text.WordWrap
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            // verb checklist
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 240
+                contentWidth: availableWidth
+                clip: true
+                visible: protontricks.available
+                GridLayout {
+                    width: parent.width
+                    columns: 2
+                    columnSpacing: Theme.spaceLg
+                    rowSpacing: Theme.spaceXs
+                    Repeater {
+                        model: protontricks.verbs
+                        delegate: Rectangle {
+                            id: verbRow
+                            required property var modelData
+                            property bool checked: protontricksDialog.selected[modelData.verb] === true
+                            Layout.fillWidth: true
+                            implicitHeight: 40
+                            radius: Theme.radiusSm
+                            color: checked ? Theme.surfaceElevated : (vh.hovered ? Theme.surface : Theme.bgDeep)
+                            border.color: checked ? Theme.primary : Theme.border
+                            border.width: checked ? 2 : 1
+                            Behavior on color { ColorAnimation { duration: 100 } }
+                            enabled: !protontricks.running
+                            HoverHandler { id: vh }
+                            TapHandler {
+                                onTapped: {
+                                    var s = protontricksDialog.selected
+                                    s[verbRow.modelData.verb] = !verbRow.checked
+                                    protontricksDialog.selected = s
+                                }
+                            }
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.spaceSm
+                                anchors.rightMargin: Theme.spaceSm
+                                spacing: Theme.spaceSm
+                                Rectangle {
+                                    width: 16; height: 16; radius: 4
+                                    color: verbRow.checked ? Theme.primary : "transparent"
+                                    border.color: verbRow.checked ? Theme.primary : Theme.borderStrong
+                                    border.width: 1
+                                    Text {
+                                        anchors.centerIn: parent
+                                        visible: verbRow.checked
+                                        text: "✓"; color: "#ffffff"; font.pixelSize: 11; font.bold: true
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text {
+                                        text: verbRow.modelData.label
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fsSmall
+                                        font.weight: Font.Medium
+                                    }
+                                    Text {
+                                        text: verbRow.modelData.verb
+                                        color: Theme.faint
+                                        font.family: Theme.monoFamily
+                                        font.pixelSize: 10
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // log tail
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 96
+                visible: protontricks.output.length > 0
+                radius: Theme.radiusSm
+                color: Theme.bgDeep
+                border.color: Theme.border
+                border.width: 1
+                ScrollView {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    contentWidth: availableWidth
+                    clip: true
+                    Text {
+                        width: parent.width
+                        text: protontricks.output
+                        wrapMode: Text.WrapAnywhere
+                        color: Theme.muted
+                        font.family: Theme.monoFamily
+                        font.pixelSize: 10
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                PsButton {
+                    text: "Open winetricks GUI"
+                    primary: false
+                    enabled: protontricks.available && !protontricks.running
+                    onClicked: protontricks.openGui()
+                }
+                BusyIndicator {
+                    running: protontricks.running; visible: protontricks.running
+                    implicitWidth: 20; implicitHeight: 20
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    Layout.maximumWidth: 260
+                    text: protontricks.status
+                    elide: Text.ElideRight
+                    color: protontricks.status.indexOf("failed") >= 0
+                           || protontricks.status.indexOf("Couldn't") >= 0
+                           || protontricks.status.indexOf("not installed") >= 0 ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: protontricks.running ? "Installing…" : "Install selected"
+                    enabled: protontricks.available && !protontricks.running
+                    onClicked: {
+                        var verbs = []
+                        for (var k in protontricksDialog.selected)
+                            if (protontricksDialog.selected[k]) verbs.push(k)
+                        protontricks.installVerbs(verbs)
+                    }
                 }
             }
         }
