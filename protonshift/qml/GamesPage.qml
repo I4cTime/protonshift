@@ -20,10 +20,17 @@ RowLayout {
         })
     }
 
-    // selecting a game drives the launch-options controller
+    // selecting a game drives the launch-options + game-tools controllers
     Connections {
         target: library
-        function onSelectedChanged() { launch.appId = library.selectedAppId }
+        function onSelectedChanged() {
+            launch.appId = library.selectedAppId
+            gameTools.appId = library.selectedAppId
+            gameTools.prefixPath = library.selected.compatdataPath || ""
+            gameTools.installPath = library.selected.installPath || ""
+            detailCard.confirmDelete = false
+            if (library.selectedAppId.length > 0) gameTools.refresh()
+        }
     }
 
     // ============================ LIST =====================================
@@ -205,6 +212,8 @@ RowLayout {
         Layout.fillHeight: true
         glowing: hasSelection
         property bool hasSelection: Object.keys(library.selected).length > 0
+        // two-step guard for the destructive prefix delete
+        property bool confirmDelete: false
 
         // placeholder
         Text {
@@ -414,6 +423,150 @@ RowLayout {
                     text: "Save to Steam"
                     enabled: launch.loaded && launch.dirty
                     onClicked: launch.save()
+                }
+            }
+
+            // quick-add preset chips (append to the launch options above)
+            Flow {
+                Layout.fillWidth: true
+                visible: !launch.loadError.length
+                spacing: Theme.spaceXs
+                Repeater {
+                    model: launch.launchPresets
+                    delegate: Rectangle {
+                        required property var modelData
+                        implicitWidth: lpLbl.implicitWidth + 18
+                        implicitHeight: 24
+                        radius: 12
+                        opacity: modelData.installed ? 1.0 : 0.55
+                        color: lph.hovered ? Theme.surfaceElevated : Theme.bgDeep
+                        border.color: lph.hovered ? Theme.primary : Theme.border
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                        HoverHandler { id: lph }
+                        TapHandler { onTapped: if (launch.loaded) launch.appendPreset(modelData.value) }
+                        Text {
+                            id: lpLbl
+                            anchors.centerIn: parent
+                            text: "+ " + modelData.name + (modelData.installed ? "" : " (not installed)")
+                            color: lph.hovered ? Theme.primaryBright : Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                        }
+                    }
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            // --- prefix + shader cache maintenance ---
+            RowLayout {
+                Layout.fillWidth: true
+                PsSectionHeader {
+                    Layout.fillWidth: true
+                    text: "Maintenance"
+                    subtitle: "Proton prefix, shader cache, and shortcuts"
+                }
+                BusyIndicator {
+                    running: gameTools.loading || gameTools.busy
+                    visible: gameTools.loading || gameTools.busy
+                    implicitWidth: 20; implicitHeight: 20
+                }
+            }
+
+            // prefix + shader info chips
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spaceXs
+                Repeater {
+                    model: [
+                        { l: "Prefix", v: gameTools.info.prefixExists ? gameTools.info.prefixSize : "none" },
+                        { l: "Created", v: gameTools.info.created || "—" },
+                        { l: "DXVK", v: gameTools.info.dxvk || "—" },
+                        { l: "VKD3D", v: gameTools.info.vkd3d || "—" },
+                        { l: "Shader cache", v: gameTools.info.shaderExists ? gameTools.info.shaderSize : "none" }
+                    ]
+                    delegate: Rectangle {
+                        required property var modelData
+                        implicitWidth: mChipRow.implicitWidth + 20
+                        implicitHeight: 26
+                        radius: 13
+                        color: Theme.bgDeep
+                        border.color: Theme.border
+                        border.width: 1
+                        RowLayout {
+                            id: mChipRow
+                            anchors.centerIn: parent
+                            spacing: 5
+                            Text {
+                                text: modelData.l
+                                color: Theme.faint
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsCaption
+                            }
+                            Text {
+                                text: modelData.v
+                                color: Theme.text
+                                font.family: Theme.monoFamily
+                                font.pixelSize: Theme.fsCaption
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: gameTools.status.length > 0
+                text: gameTools.status
+                wrapMode: Text.WordWrap
+                color: (gameTools.status.indexOf("Couldn't") >= 0) ? Theme.danger : Theme.success
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                PsButton {
+                    text: "Launch"
+                    primary: false
+                    onClicked: gameTools.launchGame()
+                }
+                PsButton {
+                    text: "Open in Steam"
+                    primary: false
+                    onClicked: gameTools.openInSteam()
+                }
+                PsButton {
+                    text: "Open install folder"
+                    primary: false
+                    enabled: (library.selected.installPath || "").length > 0
+                    onClicked: gameTools.openFolder(library.selected.installPath)
+                }
+                PsButton {
+                    text: "Open prefix"
+                    primary: false
+                    enabled: gameTools.info.prefixExists === true
+                    onClicked: gameTools.openFolder(library.selected.compatdataPath)
+                }
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Clear shader cache"
+                    primary: false
+                    enabled: gameTools.info.shaderExists === true && !gameTools.busy
+                    onClicked: gameTools.clearShaderCache()
+                }
+                PsButton {
+                    text: detailCard.confirmDelete ? "Confirm delete" : "Delete prefix"
+                    primary: false
+                    danger: true
+                    enabled: gameTools.info.prefixExists === true && !gameTools.busy
+                    onClicked: {
+                        if (detailCard.confirmDelete) { detailCard.confirmDelete = false; gameTools.deletePrefix() }
+                        else detailCard.confirmDelete = true
+                    }
                 }
             }
 

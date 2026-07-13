@@ -136,6 +136,29 @@ class LaunchOptionsController(QObject):
             target=self._proton_save_work, args=(self._app_id, tool_name), daemon=True
         ).start()
 
+    # --- quick presets --------------------------------------------------------
+
+    @Property("QVariantList", constant=True)
+    def launchPresets(self) -> list:  # noqa: N802
+        """Common launch-option snippets, each tagged with live install status."""
+        from ..core.launch_presets import launch_presets
+
+        return launch_presets()
+
+    @Slot(str)
+    def appendPreset(self, value: str) -> None:  # noqa: N802
+        """Append a preset snippet to the launch options (no-op if already present)."""
+        value = value.strip()
+        if not value or not self._loaded or value in self._text:
+            return
+        self._text = f"{self._text} {value}".strip() if self._text else value
+        if not self._dirty:
+            self._dirty = True
+            self.dirtyChanged.emit()
+        self._status = ""
+        self.stateChanged.emit()
+        self.statusChanged.emit()
+
     # --- actions --------------------------------------------------------------
 
     @Slot()

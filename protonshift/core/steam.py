@@ -75,6 +75,11 @@ def _resolve_steam_root() -> Path | None:
     return None
 
 
+def get_steam_root() -> Path | None:
+    """Public accessor for the resolved Steam installation root."""
+    return _resolve_steam_root()
+
+
 def _find_libraryfolders(steam_root: Path) -> list[Path]:
     """Get all library paths from libraryfolders.vdf."""
     paths: list[Path] = []

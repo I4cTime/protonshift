@@ -8,6 +8,8 @@ import App
 Button {
     id: control
     property bool primary: true
+    // destructive style: red text + border on the ghost variant
+    property bool danger: false
 
     implicitHeight: 40
     implicitWidth: Math.max(96, contentItem.implicitWidth + 2 * Theme.space)
@@ -21,7 +23,7 @@ Button {
 
     contentItem: Text {
         text: control.text
-        color: control.primary ? "#ffffff" : Theme.text
+        color: control.primary ? "#ffffff" : (control.danger ? Theme.danger : Theme.text)
         opacity: control.enabled ? 1.0 : 0.5
         font: control.font
         horizontalAlignment: Text.AlignHCenter
@@ -33,9 +35,9 @@ Button {
         radius: Theme.radius
         opacity: control.enabled ? 1.0 : 0.45
         border.width: control.primary ? 0 : 1
-        border.color: Theme.borderStrong
+        border.color: control.danger ? Theme.danger : Theme.borderStrong
         color: control.primary ? "transparent"
-                                : (control.hovered ? Theme.surfaceElevated : "transparent")
+                                : (control.hovered ? (control.danger ? "#2a1216" : Theme.surfaceElevated) : "transparent")
 
         // gradient fill for the primary variant (kept as its own rect so we
         // never conditionally swap the `gradient` property)

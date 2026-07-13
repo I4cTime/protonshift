@@ -18,6 +18,7 @@ from . import __version__
 from .controllers import (
     DisplayController,
     EnvController,
+    GameToolsController,
     GamescopeController,
     GamesController,
     LaunchOptionsController,
@@ -58,6 +59,7 @@ def main() -> int:
     per_app_scb = PerAppScopeBuddyController()
     per_game_mango = PerGameMangoHudController()
     protontricks = ProtontricksController()
+    game_tools = GameToolsController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
@@ -70,6 +72,7 @@ def main() -> int:
     ctx.setContextProperty("perAppScb", per_app_scb)
     ctx.setContextProperty("perGameMango", per_game_mango)
     ctx.setContextProperty("protontricks", protontricks)
+    ctx.setContextProperty("gameTools", game_tools)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

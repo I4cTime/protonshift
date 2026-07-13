@@ -7,6 +7,7 @@ same domain logic behind it, but called in-process instead of over HTTP.
 
 from .display_controller import DisplayController
 from .env_controller import EnvController
+from .game_tools_controller import GameToolsController
 from .games_controller import GamesController
 from .gamescope_controller import GamescopeController
 from .launch_controller import LaunchOptionsController
@@ -20,6 +21,7 @@ from .system_controller import SystemController
 __all__ = [
     "DisplayController",
     "EnvController",
+    "GameToolsController",
     "GamescopeController",
     "GamesController",
     "LaunchOptionsController",
