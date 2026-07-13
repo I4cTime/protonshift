@@ -183,3 +183,25 @@ def list_per_game_configs() -> list[dict[str, str]]:
     for conf in sorted(MANGOHUD_CONFIG_DIR.glob("wine-*.conf")):
         configs.append({"name": conf.stem.removeprefix("wine-"), "path": str(conf)})
     return configs
+
+
+def read_per_game_config(game_name: str) -> tuple[bool, dict[str, str]]:
+    """``(exists, config)`` for a per-game override. Read errors propagate."""
+    path = get_per_game_config_path(game_name)
+    if not path.exists():
+        return False, {}
+    return True, read_mangohud_config(path)
+
+
+def write_per_game_config(game_name: str, config: dict[str, str]) -> bool:
+    """Write a per-game override (merge-preserving, atomic)."""
+    return write_mangohud_config(config, get_per_game_config_path(game_name))
+
+
+def delete_per_game_config(game_name: str) -> bool:
+    """Remove a per-game override file."""
+    try:
+        get_per_game_config_path(game_name).unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False

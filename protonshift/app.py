@@ -22,6 +22,7 @@ from .controllers import (
     LaunchOptionsController,
     MangoHudController,
     PerAppScopeBuddyController,
+    PerGameMangoHudController,
     ScopeBuddyController,
     SystemController,
 )
@@ -49,6 +50,7 @@ def main() -> int:
     scopebuddy = ScopeBuddyController()
     system = SystemController()
     per_app_scb = PerAppScopeBuddyController()
+    per_game_mango = PerGameMangoHudController()
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
@@ -58,6 +60,7 @@ def main() -> int:
     ctx.setContextProperty("scopebuddy", scopebuddy)
     ctx.setContextProperty("system", system)
     ctx.setContextProperty("perAppScb", per_app_scb)
+    ctx.setContextProperty("perGameMango", per_game_mango)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

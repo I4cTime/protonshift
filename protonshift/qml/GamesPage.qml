@@ -427,12 +427,21 @@ RowLayout {
             }
             RowLayout {
                 Layout.fillWidth: true
+                spacing: Theme.spaceSm
                 PsButton {
                     text: "ScopeBuddy override…"
                     primary: false
                     onClicked: {
                         perAppScb.appId = library.selected.appId
                         scbOverrideDialog.open()
+                    }
+                }
+                PsButton {
+                    text: "MangoHud override…"
+                    primary: false
+                    onClicked: {
+                        perGameMango.gameName = library.selected.name
+                        mangoOverrideDialog.open()
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -577,6 +586,118 @@ RowLayout {
                     text: "Save"
                     enabled: perAppScb.loaded && perAppScb.dirty
                     onClicked: perAppScb.save()
+                }
+            }
+        }
+    }
+
+    // ============================ PER-GAME MANGOHUD DIALOG ==================
+    PsDialog {
+        id: mangoOverrideDialog
+        objectName: "mangoOverrideDialog"
+        width: 680
+        title: "MangoHud override"
+        subtitle: (library.selected.name || "") + " · per-game overlay"
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: perGameMango.exists ? "Existing override"
+                                              : "No override yet — pick a preset or toggle metrics."
+                    color: perGameMango.exists ? Theme.muted : Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                BusyIndicator {
+                    running: perGameMango.loading; visible: perGameMango.loading
+                    implicitWidth: 20; implicitHeight: 20
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spaceXs
+                Repeater {
+                    model: perGameMango.presetNames
+                    delegate: Rectangle {
+                        required property string modelData
+                        implicitWidth: pl.implicitWidth + 18
+                        implicitHeight: 24
+                        radius: 12
+                        color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
+                        border.color: ph.hovered ? Theme.primary : Theme.border
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                        HoverHandler { id: ph }
+                        TapHandler { onTapped: if (perGameMango.loaded) perGameMango.applyPreset(modelData) }
+                        Text {
+                            id: pl
+                            anchors.centerIn: parent
+                            text: modelData
+                            color: ph.hovered ? Theme.primaryBright : Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                        }
+                    }
+                }
+            }
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 260
+                contentWidth: availableWidth
+                clip: true
+                GridLayout {
+                    width: parent.width
+                    columns: 2
+                    columnSpacing: Theme.spaceLg
+                    rowSpacing: Theme.spaceSm
+                    Repeater {
+                        model: perGameMango.toggleParams
+                        delegate: PsSwitchRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            enabled: perGameMango.loaded
+                            text: modelData.label
+                            checked: perGameMango.config[modelData.key] !== undefined
+                            onToggled: perGameMango.setToggle(modelData.key, value)
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                PsButton {
+                    text: "Delete override"; primary: false
+                    visible: perGameMango.exists
+                    onClicked: perGameMango.deleteOverride()
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: perGameMango.status
+                    color: perGameMango.status.indexOf("failed") >= 0
+                           || perGameMango.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                Text {
+                    visible: perGameMango.dirty
+                    text: "● unsaved"
+                    color: Theme.primaryBright
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Save"
+                    enabled: perGameMango.loaded && perGameMango.dirty
+                    onClicked: perGameMango.save()
                 }
             }
         }
