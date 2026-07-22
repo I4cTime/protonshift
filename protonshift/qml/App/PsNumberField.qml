@@ -36,6 +36,7 @@ ColumnLayout {
 
         TextField {
             id: input
+            Accessible.name: cap.text
             anchors.fill: parent
             anchors.leftMargin: Theme.spaceSm
             anchors.rightMargin: Theme.spaceSm

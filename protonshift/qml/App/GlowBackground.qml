@@ -17,32 +17,47 @@ Item {
         }
     }
 
+    // Only animate while the window is focused and the item is visible — the
+    // full-window blur layer below re-renders every animation frame, so the
+    // GPU idles whenever the app is unfocused/minimized.
+    readonly property bool animating: root.visible && Window.active
+
     Item {
         id: blobs
         anchors.fill: parent
 
+        // Blobs animate a 0..1 progress and bind x/y to it, so positions
+        // track the CURRENT size — animating x/y directly snapshots
+        // root.width/height into `to:` at loop start and drifts after a
+        // resize.
         Rectangle {
             id: blobA
+            property real t: 0
             width: 460; height: 460; radius: width / 2
             color: Theme.primaryDeep
             opacity: 0.28 * Theme.ambientStrength
-            x: -80; y: -120
-            SequentialAnimation on x {
+            x: -80 + t * (root.width * 0.35 + 80); y: -120
+            SequentialAnimation on t {
+                running: root.animating
                 loops: Animation.Infinite
-                NumberAnimation { to: root.width * 0.35; duration: 14000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: -80; duration: 14000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1; duration: 14000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0; duration: 14000; easing.type: Easing.InOutSine }
             }
         }
         Rectangle {
             id: blobB
+            // 0 → y = height-300, 1 → y = height-520; starts at the old
+            // rest position height-380.
+            property real t: 80 / 220
             width: 520; height: 520; radius: width / 2
             color: Theme.glow
             opacity: 0.20 * Theme.ambientStrength
-            x: root.width - 360; y: root.height - 380
-            SequentialAnimation on y {
+            x: root.width - 360; y: root.height - 300 - t * 220
+            SequentialAnimation on t {
+                running: root.animating
                 loops: Animation.Infinite
-                NumberAnimation { to: root.height - 520; duration: 18000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: root.height - 300; duration: 18000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1; duration: 18000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0; duration: 18000; easing.type: Easing.InOutSine }
             }
         }
 
