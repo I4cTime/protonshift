@@ -8,9 +8,9 @@ disk work is threaded.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
+
+from ._worker import start_worker
 
 
 class HeroicController(QObject):
@@ -21,6 +21,12 @@ class HeroicController(QObject):
     statusChanged = Signal()
 
     _loadResult = Signal(str, "QVariantMap", list)  # app_id, config, versions
+    # M7 fix: toggle/version writes report back via queued signals so all
+    # GUI-read state is mutated on the GUI thread and gated by app_id — the
+    # workers no longer touch self._config/_status or emit notifies directly.
+    _toggleResult = Signal(str, str, bool, bool)  # app_id, key, value, ok
+    _versionResult = Signal(str, bool, str)  # app_id, ok, name
+    _workError = Signal(str)  # unexpected worker exception -> clear + status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -30,6 +36,9 @@ class HeroicController(QObject):
         self._loading = False
         self._status = ""
         self._loadResult.connect(self._on_loaded)
+        self._toggleResult.connect(self._on_toggle)
+        self._versionResult.connect(self._on_version)
+        self._workError.connect(self._on_work_error)
 
     @Property(str, notify=appIdChanged)
     def appId(self) -> str:  # noqa: N802
@@ -71,17 +80,18 @@ class HeroicController(QObject):
         """Persist one boolean toggle (e.g. enableEsync) immediately."""
         if not self._app_id:
             return
-        threading.Thread(
-            target=self._toggle_work, args=(self._app_id, key, value), daemon=True
-        ).start()
+        start_worker(
+            self._toggle_work, self._app_id, key, value, on_error=self._workError.emit
+        )
 
     @Slot(str, str, str)
     def setWineVersion(self, name: str, bin_path: str, wine_type: str) -> None:  # noqa: N802
         if not self._app_id:
             return
-        threading.Thread(
-            target=self._version_work, args=(self._app_id, name, bin_path, wine_type), daemon=True
-        ).start()
+        start_worker(
+            self._version_work, self._app_id, name, bin_path, wine_type,
+            on_error=self._workError.emit,
+        )
 
     @Slot()
     def launch(self) -> None:
@@ -98,7 +108,7 @@ class HeroicController(QObject):
     def _reload(self) -> None:
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._load_work, args=(self._app_id,), daemon=True).start()
+        start_worker(self._load_work, self._app_id, on_error=self._workError.emit)
 
     def _load_work(self, app_id: str) -> None:
         from ..core.heroic_config import get_heroic_game_config, list_heroic_wine_versions
@@ -128,21 +138,15 @@ class HeroicController(QObject):
         from ..core.heroic_config import set_heroic_toggles
 
         ok = set_heroic_toggles(app_id, **{_TOGGLE_ARG[key]: value}) if key in _TOGGLE_ARG else False
-        # optimistic local update; reload keeps it authoritative
-        if ok and app_id == self._app_id:
-            self._config[key] = value
-            self.configChanged.emit()
-        self._status = "Saved." if ok else "Couldn't save toggle."
-        self.statusChanged.emit()
+        self._toggleResult.emit(app_id, key, value, ok)
 
     def _version_work(self, app_id: str, name: str, bin_path: str, wine_type: str) -> None:
         from ..core.heroic_config import set_heroic_wine_version
 
         ok = set_heroic_wine_version(app_id, name, bin_path, wine_type)
-        self._status = f"Wine version set to {name}." if ok else "Couldn't set wine version."
-        self.statusChanged.emit()
-        if ok:
-            self._reload()
+        self._versionResult.emit(app_id, ok, name)
+
+    # --- GUI-thread handlers ----------------------------------------------------
 
     def _on_loaded(self, app_id: str, config: dict, versions: list) -> None:
         if app_id != self._app_id:
@@ -153,6 +157,30 @@ class HeroicController(QObject):
         self.configChanged.emit()
         self.versionsChanged.emit()
         self.loadingChanged.emit()
+
+    def _on_toggle(self, app_id: str, key: str, value: bool, ok: bool) -> None:
+        if app_id != self._app_id:
+            return
+        if ok:
+            # optimistic local update; the next reload keeps it authoritative
+            self._config[key] = value
+            self.configChanged.emit()
+        self._status = "Saved." if ok else "Couldn't save toggle."
+        self.statusChanged.emit()
+
+    def _on_version(self, app_id: str, ok: bool, name: str) -> None:
+        if app_id != self._app_id:
+            return
+        self._status = f"Wine version set to {name}." if ok else "Couldn't set wine version."
+        self.statusChanged.emit()
+        if ok:
+            self._reload()
+
+    def _on_work_error(self, message: str) -> None:
+        self._loading = False
+        self._status = f"Unexpected error: {message}"
+        self.loadingChanged.emit()
+        self.statusChanged.emit()
 
 
 # QML toggle key -> set_heroic_toggles keyword argument

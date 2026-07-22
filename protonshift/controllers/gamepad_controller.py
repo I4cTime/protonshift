@@ -22,6 +22,7 @@ from ..core.input_devices import (
     read_js_events,
     rumble,
 )
+from ._worker import start_worker
 
 
 class GamepadController(QObject):
@@ -33,23 +34,27 @@ class GamepadController(QObject):
 
     _listResult = Signal(list)
     _stateResult = Signal(list, list)  # buttons, axes
+    _workError = Signal(str)  # unexpected worker exception -> clear + status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._controllers: list[dict] = []
         self._loading = False
         self._status = ""
-        # live test state
+        # live test state. The poll thread OWNS its fd (opens-close lifecycle):
+        # stopTest only signals the per-test Event — it never closes the fd,
+        # so a slow thread can't read from a recycled descriptor (L2). Each
+        # test gets a fresh Event so a timed-out join can't race a clear().
         self._test_path = ""
         self._test_name = ""
         self._buttons: list[bool] = []
         self._axes: list[float] = []
-        self._test_fd: int | None = None
-        self._stop = threading.Event()
+        self._stop: threading.Event | None = None
         self._thread: threading.Thread | None = None
         self._infos: dict[str, ControllerInfo] = {}
         self._listResult.connect(self._on_list)
         self._stateResult.connect(self._on_state)
+        self._workError.connect(self._on_work_error)
         self.refresh()
 
     # --- reactive -------------------------------------------------------------
@@ -90,7 +95,7 @@ class GamepadController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._list_work, daemon=True).start()
+        start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str)
     def copyMapping(self, controller_id: str) -> None:  # noqa: N802
@@ -119,31 +124,30 @@ class GamepadController(QObject):
             self.statusChanged.emit()
             return
         naxes, nbtn = js_counts(device_path)
-        self._test_fd = fd
         self._test_path = device_path
         self._test_name = name
         self._buttons = [False] * max(nbtn, 1)
         self._axes = [0.0] * max(naxes, 1)
-        self._stop.clear()
-        self._thread = threading.Thread(target=self._test_loop, args=(fd, device_path), daemon=True)
+        stop = threading.Event()  # fresh per test — no set/clear race with a slow join
+        self._stop = stop
+        self._thread = threading.Thread(
+            target=self._test_loop, args=(fd, stop), daemon=True
+        )
         self._thread.start()
         self.testChanged.emit()
         self.stateChanged.emit()
 
     @Slot()
     def stopTest(self) -> None:  # noqa: N802
-        self._stop.set()
+        if self._stop is not None:
+            self._stop.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=0.3)
+        # The poll thread closes its own fd on exit — even if the join timed
+        # out, the thread sees the (per-test) Event within one poll tick and
+        # cleans up; nothing here can close an fd another thread still reads.
         self._thread = None
-        if self._test_fd is not None:
-            import os
-
-            try:
-                os.close(self._test_fd)
-            except OSError:
-                pass
-            self._test_fd = None
+        self._stop = None
         if self._test_path:
             self._test_path = ""
             self._test_name = ""
@@ -163,27 +167,41 @@ class GamepadController(QObject):
         ]
         self._listResult.emit(rows)
 
-    def _test_loop(self, fd: int, path: str) -> None:
+    def _test_loop(self, fd: int, stop: threading.Event) -> None:
+        import os
+
         buttons = list(self._buttons)
         axes = list(self._axes)
-        while not self._stop.is_set():
-            changed = False
-            for kind, num, val in read_js_events(fd):
-                if kind == "button" and num < len(buttons):
-                    buttons[num] = val > 0.5
-                    changed = True
-                elif kind == "axis" and num < len(axes):
-                    axes[num] = val
-                    changed = True
-            if changed:
-                self._stateResult.emit(list(buttons), list(axes))
-            time.sleep(0.016)
+        try:
+            while not stop.is_set():
+                changed = False
+                for kind, num, val in read_js_events(fd):
+                    if kind == "button" and num < len(buttons):
+                        buttons[num] = val > 0.5
+                        changed = True
+                    elif kind == "axis" and num < len(axes):
+                        axes[num] = val
+                        changed = True
+                if changed:
+                    self._stateResult.emit(list(buttons), list(axes))
+                time.sleep(0.016)
+        finally:
+            try:
+                os.close(fd)  # thread owns the fd — sole closer (L2)
+            except OSError:
+                pass
 
     def _on_list(self, rows: list) -> None:
         self._controllers = rows
         self._loading = False
         self.controllersChanged.emit()
         self.loadingChanged.emit()
+
+    def _on_work_error(self, message: str) -> None:
+        self._loading = False
+        self._status = f"Unexpected error: {message}"
+        self.loadingChanged.emit()
+        self.statusChanged.emit()
 
     def _on_state(self, buttons: list, axes: list) -> None:
         self._buttons = buttons

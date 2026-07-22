@@ -8,11 +8,10 @@ thread and re-reads afterwards so the current-mode highlight reflects reality
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from ..core.display import list_outputs, set_mode
+from ._worker import start_worker
 
 
 class DisplayController(QObject):
@@ -23,6 +22,7 @@ class DisplayController(QObject):
 
     _listResult = Signal(str, list)  # backend, outputs
     _applyResult = Signal(bool, str)  # ok, message
+    _workError = Signal(str)  # unexpected worker exception -> clear + status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -32,6 +32,7 @@ class DisplayController(QObject):
         self._status = ""
         self._listResult.connect(self._on_list)
         self._applyResult.connect(self._on_apply)
+        self._workError.connect(self._on_work_error)
         self.refresh()
 
     # --- reactive -------------------------------------------------------------
@@ -60,13 +61,14 @@ class DisplayController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._list_work, daemon=True).start()
+        start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str, int, int, float)
     def applyMode(self, output: str, width: int, height: int, refresh: float) -> None:  # noqa: N802
-        threading.Thread(
-            target=self._apply_work, args=(output, width, height, refresh), daemon=True
-        ).start()
+        start_worker(
+            self._apply_work, output, width, height, refresh,
+            on_error=lambda m: self._applyResult.emit(False, f"Apply failed: {m}"),
+        )
 
     # --- workers --------------------------------------------------------------
 
@@ -113,3 +115,10 @@ class DisplayController(QObject):
         self.statusChanged.emit()
         # Re-read so the highlighted current mode reflects what actually stuck.
         self.refresh()
+
+    def _on_work_error(self, message: str) -> None:
+        # List-worker failure: clear loading, surface status, no auto-retry.
+        self._loading = False
+        self._status = f"Unexpected error: {message}"
+        self.loadingChanged.emit()
+        self.statusChanged.emit()

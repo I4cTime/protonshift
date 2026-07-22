@@ -11,18 +11,14 @@ value is "on" — MangoHud's own convention.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from ..core.mangohud import (
-    MANGOHUD_PARAMS,
-    MANGOHUD_PRESETS,
-    is_mangohud_available,
-)
+from ..core.mangohud import MANGOHUD_PARAMS, MANGOHUD_PRESETS
+from ._worker import start_worker
 
 
 class MangoHudController(QObject):
+    availableChanged = Signal()
     configChanged = Signal()
     loadingChanged = Signal()
     loadedChanged = Signal()
@@ -30,6 +26,7 @@ class MangoHudController(QObject):
     statusChanged = Signal()
 
     _loadResult = Signal(bool, str, dict)  # ok, error, config
+    _availResult = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -39,16 +36,19 @@ class MangoHudController(QObject):
         self._dirty = False
         self._error = ""
         self._status = ""
-        self._available = is_mangohud_available()
+        # M4: availability lookup can shell out inside a Flatpak — probed on
+        # the load worker, delivered via _availResult.
+        self._available = False
         self._toggle_params = [p for p in MANGOHUD_PARAMS if p["type"] == "toggle"]
         self._value_params = [p for p in MANGOHUD_PARAMS if p["type"] == "value"]
         self._presets = list(MANGOHUD_PRESETS.keys())
         self._loadResult.connect(self._on_loaded)
+        self._availResult.connect(self._on_avail)
         self.reload()
 
     # --- static metadata ------------------------------------------------------
 
-    @Property(bool, constant=True)
+    @Property(bool, notify=availableChanged)
     def available(self) -> bool:
         return self._available
 
@@ -130,7 +130,10 @@ class MangoHudController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._load_work, daemon=True).start()
+        start_worker(
+            self._load_work,
+            on_error=lambda m: self._loadResult.emit(False, m, {}),
+        )
 
     @Slot()
     def save(self) -> None:
@@ -140,12 +143,18 @@ class MangoHudController(QObject):
             return
         from ..core.mangohud import write_mangohud_config
 
-        if write_mangohud_config(dict(self._config)):
-            self._dirty = False
-            self._status = "Saved to MangoHud.conf"
-            self.dirtyChanged.emit()
+        try:
+            ok = write_mangohud_config(dict(self._config))
+        except Exception as exc:  # noqa: BLE001 — a raising core writer must not kill the slot
+            ok = False
+            self._status = f"Save failed: {type(exc).__name__}: {exc}"
         else:
-            self._status = "Save failed — check permissions."
+            if ok:
+                self._dirty = False
+                self._status = "Saved to MangoHud.conf"
+                self.dirtyChanged.emit()
+            else:
+                self._status = "Save failed — check permissions."
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -160,12 +169,17 @@ class MangoHudController(QObject):
         self.configChanged.emit()
 
     def _load_work(self) -> None:
-        from ..core.mangohud import read_mangohud_config
+        from ..core.mangohud import is_mangohud_available, read_mangohud_config
 
+        self._availResult.emit(is_mangohud_available())
         try:
             self._loadResult.emit(True, "", read_mangohud_config())
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
             self._loadResult.emit(False, str(exc), {})
+
+    def _on_avail(self, available: bool) -> None:
+        self._available = available
+        self.availableChanged.emit()
 
     def _on_loaded(self, ok: bool, error: str, config: dict) -> None:
         if ok:

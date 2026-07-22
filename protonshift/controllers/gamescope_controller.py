@@ -15,11 +15,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from ..core.gamescope import (
-    GamescopeOptions,
-    build_gamescope_cmd,
-    is_gamescope_available,
-)
+from ..core.gamescope import GamescopeOptions, build_gamescope_cmd
+from ._worker import start_worker
 
 
 def _opt_property(name: str, type_: type, notify: Signal) -> Property:
@@ -45,11 +42,18 @@ class GamescopeController(QObject):
     """Reactive wrapper around :class:`GamescopeOptions`."""
 
     changed = Signal()
+    availabilityChanged = Signal()
+
+    _availResult = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._opts = GamescopeOptions()
-        self._available = is_gamescope_available()
+        # M4: the availability lookup can shell out (flatpak-spawn host which)
+        # — probe on a worker instead of blocking app construction.
+        self._available = False
+        self._availResult.connect(self._on_avail)
+        start_worker(self._avail_work, on_error=lambda _m: self._availResult.emit(False))
 
     # --- computed / read-only -------------------------------------------------
 
@@ -58,9 +62,18 @@ class GamescopeController(QObject):
         """The shell-safe launch prefix, rebuilt on every edit."""
         return build_gamescope_cmd(self._opts) or "gamescope --"
 
-    @Property(bool, constant=True)
+    @Property(bool, notify=availabilityChanged)
     def gamescopeAvailable(self) -> bool:  # noqa: N802 (QML camelCase)
         return self._available
+
+    def _avail_work(self) -> None:
+        from ..core.gamescope import is_gamescope_available
+
+        self._availResult.emit(is_gamescope_available())
+
+    def _on_avail(self, available: bool) -> None:
+        self._available = available
+        self.availabilityChanged.emit()
 
     # --- editable options (bound two-way from QML) ---------------------------
 

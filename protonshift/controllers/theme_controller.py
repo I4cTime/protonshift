@@ -14,18 +14,22 @@ from pathlib import Path
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
+from ..core.fsutil import atomic_write_text
+
 _SETTINGS = Path.home() / ".config" / "protonshift" / "settings.json"
 
 # id -> (label, is_dark). "system" is handled separately in the picker.
 _THEMES: list[dict] = [
+    {"id": "proton-neon", "label": "Proton Neon", "dark": True},
     {"id": "violet-night", "label": "Violet Night", "dark": True},
     {"id": "deep-sea", "label": "Deep Sea", "dark": True},
+    {"id": "proton-day", "label": "Proton Day", "dark": False},
     {"id": "violet-day", "label": "Violet Day", "dark": False},
     {"id": "sandstone", "label": "Sandstone", "dark": False},
 ]
 _VALID = {t["id"] for t in _THEMES} | {"system"}
-_DEFAULT_DARK = "violet-night"
-_DEFAULT_LIGHT = "violet-day"
+_DEFAULT_DARK = "proton-neon"
+_DEFAULT_LIGHT = "proton-day"
 
 
 class ThemeController(QObject):
@@ -51,15 +55,18 @@ class ThemeController(QObject):
 
     def _save_choice(self) -> None:
         try:
-            _SETTINGS.parent.mkdir(parents=True, exist_ok=True)
             existing = {}
             if _SETTINGS.exists():
                 try:
                     existing = json.loads(_SETTINGS.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
                     existing = {}
+            if not isinstance(existing, dict):
+                existing = {}
             existing["theme"] = self._choice
-            _SETTINGS.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+            # L8: atomic replace (same contract as every other config write) —
+            # a crash mid-write can't corrupt settings.json.
+            atomic_write_text(_SETTINGS, json.dumps(existing, indent=2))
         except OSError:
             pass
 

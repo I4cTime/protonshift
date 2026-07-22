@@ -82,8 +82,10 @@ def get_controllers() -> list[ControllerInfo]:
             continue
         js_match = re.search(r"(js\d+)", handlers)
         js_dev = js_match.group(1) if js_match else "js0"
+        # The js node is part of the id so two identical pads (same VID:PID)
+        # don't collide in id-keyed lookups.
         controllers.append(ControllerInfo(
-            id=f"{vendor}:{product}",
+            id=f"{vendor}:{product}:{js_dev}",
             name=name,
             device_path=f"/dev/input/{js_dev}",
             controller_type=_classify_controller(name),
@@ -234,6 +236,62 @@ def _event_node_for_js(js_path: str) -> str | None:
     return None
 
 
+# struct ff_effect (linux/input.h) on 64-bit userspace (x86-64 / aarch64):
+#
+#   __u16 type;                                    offset  0
+#   __s16 id;                                      offset  2
+#   __u16 direction;                               offset  4
+#   struct ff_trigger { __u16 button, interval; }  offset  6
+#   struct ff_replay  { __u16 length, delay;    }  offset 10
+#   <2 pad bytes — the union below embeds a pointer (ff_periodic_effect
+#    .custom_data), so the union is 8-aligned>
+#   union u { ... struct ff_rumble_effect {
+#       __u16 strong_magnitude, weak_magnitude; } ... }  offset 16
+#
+# sizeof(struct ff_effect) == 48. The previous implementation packed the id
+# as `-1 & 0xFFFF` into a signed 'h' (always raised struct.error), omitted the
+# 2 pad bytes (magnitudes landed at offset 14), and wrote a 16-byte play event
+# where the kernel expects 24 — all three fixed here, layout pinned by tests.
+_FF_EFFECT_SIZE = 48
+_FF_RUMBLE = 0x50
+_EV_FF = 0x15
+# _IOW('E', 0x80, struct ff_effect) — direction 0x40000000 | size<<16 | 'E'<<8 | nr
+_EVIOCSFF = 0x40000000 | (_FF_EFFECT_SIZE << 16) | (ord("E") << 8) | 0x80
+
+# struct input_event on 64-bit: struct timeval { long tv_sec, tv_usec; } (16)
+# + __u16 type + __u16 code + __s32 value == 24 bytes.
+_INPUT_EVENT = struct.Struct("=qqHHi")
+
+
+def pack_ff_rumble(
+    effect_id: int = -1,
+    duration_ms: int = 600,
+    strong: int = 0xFFFF,
+    weak: int = 0xC000,
+) -> bytes:
+    """Pack a rumble ``struct ff_effect`` (64-bit layout, exactly 48 bytes)."""
+    return struct.pack(
+        "=HhHHHHHxxHH28x",
+        _FF_RUMBLE,                # type
+        effect_id,                 # id (signed; -1 -> kernel assigns one)
+        0,                         # direction
+        0, 0,                      # trigger: button, interval
+        duration_ms & 0xFFFF, 0,   # replay: length, delay
+        strong & 0xFFFF,           # union.rumble.strong_magnitude (offset 16)
+        weak & 0xFFFF,             # union.rumble.weak_magnitude   (offset 18)
+    )
+
+
+def unpack_ff_effect_id(buf: bytes) -> int:
+    """Read the kernel-assigned effect id back out of an uploaded ff_effect."""
+    return struct.unpack_from("=h", buf, 2)[0]
+
+
+def pack_ff_play(effect_id: int, value: int = 1) -> bytes:
+    """Pack the ``input_event`` that starts (value=1) or stops (0) an effect."""
+    return _INPUT_EVENT.pack(0, 0, _EV_FF, effect_id & 0xFFFF, value)
+
+
 def rumble(js_path: str, duration_ms: int = 600) -> tuple[bool, str]:
     """Fire a strong+weak rumble on the controller's FF event node."""
     event_node = _event_node_for_js(js_path)
@@ -244,28 +302,14 @@ def rumble(js_path: str, duration_ms: int = 600) -> tuple[bool, str]:
     except OSError as exc:
         return False, f"Couldn't open {event_node}: {exc}"
     try:
-        # struct ff_effect for a rumble effect (see linux/input.h). We pack the
-        # 'type/id/direction/trigger/replay + rumble(strong,weak)' layout, then
-        # EVIOCSFF (upload) and write an input_event to play it.
-        EVIOCSFF = 0x40304580  # _IOW('E', 0x80, struct ff_effect) size 0x30
-        FF_RUMBLE = 0x50
-        effect_id = -1
-        effect = struct.pack(
-            "=HhHHHHHhHHHH",
-            FF_RUMBLE,          # type
-            effect_id & 0xFFFF,  # id (-1 -> kernel assigns)
-            0,                   # direction
-            0, 0,                # trigger: button, interval
-            duration_ms, 0,      # replay: length, delay
-            0xFFFF, 0xC000,      # rumble: strong, weak magnitude
-            0, 0, 0,             # padding to struct size
+        buf = ctypes.create_string_buffer(
+            pack_ff_rumble(duration_ms=duration_ms), _FF_EFFECT_SIZE
         )
-        buf = ctypes.create_string_buffer(effect, 0x30)
-        fcntl.ioctl(fd, EVIOCSFF, buf)
-        new_id = struct.unpack_from("=Hh", buf.raw, 0)[1]
-        # play: input_event{ time(16), type=EV_FF(0x15), code=id, value=1 }
-        play = struct.pack("=llHHi", 0, 0, 0x15, new_id & 0xFFFF, 1)
-        os.write(fd, play)
+        fcntl.ioctl(fd, _EVIOCSFF, buf)  # upload; kernel writes the id back
+        new_id = unpack_ff_effect_id(buf.raw)
+        if new_id < 0:
+            return False, "Device did not assign a force-feedback effect id."
+        os.write(fd, pack_ff_play(new_id, 1))
         return True, "Rumble sent."
     except OSError as exc:
         return False, f"Rumble not supported: {exc}"

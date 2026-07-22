@@ -8,8 +8,6 @@ shader cache) re-read afterwards so the UI reflects reality.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from ..core.fsutil import human_size
@@ -21,17 +19,21 @@ from ..core.shader_cache import (
 )
 from ..core.steam import get_steam_root
 from ..core.system_open import open_path, open_uri
+from ._worker import start_worker
 
 
 class GameToolsController(QObject):
     appIdChanged = Signal()
+    prefixPathChanged = Signal()
+    installPathChanged = Signal()
     infoChanged = Signal()
     loadingChanged = Signal()
     busyChanged = Signal()
     statusChanged = Signal()
 
     _infoResult = Signal(str, "QVariantMap")  # app_id, info
-    _actionResult = Signal(str, str)  # message, kind ("ok"/"err")
+    _actionResult = Signal(str, str, str)  # app_id, message, kind ("ok"/"err") — L1 gating
+    _workError = Signal(str)  # unexpected worker exception -> clear flags + status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -44,6 +46,7 @@ class GameToolsController(QObject):
         self._status = ""
         self._infoResult.connect(self._on_info)
         self._actionResult.connect(self._on_action)
+        self._workError.connect(self._on_work_error)
 
     # --- inputs ---------------------------------------------------------------
 
@@ -58,21 +61,25 @@ class GameToolsController(QObject):
         self._app_id = value
         self.appIdChanged.emit()
 
-    @Property(str, constant=False)
+    @Property(str, notify=prefixPathChanged)
     def prefixPath(self) -> str:  # noqa: N802
         return self._prefix_path
 
     @prefixPath.setter
     def prefixPath(self, value: str) -> None:  # noqa: N802
-        self._prefix_path = value
+        if value != self._prefix_path:
+            self._prefix_path = value
+            self.prefixPathChanged.emit()
 
-    @Property(str, constant=False)
+    @Property(str, notify=installPathChanged)
     def installPath(self) -> str:  # noqa: N802
         return self._install_path
 
     @installPath.setter
     def installPath(self, value: str) -> None:  # noqa: N802
-        self._install_path = value
+        if value != self._install_path:
+            self._install_path = value
+            self.installPathChanged.emit()
 
     # --- reactive -------------------------------------------------------------
 
@@ -102,25 +109,32 @@ class GameToolsController(QObject):
         self._status = ""
         self.loadingChanged.emit()
         self.statusChanged.emit()
-        threading.Thread(
-            target=self._info_work,
-            args=(self._app_id, self._prefix_path),
-            daemon=True,
-        ).start()
+        start_worker(
+            self._info_work, self._app_id, self._prefix_path,
+            on_error=self._workError.emit,
+        )
 
     @Slot()
     def deletePrefix(self) -> None:  # noqa: N802
         if self._busy or not self._prefix_path:
             return
         self._begin()
-        threading.Thread(target=self._delete_work, args=(self._prefix_path,), daemon=True).start()
+        app_id = self._app_id
+        start_worker(
+            self._delete_work, app_id, self._prefix_path,
+            on_error=lambda m: self._actionResult.emit(app_id, f"Delete failed: {m}", "err"),
+        )
 
     @Slot()
     def clearShaderCache(self) -> None:  # noqa: N802
         if self._busy or not self._app_id:
             return
         self._begin()
-        threading.Thread(target=self._clear_work, args=(self._app_id,), daemon=True).start()
+        app_id = self._app_id
+        start_worker(
+            self._clear_work, app_id,
+            on_error=lambda m: self._actionResult.emit(app_id, f"Clear failed: {m}", "err"),
+        )
 
     @Slot(str)
     def openFolder(self, path: str) -> None:  # noqa: N802
@@ -163,9 +177,10 @@ class GameToolsController(QObject):
         }
         self._infoResult.emit(app_id, info)
 
-    def _delete_work(self, prefix_path: str) -> None:
+    def _delete_work(self, app_id: str, prefix_path: str) -> None:
         ok = delete_prefix(prefix_path)
         self._actionResult.emit(
+            app_id,
             "Prefix deleted — Steam will recreate it on next launch." if ok
             else "Couldn't delete the prefix.",
             "ok" if ok else "err",
@@ -175,6 +190,7 @@ class GameToolsController(QObject):
         steam_root = get_steam_root()
         ok = clear_shader_cache(steam_root, app_id) if steam_root else False
         self._actionResult.emit(
+            app_id,
             "Shader cache cleared." if ok else "Couldn't clear the shader cache.",
             "ok" if ok else "err",
         )
@@ -193,10 +209,21 @@ class GameToolsController(QObject):
         self.infoChanged.emit()
         self.loadingChanged.emit()
 
-    def _on_action(self, message: str, kind: str) -> None:
+    def _on_action(self, app_id: str, message: str, kind: str) -> None:
+        # Always clear busy, but only surface status / refresh for the game
+        # the action belonged to (L1: no stale cross-game status).
         self._busy = False
-        self._status = message
         self.busyChanged.emit()
+        if app_id != self._app_id:
+            return
+        self._status = message
         self.statusChanged.emit()
         # reflect the new on-disk state
         self.refresh()
+
+    def _on_work_error(self, message: str) -> None:
+        # Info-worker failure: clear loading, surface status, no auto-retry.
+        self._loading = False
+        self._status = f"Unexpected error: {message}"
+        self.loadingChanged.emit()
+        self.statusChanged.emit()

@@ -7,9 +7,9 @@ several config files / tools, so they run on worker threads.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
+
+from ._worker import start_worker
 
 
 class ProfilesController(QObject):
@@ -20,6 +20,7 @@ class ProfilesController(QObject):
 
     _listResult = Signal(list)
     _actionResult = Signal(str)
+    _workError = Signal(str)  # unexpected worker exception (list path — no refresh loop)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -29,6 +30,7 @@ class ProfilesController(QObject):
         self._busy = False
         self._listResult.connect(self._on_list)
         self._actionResult.connect(self._on_action)
+        self._workError.connect(self._on_work_error)
         self.refresh()
 
     @Property(str, notify=appIdChanged)
@@ -58,7 +60,7 @@ class ProfilesController(QObject):
 
     @Slot()
     def refresh(self) -> None:
-        threading.Thread(target=self._list_work, daemon=True).start()
+        start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str)
     def saveCurrent(self, name: str) -> None:  # noqa: N802
@@ -66,14 +68,20 @@ class ProfilesController(QObject):
         if self._busy or not name or not self._app_id:
             return
         self._begin(f"Capturing “{name}”…")
-        threading.Thread(target=self._save_work, args=(name, self._app_id), daemon=True).start()
+        start_worker(
+            self._save_work, name, self._app_id,
+            on_error=lambda m: self._actionResult.emit(f"Capture failed: {m}"),
+        )
 
     @Slot(str)
     def apply(self, name: str) -> None:
         if self._busy or not name or not self._app_id:
             return
         self._begin(f"Applying “{name}”…")
-        threading.Thread(target=self._apply_work, args=(name, self._app_id), daemon=True).start()
+        start_worker(
+            self._apply_work, name, self._app_id,
+            on_error=lambda m: self._actionResult.emit(f"Apply failed: {m}"),
+        )
 
     @Slot(str)
     def deleteProfile(self, name: str) -> None:  # noqa: N802
@@ -103,11 +111,23 @@ class ProfilesController(QObject):
         launch_opts = ""
         compat = ""
         if root:
+            # M6 fix: a failed read must fail the capture, not silently store
+            # "" — applying such a profile would blank the user's launch
+            # options and clear their Proton pin.
             lc = get_localconfig_path(root)
             if lc:
-                ok, val = read_launch_options(lc, app_id)
-                launch_opts = val if ok else ""
+                ok, launch_opts = read_launch_options(lc, app_id)
+                if not ok:
+                    self._actionResult.emit(
+                        "Couldn't capture — localconfig.vdf unreadable; profile not saved."
+                    )
+                    return
             ok, compat = read_compat_tool(get_config_vdf_path(root), app_id)
+            if not ok:
+                self._actionResult.emit(
+                    "Couldn't capture — config.vdf unreadable; profile not saved."
+                )
+                return
         env = read_gaming_env()
         power = get_current_power_profile() or ""
         prof = ApplicationProfile(
@@ -135,10 +155,18 @@ class ProfilesController(QObject):
         applied: list[str] = []
         root, _ = discover_games()
         if root:
+            # M6 fix: skip empty fields instead of applying them. Legacy
+            # profiles captured before the failed-read guard may hold "" as a
+            # failed-capture sentinel; an empty compat tool would otherwise
+            # *delete* the game's Proton pin and empty launch options would
+            # blank the user's options. (A deliberate "clear my Proton pin"
+            # is done in the Launch editor, not via profiles.)
             lc = get_localconfig_path(root)
-            if lc and set_launch_options(lc, app_id, prof.launch_options):
+            if prof.launch_options and lc and set_launch_options(lc, app_id, prof.launch_options):
                 applied.append("launch options")
-            if set_compat_tool(get_config_vdf_path(root), app_id, prof.compat_tool):
+            if prof.compat_tool and set_compat_tool(
+                get_config_vdf_path(root), app_id, prof.compat_tool
+            ):
                 applied.append("Proton")
         if prof.env_vars and write_gaming_env(prof.env_vars):
             applied.append("env vars")
@@ -166,3 +194,11 @@ class ProfilesController(QObject):
         self.busyChanged.emit()
         self.statusChanged.emit()
         self.refresh()
+
+    def _on_work_error(self, message: str) -> None:
+        # List-worker failure: clear busy and surface status, but do NOT
+        # refresh — that would retry the failing worker in a loop.
+        self._busy = False
+        self._status = f"Unexpected error: {message}"
+        self.busyChanged.emit()
+        self.statusChanged.emit()

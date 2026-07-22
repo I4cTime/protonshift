@@ -13,8 +13,6 @@ The rows live in a QAbstractListModel so editing one cell updates just that row
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import (
     Property,
     QAbstractListModel,
@@ -26,7 +24,8 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from ..core.env_vars import ENV_PRESETS
+from ..core.env_vars import ENV_PRESETS, _valid_key
+from ._worker import start_worker
 
 
 class EnvVarsModel(QAbstractListModel):
@@ -34,6 +33,10 @@ class EnvVarsModel(QAbstractListModel):
     ValueRole = Qt.UserRole + 2
 
     modified = Signal()
+    # Emitted when an edited key is not a valid env identifier. The edit still
+    # sticks (the user may be mid-typing) — controllers surface it as status
+    # and refuse to save while any key is invalid.
+    invalidKey = Signal(str)  # noqa: N815 (QML-facing camelCase)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -61,6 +64,8 @@ class EnvVarsModel(QAbstractListModel):
             self._rows[row][0] = value
             self.dataChanged.emit(self.index(row), self.index(row), [self.KeyRole])
             self.modified.emit()
+            if value and not _valid_key(value):
+                self.invalidKey.emit(value)
 
     @Slot(int, str)
     def setValue(self, row: int, value: str) -> None:  # noqa: N802
@@ -77,13 +82,19 @@ class EnvVarsModel(QAbstractListModel):
         self.endInsertRows()
         self.modified.emit()
 
-    @Slot(int)
-    def removeRow(self, row: int) -> None:  # noqa: N802
-        if 0 <= row < len(self._rows):
-            self.beginRemoveRows(QModelIndex(), row, row)
-            del self._rows[row]
-            self.endRemoveRows()
-            self.modified.emit()
+    # Properly overrides the QAbstractItemModel::removeRow(int, QModelIndex)
+    # virtual (compatible signature + bool return) instead of shadowing it with
+    # an incompatible Slot. QML's existing `model.removeRow(i)` calls still
+    # work — the extra parent argument defaults and the return is ignorable.
+    @Slot(int, result=bool)
+    def removeRow(self, row: int, parent: QModelIndex = QModelIndex()) -> bool:  # noqa: N802
+        if parent.isValid() or not (0 <= row < len(self._rows)):
+            return False
+        self.beginRemoveRows(QModelIndex(), row, row)
+        del self._rows[row]
+        self.endRemoveRows()
+        self.modified.emit()
+        return True
 
     def reset_rows(self, rows: list[tuple[str, str]]) -> None:
         self.beginResetModel()
@@ -125,6 +136,7 @@ class EnvController(QObject):
         super().__init__(parent)
         self._model = EnvVarsModel(self)
         self._model.modified.connect(self._mark_dirty)
+        self._model.invalidKey.connect(self._on_invalid_key)
         self._loading = False
         self._loaded = False
         self._dirty = False
@@ -172,7 +184,10 @@ class EnvController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._load_work, daemon=True).start()
+        start_worker(
+            self._load_work,
+            on_error=lambda m: self._loadResult.emit(False, m, []),
+        )
 
     @Slot(str)
     def applyPreset(self, name: str) -> None:  # noqa: N802
@@ -187,15 +202,31 @@ class EnvController(QObject):
             self._status = "Not saved — config was never loaded."
             self.statusChanged.emit()
             return
+        # L3 fix: the core writer silently drops keys failing its identifier
+        # check — validate here so "Saved" never lies about a dropped key.
+        cfg = self._model.to_dict()
+        bad = next((k for k in cfg if not _valid_key(k)), None)
+        if bad is not None:
+            self._status = (
+                f"Not saved — key “{bad}” is invalid "
+                "(letters, digits, underscore; can't start with a digit)."
+            )
+            self.statusChanged.emit()
+            return
         from ..core.env_vars import write_gaming_env
 
-        ok = write_gaming_env(self._model.to_dict())
-        if ok:
-            self._dirty = False
-            self._status = "Saved to 70-protonshift.conf"
-            self.dirtyChanged.emit()
+        try:
+            ok = write_gaming_env(cfg)
+        except Exception as exc:  # noqa: BLE001 — a raising core writer must not kill the slot
+            ok = False
+            self._status = f"Save failed: {type(exc).__name__}: {exc}"
         else:
-            self._status = "Save failed — check permissions."
+            if ok:
+                self._dirty = False
+                self._status = "Saved to 70-protonshift.conf"
+                self.dirtyChanged.emit()
+            else:
+                self._status = "Save failed — check permissions."
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -207,6 +238,10 @@ class EnvController(QObject):
         if self._status:
             self._status = ""
             self.statusChanged.emit()
+
+    def _on_invalid_key(self, key: str) -> None:
+        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self.statusChanged.emit()
 
     def _load_work(self) -> None:
         from ..core.env_vars import get_gaming_conf_path, read_conf

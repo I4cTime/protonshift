@@ -6,11 +6,10 @@ global MangoHud editor's reactive config-map, plus a delete. Same safe RMW.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from ..core.mangohud import MANGOHUD_PARAMS, MANGOHUD_PRESETS
+from ._worker import start_worker
 
 
 class PerGameMangoHudController(QObject):
@@ -142,14 +141,20 @@ class PerGameMangoHudController(QObject):
             return
         from ..core.mangohud import write_per_game_config
 
-        if write_per_game_config(self._name, dict(self._config)):
-            self._dirty = False
-            self._exists = True
-            self._status = "Saved override"
-            self.dirtyChanged.emit()
-            self.existsChanged.emit()
+        try:
+            ok = write_per_game_config(self._name, dict(self._config))
+        except Exception as exc:  # noqa: BLE001 — a raising core writer must not kill the slot
+            ok = False
+            self._status = f"Save failed: {type(exc).__name__}: {exc}"
         else:
-            self._status = "Save failed — check permissions."
+            if ok:
+                self._dirty = False
+                self._exists = True
+                self._status = "Saved override"
+                self.dirtyChanged.emit()
+                self.existsChanged.emit()
+            else:
+                self._status = "Save failed — check permissions."
         self.statusChanged.emit()
 
     @Slot()
@@ -184,7 +189,11 @@ class PerGameMangoHudController(QObject):
     def _reload(self) -> None:
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._load_work, args=(self._name,), daemon=True).start()
+        name = self._name
+        start_worker(
+            self._load_work, name,
+            on_error=lambda m: self._loadResult.emit(name, False, m, True, {}),
+        )
 
     def _load_work(self, name: str) -> None:
         from ..core.mangohud import read_per_game_config
@@ -192,7 +201,7 @@ class PerGameMangoHudController(QObject):
         try:
             exists, cfg = read_per_game_config(name)
             self._loadResult.emit(name, True, "", exists, cfg)
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
             self._loadResult.emit(name, False, str(exc), True, {})
 
     def _on_loaded(self, name: str, ok: bool, error: str, exists: bool, config: dict) -> None:
