@@ -38,13 +38,27 @@ def _load_builtin_fixes() -> dict[str, list[dict[str, Any]]]:
         return {}
 
 
-def _load_user_fixes(app_id: str) -> list[dict[str, Any]]:
+def _load_user_fixes_strict(app_id: str) -> list[dict[str, Any]]:
+    """Load user fixes, raising on a corrupt file.
+
+    A *missing* file is a legitimate empty state. A present-but-unparseable
+    (or wrong-shaped) file raises ``ValueError`` so write paths fail closed
+    instead of appending to ``[]`` and erasing every saved fix.
+    """
     path = _user_fixes_path(app_id)
     if not path.exists():
         return []
+    data = json.loads(path.read_text(encoding="utf-8"))  # JSONDecodeError propagates
+    if not isinstance(data, list):
+        raise ValueError(f"User fixes file {path} is not a JSON list")
+    return data
+
+
+def _load_user_fixes(app_id: str) -> list[dict[str, Any]]:
+    """Tolerant read for display: corrupt file shows as no user fixes."""
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        return _load_user_fixes_strict(app_id)
+    except (json.JSONDecodeError, ValueError, OSError):
         return []
 
 
@@ -85,11 +99,18 @@ def add_user_fix(
     key: str,
     value: str,
 ) -> bool:
-    """Add a user-contributed fix for a game. Returns True on success."""
+    """Add a user-contributed fix for a game. Returns True on success.
+
+    Fails closed: if the existing user-fixes file is corrupt, we refuse to
+    write rather than replace it with a single-entry list.
+    """
     _USER_FIXES_DIR.mkdir(parents=True, exist_ok=True)
     path = _user_fixes_path(app_id)
 
-    existing = _load_user_fixes(app_id)
+    try:
+        existing = _load_user_fixes_strict(app_id)
+    except (json.JSONDecodeError, ValueError, OSError):
+        return False
     existing.append({
         "title": title,
         "description": description,

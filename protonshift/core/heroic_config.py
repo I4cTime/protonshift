@@ -60,7 +60,10 @@ def _read_config_file(app_id: str) -> dict[str, Any] | None:
         with open(cfg_file, encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict) and app_id in data:
-            return data[app_id]
+            nested = data[app_id]
+            # Heroic nests the real config under the app id; if that slot
+            # holds a non-dict we must not hand it to .get() callers.
+            return nested if isinstance(nested, dict) else None
         if isinstance(data, dict):
             return data
     except (json.JSONDecodeError, OSError):
@@ -75,13 +78,19 @@ def _write_config_file(app_id: str, config: dict[str, Any]) -> bool:
     cfg_dir.mkdir(parents=True, exist_ok=True)
     cfg_file = _config_file_for(app_id, cfg_dir)
 
+    # Fail closed (same contract as vdf_config._load_vdf_strict): a present
+    # but unparseable file means we refuse to write — the old "existing = {}"
+    # fallback meant one toggle write destroyed every other Heroic setting.
     existing: dict[str, Any] = {}
     if cfg_file.exists():
         try:
             with open(cfg_file, encoding="utf-8") as f:
-                existing = json.load(f)
+                loaded = json.load(f)
         except (json.JSONDecodeError, OSError):
-            existing = {}
+            return False
+        if not isinstance(loaded, dict):
+            return False
+        existing = loaded
 
     if app_id in existing and isinstance(existing[app_id], dict):
         existing[app_id].update(config)

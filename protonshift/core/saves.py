@@ -108,8 +108,14 @@ def backup_saves(app_id: str, paths: list[str]) -> str | None:
     backup_dir = _BACKUP_ROOT / safe_app_id
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
+    # Microsecond timestamp plus a collision-suffix loop: two backups in the
+    # same second must never silently overwrite each other (mode "w" truncates).
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S_%f")
     zip_path = backup_dir / f"backup_{timestamp}.zip"
+    counter = 1
+    while zip_path.exists():
+        zip_path = backup_dir / f"backup_{timestamp}-{counter}.zip"
+        counter += 1
 
     total_bytes = 0
     total_files = 0

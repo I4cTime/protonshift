@@ -29,8 +29,17 @@ finish-args:
   - --device=dri
   # game controllers (gamepad tester)
   - --device=input
-  # ProtonShift reads game libraries and writes Steam/Heroic configs.
-  - --filesystem=home
+  # ProtonShift reads game libraries (read-only home) and writes only the
+  # specific config dirs below. `home` rw + org.freedesktop.Flatpak talk-name
+  # is a Flathub-rejected combination (it is a sandbox escape); restoring a
+  # save backup to an arbitrary native path now requires the file portal.
+  - --filesystem=home:ro
+  - --filesystem=~/.config/protonshift:create
+  - --filesystem=~/.config/scopebuddy:create
+  - --filesystem=~/.config/MangoHud:create
+  - --filesystem=~/.config/environment.d:create
+  # default target dir for save-backup restores
+  - --filesystem=~/ProtonShift Restores:create
   - --filesystem=~/.steam
   - --filesystem=~/.local/share/Steam
   - --filesystem=~/.var/app/com.valvesoftware.Steam
@@ -63,8 +72,12 @@ modules:
           ${FLATPAK_DEST}/share/applications/io.github.i4ctime.protonshift.desktop
       - install -Dm644 flatpak/io.github.i4ctime.protonshift.metainfo.xml
           ${FLATPAK_DEST}/share/metainfo/io.github.i4ctime.protonshift.metainfo.xml
-      - install -Dm644 flatpak/io.github.i4ctime.protonshift.svg
-          ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/io.github.i4ctime.protonshift.svg
+      - install -Dm644 flatpak/icons/io.github.i4ctime.protonshift-256.png
+          ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/io.github.i4ctime.protonshift.png
+      - install -Dm644 flatpak/icons/io.github.i4ctime.protonshift-128.png
+          ${FLATPAK_DEST}/share/icons/hicolor/128x128/apps/io.github.i4ctime.protonshift.png
+      - install -Dm644 flatpak/icons/io.github.i4ctime.protonshift-64.png
+          ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/io.github.i4ctime.protonshift.png
     sources:
       - type: dir
         path: ../..
