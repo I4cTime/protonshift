@@ -9,83 +9,45 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs on the same ref (repeated pushes to a PR branch).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   python:
-    name: Python
+    name: Python (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    # qmllint and pytest both run headless; neither needs a real display, but
+    # QT_QPA_PLATFORM=offscreen covers any future test that instantiates a
+    # QGuiApplication (e.g. testing a controller end-to-end) without needing
+    # xvfb on the runner.
+    env:
+      QT_QPA_PLATFORM: offscreen
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check src/
+        run: ruff check protonshift
 
-      - name: Typecheck
-        run: pyright
+      - name: QML lint
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          pyside6-qmllint -I protonshift/qml protonshift/qml/**/*.qml
 
-  python-linux-distros:
-    name: Python (${{ matrix.label }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: debian-bookworm
-            image: python:3.12-slim-bookworm
-          - label: alpine-musl
-            image: python:3.12-alpine
-          - label: ubuntu-24.04
-            image: ubuntu:24.04
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run checks in container
-        env:
-          LINUX_MATRIX_IMAGE: ${{ matrix.image }}
-          CONTAINER_ENGINE: docker
-        run: bash scripts/ci/linux-matrix.sh
-
-  electron:
-    name: Electron
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: electron
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: pnpm/action-setup@v5
-        with:
-          version: latest
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: pnpm
-          cache-dependency-path: electron/pnpm-lock.yaml
-
-      - name: Install dependencies
-        env:
-          # @heroui-pro/react has a postinstall step that fetches the real dist
-          # from the HeroUI Pro registry. Without this token it stops at the
-          # skeleton package and tsc cannot resolve `@heroui-pro/react`.
-          HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
-        run: pnpm install --frozen-lockfile
-
-      - name: Typecheck (main)
-        run: pnpm run build:electron
-
-      - name: Typecheck renderer
-        run: pnpm --filter protonshift-renderer exec tsc --noEmit
-
-      - name: Build renderer
-        run: pnpm run build:renderer
+      - name: Test
+        run: pytest

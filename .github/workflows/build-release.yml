@@ -8,42 +8,59 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: build-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  flatpak:
+    name: Build Flatpak bundle
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: electron
+    timeout-minutes: 45
+    env:
+      APP_ID: io.github.i4ctime.protonshift
+      RUNTIME_VERSION: "24.08"
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      # Raw flatpak/flatpak-builder CLI rather than a marketplace action
+      # (e.g. flatpak-github-actions/flatpak-builder): that action is built
+      # around Flathub-style offline manifests, and its exact input surface
+      # for our network-enabled *local* manifest
+      # (flatpak/io.github.i4ctime.protonshift.yml — see flatpak/README.md,
+      # "works today" variant) isn't worth guessing at. Driving flatpak /
+      # org.flatpak.Builder directly also mirrors, step for step, the build
+      # command already documented for local dev in flatpak/README.md, so
+      # there's one source of truth for "how do you build this".
+      - name: Install flatpak
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak
 
-      - uses: pnpm/action-setup@v5
-        with:
-          version: latest
+      - name: Add Flathub remote
+        run: |
+          flatpak remote-add --if-not-exists --user flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: pnpm
-          cache-dependency-path: electron/pnpm-lock.yaml
+      - name: Install builder + runtime + SDK
+        run: |
+          flatpak install -y --user --noninteractive flathub \
+            org.flatpak.Builder \
+            "org.freedesktop.Platform//${RUNTIME_VERSION}" \
+            "org.freedesktop.Sdk//${RUNTIME_VERSION}"
 
-      - name: Install dependencies
+      - name: Build (into a local repo)
+        run: |
+          flatpak run org.flatpak.Builder --user --force-clean --repo=repo \
+            build-dir flatpak/io.github.i4ctime.protonshift.yml
+
+      - name: Bundle
+        run: |
+          flatpak build-bundle repo "${APP_ID}-${TAG}.flatpak" "${APP_ID}"
         env:
-          # @heroui-pro/react has a postinstall step that fetches the real dist
-          # from the HeroUI Pro registry. Without this token it stops at the
-          # skeleton package and the renderer build cannot resolve `@heroui-pro/react`.
-          HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
-        run: pnpm install --frozen-lockfile
+          TAG: ${{ github.event.release.tag_name }}
 
-      - name: Build AppImage
-        run: pnpm run dist
-
-      - name: Upload artifacts to release
+      - name: Upload bundle to release
         uses: softprops/action-gh-release@v3
         with:
-          files: |
-            build/*.AppImage
+          files: ${{ env.APP_ID }}-${{ github.event.release.tag_name }}.flatpak

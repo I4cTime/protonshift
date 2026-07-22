@@ -13,8 +13,8 @@ body:
       label: Area
       description: Which part of ProtonShift does this relate to?
       options:
-        - Electron App (UI / renderer)
-        - Python Backend (FastAPI)
+        - Qt/QML UI
+        - Python Core / Controllers
         - Steam Integration
         - Heroic Integration
         - Lutris Integration
@@ -24,8 +24,7 @@ body:
         - Environment Variables
         - Profiles
         - GPU / System Info
-        - Packaging / Distribution
-        - GTK Frontend
+        - Flatpak / Packaging
         - Documentation
         - Other
     validations:
