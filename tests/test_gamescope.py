@@ -21,10 +21,11 @@ def test_argv_starts_with_gamescope_and_ends_with_separator() -> None:
 def test_resolution_args_emitted() -> None:
     opts = GamescopeOptions(output_width=1920, output_height=1080, game_width=1280, game_height=720)
     argv = build_gamescope_argv(opts)
-    assert "-w" in argv and "1920" in argv
-    assert "-h" in argv and "1080" in argv
-    assert "-W" in argv and "1280" in argv
-    assert "-H" in argv and "720" in argv
+    # Output (display) resolution maps to -W/-H; game (render) res maps to -w/-h.
+    assert argv[argv.index("-W") + 1] == "1920"
+    assert argv[argv.index("-H") + 1] == "1080"
+    assert argv[argv.index("-w") + 1] == "1280"
+    assert argv[argv.index("-h") + 1] == "720"
 
 
 def test_extra_args_are_shell_split() -> None:

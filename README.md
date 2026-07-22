@@ -41,25 +41,11 @@ ProtonShift gathers all of that into one place — a real desktop app, with a re
 
 ## Install
 
-Grab the latest package for your distro from the [Releases](https://github.com/I4cTime/protonshift/releases) page.
+Grab the latest **AppImage** from the [Releases](https://github.com/I4cTime/protonshift/releases) page. One binary, every distro — no package managers, no sandbox quirks.
 
 ```bash
-# AppImage — works everywhere
 chmod +x ProtonShift-*.AppImage
 ./ProtonShift-*.AppImage
-
-# Debian / Ubuntu / Pop!_OS / Mint
-sudo dpkg -i ProtonShift-*.deb
-
-# Fedora / RHEL
-sudo dnf install ProtonShift-*.rpm
-
-# openSUSE
-sudo zypper install ProtonShift-*.rpm
-
-# Flatpak
-flatpak install ProtonShift-*.flatpak
-flatpak run io.github.protonshift
 ```
 
 Official builds bundle a portable **CPython 3.12** runtime *and* the full Python API stack (FastAPI, Uvicorn, VDF, etc.) beside the app. The only outside dependencies are the **game tools you actually want to manage** — Steam, Heroic, Lutris, MangoHud, Gamescope, ScopeBuddy, Protontricks, GameMode. No `python3-pydantic` on the host. Nothing leaking into your user site-packages.

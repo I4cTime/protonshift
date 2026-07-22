@@ -1,6 +1,6 @@
 # VM test environment
 
-Exercise a **packaged ProtonShift** build (AppImage, `.deb`, …) on **real desktop stacks** inside **KVM/QEMU** guests driven by **[Quickemu](https://github.com/quickemu-project/quickemu)**.
+Exercise a **packaged ProtonShift** **AppImage** on **real desktop stacks** inside **KVM/QEMU** guests driven by **[Quickemu](https://github.com/quickemu-project/quickemu)**.
 
 The renderer is **Electron**: you want a composed session (**X11/Wayland**), workable GPU virtio setup, Steam/Wine tooling, and MangoHud/Gamescope — **`scripts/ci/linux-matrix.sh`** Docker runs complement this but **do not replace** it.
 
@@ -24,7 +24,7 @@ The renderer is **Electron**: you want a composed session (**X11/Wayland**), wor
 
 | Host path | Guest path | What's there |
 | --- | --- | --- |
-| `build/ProtonShift-*.AppImage` (+ `.deb`/`.rpm`) | `/mnt/protonshift-build/` | Packaged builds from **`pnpm run dist:*`** |
+| `build/ProtonShift-*.AppImage` | `/mnt/protonshift-build/` | Packaged build from **`pnpm run dist`** |
 | `vm-test/provision/*.sh` | `/mnt/protonshift-build/_provision/` | Per-distro provision scripts (copied by **`run-vm.sh`**) |
 | `vm-test/docs/*.md`, `smoke-checklist.md`, `README.md` | `/mnt/protonshift-build/_docs/` | These runbooks — `less` / paste commands directly from the guest |
 

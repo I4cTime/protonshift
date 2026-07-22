@@ -77,11 +77,15 @@ def build_gamescope_argv(opts: GamescopeOptions) -> list[str]:
 
     parts: list[str] = ["gamescope"]
 
+    # gamescope semantics: -W/-H is the OUTPUT (display/window) size,
+    # -w/-h is the GAME (internal render) size. Mapping these the other way
+    # round makes gamescope present a small output surface centred on a larger
+    # display, which looks like pillar/letterboxing even with -f.
     if opts.output_width > 0 and opts.output_height > 0:
-        parts.extend(["-w", str(opts.output_width), "-h", str(opts.output_height)])
+        parts.extend(["-W", str(opts.output_width), "-H", str(opts.output_height)])
 
     if opts.game_width > 0 and opts.game_height > 0:
-        parts.extend(["-W", str(opts.game_width), "-H", str(opts.game_height)])
+        parts.extend(["-w", str(opts.game_width), "-h", str(opts.game_height)])
 
     if opts.fps_limit > 0:
         parts.extend(["-r", str(opts.fps_limit)])

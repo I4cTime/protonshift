@@ -1,7 +1,7 @@
 """Make vendored native extensions tolerate Python minor-version drift.
 
-When the app is packaged (AppImage / .deb / .rpm) Python dependencies are
-vendored into a directory that gets prepended to ``sys.path``. Native
+When the app is packaged (AppImage) Python dependencies are vendored into a
+directory that gets prepended to ``sys.path``. Native
 extensions (``.so``) are ABI-locked to the Python build that produced them
 (``cp312-…``). If the user is running a different Python minor version,
 those ``.so`` files cannot load and importing the package raises

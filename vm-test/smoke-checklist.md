@@ -56,8 +56,9 @@ hint and stay disabled — never crash.
 
 ## 7. Distro-specific
 
-- **Ubuntu/Debian deb**: `sudo dpkg -i /mnt/protonshift-build/protonshift_*.deb`
-  installs cleanly with no missing-deps prompts.
-- **Fedora/openSUSE rpm**: `sudo rpm -i …` likewise.
-- **Bazzite (immutable)**: only the AppImage path applies; deb/rpm should
-  not be attempted.
+- **Every guest**: only the AppImage is shipped. Mark the build executable
+  (`chmod +x /mnt/protonshift-build/ProtonShift-*.AppImage`) and launch
+  directly — no host package manager involvement.
+- **Bazzite (immutable)**: confirm the AppImage runs under the locked-down
+  rpm-ostree filesystem without needing `rpm-ostree install` or layered
+  packages.

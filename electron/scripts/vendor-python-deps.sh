@@ -5,7 +5,7 @@
 # Vendoring with the SAME interpreter we ship guarantees that native
 # extensions (.so files, currently only pydantic_core) match the runtime's
 # ABI. That removes the ABI-fallback dance _vendor_compat.py used to do
-# and lets us drop the python3 / python3-pydantic deb/rpm depends.
+# and lets the AppImage run without any python3 host packages.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${ROOT}/python-vendor"
@@ -40,7 +40,7 @@ find "${TARGET}" -type d -name "*.dist-info" -exec sh -c '
 
 # pip stays in the on-disk runtime so re-running vendor is idempotent.
 # It is excluded from the shipped bundle by electron-builder's `extraResources`
-# filter, which trims pip + dev cruft from the AppImage / deb / rpm payload.
+# filter, which trims pip + dev cruft from the AppImage payload.
 PY_VER="$("${PY}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 SO_COUNT="$(find "${TARGET}" -name '*.so' | wc -l)"
 SIZE="$(du -sh "${TARGET}" | cut -f1)"

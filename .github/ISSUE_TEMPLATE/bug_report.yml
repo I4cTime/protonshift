@@ -35,7 +35,7 @@ body:
         - Environment Variables
         - Profiles
         - GPU / System Info
-        - AppImage / .deb Packaging
+        - AppImage / Packaging
         - Other
     validations:
       required: true
@@ -100,9 +100,6 @@ body:
       label: Installation method
       options:
         - AppImage
-        - .deb package
-        - .rpm package
-        - Flatpak
         - Running from source (pnpm dev)
         - Other
     validations:

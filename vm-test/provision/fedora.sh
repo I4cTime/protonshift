@@ -27,6 +27,5 @@ flatpak install -y flathub com.heroicgameslauncher.hgl net.lutris.Lutris
 mount_protonshift_build
 
 echo ""
-echo "Provisioning done. Launch ProtonShift with one of:"
-echo "  /mnt/protonshift-build/ProtonShift-*.AppImage"
-echo "  sudo dnf install /mnt/protonshift-build/protonshift-*.rpm"
+echo "Provisioning done. Launch ProtonShift with:"
+echo "  chmod +x /mnt/protonshift-build/ProtonShift-*.AppImage && /mnt/protonshift-build/ProtonShift-*.AppImage"

@@ -197,7 +197,7 @@ protonshift/
 │   └── smoke-checklist.md       #   manual smoke test
 ├── .github/workflows/
 │   ├── ci.yml                   #   ruff + pytest + linux-matrix + renderer build
-│   ├── build-release.yml        #   AppImage / deb / rpm / flatpak on release
+│   ├── build-release.yml        #   AppImage on release
 │   └── codeql.yml               #   security analysis
 └── pyproject.toml               # Python package metadata
 ```
@@ -236,7 +236,7 @@ pnpm install
 cd electron
 pnpm install
 pnpm dev                                 # spawns Python + opens an Electron window
-pnpm build                               # produces AppImage / deb / rpm / flatpak via electron-builder
+pnpm build                               # produces an AppImage via electron-builder
 ```
 
 `pnpm build` calls `next build` for the renderer first (static export to `out/`), then `electron-builder` bundles `out/`, the main process, the preload bundle, and a portable CPython 3.12 with the API stack pre-installed. Outputs land in `electron/dist/` and (for CI) are copied to `build/` at repo root.
@@ -257,7 +257,7 @@ Currently supported guests:
 ```bash
 vm-test/run-vm.sh ubuntu-24.04
 # inside the guest, after the SMB share auto-mounts:
-ls   /mnt/protonshift-build                    # AppImage / .deb / .rpm + _provision/ + _docs/
+ls   /mnt/protonshift-build                    # AppImage + _provision/ + _docs/
 less /mnt/protonshift-build/_docs/ubuntu-24.04.md
 sudo /mnt/protonshift-build/_provision/ubuntu.sh
 ```
@@ -310,7 +310,7 @@ For a deeper look at backend-side conventions, see [`docs/internal/python-review
 2. Run the [pre-commit checks](#pre-commit-checks) locally.
 3. Commit on `develop`, push, open a PR from `develop` to `main`.
 4. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-5. Create a GitHub Release for the tag — this fires [`build-release.yml`](.github/workflows/build-release.yml), which builds the AppImage / deb / rpm / flatpak and attaches them to the release.
+5. Create a GitHub Release for the tag — this fires [`build-release.yml`](.github/workflows/build-release.yml), which builds the AppImage and attaches it to the release.
 6. Merge the PR into `main`.
 
 To peek at download counts and per-format breakdowns for prior releases:

@@ -31,16 +31,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: electron/pnpm-lock.yaml
 
-      - name: Install Linux packaging tools (rpm, flatpak)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm flatpak flatpak-builder
-          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub \
-            org.freedesktop.Platform//24.08 \
-            org.freedesktop.Sdk//24.08 \
-            org.electronjs.Electron2.BaseApp//24.08
-
       - name: Install dependencies
         env:
           # @heroui-pro/react has a postinstall step that fetches the real dist
@@ -49,7 +39,7 @@ jobs:
           HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
         run: pnpm install --frozen-lockfile
 
-      - name: Build Linux packages (AppImage, deb, rpm, flatpak)
+      - name: Build AppImage
         run: pnpm run dist
 
       - name: Upload artifacts to release
@@ -57,6 +47,3 @@ jobs:
         with:
           files: |
             build/*.AppImage
-            build/*.deb
-            build/*.rpm
-            build/*.flatpak
