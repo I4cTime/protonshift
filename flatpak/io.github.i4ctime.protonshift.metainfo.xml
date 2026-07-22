@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.i4ctime.protonshift</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>ProtonShift</name>
+  <summary>Configure Proton, gamescope, MangoHud and your Steam library</summary>
+
+  <description>
+    <p>
+      ProtonShift is a native Linux tool for setting up and tuning your games.
+      It discovers your Steam (and Heroic/Lutris) library and gives you a clean
+      UI for the things that usually mean editing config files by hand:
+    </p>
+    <ul>
+      <li>Build gamescope launch commands (resolution, FSR, HDR, frame limits)</li>
+      <li>Manage MangoHud overlays</li>
+      <li>Wrap games with ScopeBuddy</li>
+      <li>Inspect Proton prefixes and per-game settings</li>
+    </ul>
+    <p>
+      Built with Qt Quick and Python. Runs well on the desktop and on the
+      Steam Deck in Desktop Mode.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.i4ctime.protonshift.desktop</launchable>
+
+  <categories>
+    <category>Game</category>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>proton</keyword>
+    <keyword>steam</keyword>
+    <keyword>gamescope</keyword>
+    <keyword>mangohud</keyword>
+    <keyword>steam deck</keyword>
+  </keywords>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+
+  <content_rating type="oars-1.1"/>
+
+  <url type="homepage">https://github.com/I4cTime/protonshift</url>
+  <url type="bugtracker">https://github.com/I4cTime/protonshift/issues</url>
+
+  <developer id="io.github.i4ctime">
+    <name>I4cTime</name>
+  </developer>
+
+  <releases>
+    <release version="0.1.0" date="2026-07-11">
+      <description>
+        <p>First native Qt Quick preview: Steam library browser and gamescope command builder.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,70 @@
+# ProtonShift — FLATHUB manifest (offline, no network during build).
+#
+# Unlike the local manifest (flatpak/io.github.i4ctime.protonshift.yml, which
+# pip-installs PySide6 with network access), Flathub forbids build-time network.
+# The Flathub-blessed way to ship PySide6 is the io.qt.PySide.BaseApp — it
+# provides PySide6/shiboken6 built against org.kde.Platform, so we do NOT vendor
+# the (huge) PySide6 wheel. We only vendor `vdf` (pure-Python, tiny) and install
+# our own package with --no-index.
+#
+# Regenerate the vendored module after a dependency bump:
+#   flatpak/flathub/gen-vendor.sh
+#
+# Build + install locally to test the offline path:
+#   flatpak install -y flathub org.kde.Sdk//6.8 org.kde.Platform//6.8 io.qt.PySide.BaseApp//6.8
+#   flatpak run org.flatpak.Builder --user --install --force-clean \
+#     build-dir flatpak/flathub/io.github.i4ctime.protonshift.yml
+app-id: io.github.i4ctime.protonshift
+runtime: org.kde.Platform
+runtime-version: "6.8"
+sdk: org.kde.Sdk
+base: io.qt.PySide.BaseApp
+base-version: "6.8"
+command: protonshift
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # game controllers (gamepad tester)
+  - --device=input
+  # ProtonShift reads game libraries and writes Steam/Heroic configs.
+  - --filesystem=home
+  - --filesystem=~/.steam
+  - --filesystem=~/.local/share/Steam
+  - --filesystem=~/.var/app/com.valvesoftware.Steam
+  - --filesystem=~/.config/heroic
+  - --filesystem=~/.var/app/com.heroicgameslauncher.hgl
+  # so detected host tools (gamescope, mangohud, protontricks) can be run
+  - --talk-name=org.freedesktop.Flatpak
+
+# The PySide BaseApp stages PySide6 under /app/lib; keep it on the path.
+build-options:
+  env:
+    PYTHONPATH: /app/lib/python3/dist-packages
+
+cleanup-commands:
+  # BaseApp ships the whole Qt binding; drop the dev bits we don't ship.
+  - rm -rf /app/lib/python3/dist-packages/PySide6/examples || true
+
+modules:
+  # vdf — pure-Python, vendored as a pinned wheel (see gen-vendor.sh).
+  - python3-vdf.yaml
+
+  - name: protonshift
+    buildsystem: simple
+    build-commands:
+      # Deps already present (PySide6 from the BaseApp, vdf vendored above);
+      # install just our package, no index, no build isolation.
+      - pip3 install --prefix=${FLATPAK_DEST} --no-index --no-build-isolation
+          --no-warn-script-location .
+      - install -Dm644 flatpak/io.github.i4ctime.protonshift.desktop
+          ${FLATPAK_DEST}/share/applications/io.github.i4ctime.protonshift.desktop
+      - install -Dm644 flatpak/io.github.i4ctime.protonshift.metainfo.xml
+          ${FLATPAK_DEST}/share/metainfo/io.github.i4ctime.protonshift.metainfo.xml
+      - install -Dm644 flatpak/io.github.i4ctime.protonshift.svg
+          ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/io.github.i4ctime.protonshift.svg
+    sources:
+      - type: dir
+        path: ../..
