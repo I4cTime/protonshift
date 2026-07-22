@@ -13,6 +13,14 @@ ColumnLayout {
     property real stepSize: 1
     signal moved(real value)
 
+    // Decimals implied by stepSize: 1 → 0 (renders exactly as before),
+    // 0.1 → 1, 0.25 → 2, capped at 4.
+    readonly property int _decimals: {
+        var s = String(root.stepSize)
+        var i = s.indexOf(".")
+        return i < 0 ? 0 : Math.min(s.length - i - 1, 4)
+    }
+
     spacing: 4
 
     RowLayout {
@@ -26,7 +34,7 @@ ColumnLayout {
             font.weight: Font.DemiBold
         }
         Text {
-            text: Math.round(slider.value)
+            text: slider.value.toFixed(root._decimals)
             color: Theme.primaryBright
             font.family: Theme.monoFamily
             font.pixelSize: Theme.fsSmall
@@ -37,6 +45,7 @@ ColumnLayout {
     Slider {
         id: slider
         Layout.fillWidth: true
+        Accessible.name: cap.text
         from: root.from
         to: root.to
         value: root.value
@@ -67,11 +76,24 @@ ColumnLayout {
             x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
             y: slider.topPadding + slider.availableHeight / 2 - height / 2
             width: 18; height: 18; radius: 9
-            color: "#ffffff"
+            color: Theme.knob
+            // Theme.primary is dark enough on every palette (light included)
+            // to keep the knob visible against pale surfaces.
             border.color: Theme.primary
             border.width: slider.pressed ? 3 : 2
             scale: slider.pressed ? 1.15 : 1.0
             Behavior on scale { NumberAnimation { duration: 90 } }
+
+            // keyboard focus ring
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -4
+                radius: height / 2
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accentBright
+                visible: slider.activeFocus && !slider.pressed
+            }
         }
     }
 }

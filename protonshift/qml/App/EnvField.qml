@@ -8,7 +8,9 @@ import App
 Rectangle {
     id: root
     property alias text: input.text
-    property alias editing: input.activeFocus
+    // Not an alias: activeFocus is read-only, so aliasing it makes `editing`
+    // an (invalidly) writable alias to a read-only property.
+    readonly property bool editing: input.activeFocus
     property string placeholder: ""
     property bool mono: false
     signal edited(string newText)
@@ -22,6 +24,7 @@ Rectangle {
 
     TextField {
         id: input
+        Accessible.name: root.placeholder
         anchors.fill: parent
         anchors.leftMargin: Theme.spaceSm
         anchors.rightMargin: Theme.spaceSm

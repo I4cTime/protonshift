@@ -15,14 +15,21 @@ Rectangle {
 
     Behavior on border.color { ColorAnimation { duration: 180 } }
 
-    // drop shadow / glow beneath the card
-    layer.enabled: true
-    layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: card.glowing ? Theme.glow : "#000000"
-        shadowOpacity: card.glowing ? 0.45 : 0.35
-        shadowBlur: card.glowing ? 1.0 : 0.6
-        shadowVerticalOffset: 6
+    // Drop shadow / glow beneath the card. RectangularShadow is computed
+    // analytically (no per-card FBO like the previous layer+MultiEffect,
+    // which re-rendered the whole card on any content change). The card is
+    // an opaque rounded rect, so the silhouette is identical; blur values
+    // mirror the old shadowBlur (0.6 / 1.0) x MultiEffect's 32px blurMax.
+    // z < 0 paints the child below the parent's own fill.
+    RectangularShadow {
+        anchors.fill: parent
+        z: -1
+        radius: card.radius
+        blur: card.glowing ? 32 : 19
+        spread: 0
+        offset.y: 6
+        color: card.glowing ? Qt.alpha(Theme.glow, 0.45)
+                            : Qt.alpha(Theme.shadow, Theme.shadowOpacity)
     }
 
     Item {

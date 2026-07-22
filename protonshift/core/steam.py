@@ -2,31 +2,12 @@
 
 from __future__ import annotations
 
-import subprocess
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import vdf
-
-
-def is_steam_running() -> bool:
-    """True if a process named ``steam`` exists (``pgrep -x steam``).
-
-    This is **not** foreground detection: Steam minimized to the tray, only a
-    web helper showing, or the main window closed while the client stays
-    resident still counts as running. ``ps``/``grep steam`` will also list many
-    related PIDs (``steamwebhelper``, ``reaper``, etc.); we only match the main
-    client binary name ``steam``. Edit ``localconfig.vdf`` with the client
-    fully quit (Exit from tray if needed).
-    """
-    try:
-        r = subprocess.run(["pgrep", "-x", "steam"], capture_output=True, timeout=2)
-        return r.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-
 
 STEAM_ROOTS = [
     Path.home() / ".steam" / "root",
@@ -165,6 +146,11 @@ def discover_games() -> tuple[Path | None, list[SteamGame]]:
             continue
         for acf in steamapps.glob("appmanifest_*.acf"):
             app_id = acf.stem.replace("appmanifest_", "")
+            # Steam app ids are decimal digits only; a crafted filename like
+            # ``appmanifest_...acf`` would otherwise inject ``..`` as an id
+            # and create a phantom entry that downstream path joins trip on.
+            if not app_id.isdigit():
+                continue
             if app_id in TOOL_APPIDS or app_id in seen_appids:
                 continue
             seen_appids.add(app_id)
@@ -199,14 +185,33 @@ def discover_games() -> tuple[Path | None, list[SteamGame]]:
 
 
 def get_userdata_dir(steam_root: Path) -> Path | None:
-    """Get userdata directory. Uses first non-zero SteamID3 folder."""
+    """Get userdata directory for the most recently active account.
+
+    Multi-account machines have several SteamID3 folders; iteration order of
+    ``iterdir`` is filesystem-dependent, so instead of "first hit" we pick the
+    account whose ``config/localconfig.vdf`` was modified most recently (Steam
+    touches it constantly for the logged-in user). Falls back to the highest
+    numeric id when no localconfig exists at all.
+    """
     userdata = steam_root / "userdata"
     if not userdata.exists():
         return None
-    for d in userdata.iterdir():
-        if d.is_dir() and d.name.isdigit() and d.name != "0":
-            return d
-    return None
+    candidates = [
+        d for d in userdata.iterdir() if d.is_dir() and d.name.isdigit() and d.name != "0"
+    ]
+    if not candidates:
+        return None
+
+    def _localconfig_mtime(d: Path) -> float | None:
+        try:
+            return (d / "config" / "localconfig.vdf").stat().st_mtime
+        except OSError:
+            return None
+
+    timed = [(m, d) for d in candidates if (m := _localconfig_mtime(d)) is not None]
+    if timed:
+        return max(timed, key=lambda t: t[0])[1]
+    return max(candidates, key=lambda d: int(d.name))
 
 
 def get_localconfig_path(steam_root: Path) -> Path | None:

@@ -7,11 +7,11 @@ Same safe contract as the global editor.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from ..core.env_vars import _valid_key
 from ..core.scopebuddy import SCB_KNOWN_KEYS
+from ._worker import start_worker
 from .env_controller import EnvVarsModel
 
 
@@ -24,12 +24,14 @@ class PerAppScopeBuddyController(QObject):
     statusChanged = Signal()
 
     _loadResult = Signal(str, bool, bool, list)  # app_id, ok, exists, rows
+    _workError = Signal(str)  # unexpected worker exception -> clear flags + status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._app_id = ""
         self._model = EnvVarsModel(self)
         self._model.modified.connect(self._mark_dirty)
+        self._model.invalidKey.connect(self._on_invalid_key)
         self._loading = False
         self._loaded = False
         self._dirty = False
@@ -37,6 +39,7 @@ class PerAppScopeBuddyController(QObject):
         self._status = ""
         self._known = list(SCB_KNOWN_KEYS)
         self._loadResult.connect(self._on_loaded)
+        self._workError.connect(self._on_work_error)
 
     # --- static ---------------------------------------------------------------
 
@@ -95,23 +98,41 @@ class PerAppScopeBuddyController(QObject):
     @Slot(str)
     def addKey(self, key: str) -> None:  # noqa: N802
         key = key.strip()
-        if key and key not in self._model.to_dict():
+        if not key:
+            return
+        if not _valid_key(key):
+            self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self.statusChanged.emit()
+            return
+        if key not in self._model.to_dict():
             self._model.merge({key: ""})
 
     @Slot()
     def save(self) -> None:
         if not self._loaded or not self._app_id:
             return
+        cfg = self._model.to_dict()
+        bad = next((k for k in cfg if not _valid_key(k)), None)
+        if bad is not None:
+            self._status = f"Not saved — key “{bad}” is invalid."
+            self.statusChanged.emit()
+            return
         from ..core.scopebuddy import write_per_app_config
 
-        if write_per_app_config(self._app_id, self._model.to_dict()):
-            self._dirty = False
-            self._exists = True
-            self._status = "Saved override"
-            self.dirtyChanged.emit()
-            self.existsChanged.emit()
+        try:
+            ok = write_per_app_config(self._app_id, cfg)
+        except (ValueError, OSError) as exc:
+            ok = False
+            self._status = f"Save failed: {exc}"
         else:
-            self._status = "Save failed — check permissions."
+            if ok:
+                self._dirty = False
+                self._exists = True
+                self._status = "Saved override"
+                self.dirtyChanged.emit()
+                self.existsChanged.emit()
+            else:
+                self._status = "Save failed — check permissions."
         self.statusChanged.emit()
 
     @Slot()
@@ -141,10 +162,20 @@ class PerAppScopeBuddyController(QObject):
             self._status = ""
             self.statusChanged.emit()
 
+    def _on_invalid_key(self, key: str) -> None:
+        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self.statusChanged.emit()
+
+    def _on_work_error(self, message: str) -> None:
+        self._loading = False
+        self._status = f"Unexpected error: {message}"
+        self.loadingChanged.emit()
+        self.statusChanged.emit()
+
     def _reload(self) -> None:
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._load_work, args=(self._app_id,), daemon=True).start()
+        start_worker(self._load_work, self._app_id, on_error=self._workError.emit)
 
     def _load_work(self, app_id: str) -> None:
         from ..core.scopebuddy import read_per_app_config

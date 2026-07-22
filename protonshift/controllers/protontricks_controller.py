@@ -8,26 +8,22 @@ so ``running`` gates the UI and ``output`` carries the tail of the log.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from ..core.protontricks import (
-    COMMON_VERBS,
-    is_available,
-    launch_gui,
-    run_verbs,
-)
+from ..core.protontricks import COMMON_VERBS, launch_gui, run_verbs
+from ._worker import start_worker
 
 
 class ProtontricksController(QObject):
     appIdChanged = Signal()
     gameNameChanged = Signal()
+    availableChanged = Signal()
     runningChanged = Signal()
     statusChanged = Signal()
     outputChanged = Signal()
 
     _runResult = Signal(str, bool, str)  # app_id, ok, output
+    _availResult = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -36,13 +32,17 @@ class ProtontricksController(QObject):
         self._running = False
         self._status = ""
         self._output = ""
-        self._available = is_available()
+        # M4: is_available() can shell out (`flatpak info`, up to 5 s) — probe
+        # on a worker instead of blocking app construction.
+        self._available = False
         self._verbs = [{"verb": v, "label": lbl} for v, lbl in COMMON_VERBS]
         self._runResult.connect(self._on_run)
+        self._availResult.connect(self._on_avail)
+        start_worker(self._avail_work, on_error=lambda _m: self._availResult.emit(False))
 
     # --- static ---------------------------------------------------------------
 
-    @Property(bool, constant=True)
+    @Property(bool, notify=availableChanged)
     def available(self) -> bool:
         return self._available
 
@@ -109,9 +109,11 @@ class ProtontricksController(QObject):
         self.runningChanged.emit()
         self.statusChanged.emit()
         self.outputChanged.emit()
-        threading.Thread(
-            target=self._run_work, args=(self._app_id, clean), daemon=True
-        ).start()
+        app_id = self._app_id
+        start_worker(
+            self._run_work, app_id, clean,
+            on_error=lambda m: self._runResult.emit(app_id, False, m),
+        )
 
     @Slot()
     def openGui(self) -> None:  # noqa: N802
@@ -119,11 +121,20 @@ class ProtontricksController(QObject):
         self._status = msg
         self.statusChanged.emit()
 
-    # --- worker ---------------------------------------------------------------
+    # --- workers ----------------------------------------------------------------
+
+    def _avail_work(self) -> None:
+        from ..core.protontricks import is_available
+
+        self._availResult.emit(is_available())
 
     def _run_work(self, app_id: str, verbs: list) -> None:
         ok, output = run_verbs(app_id, verbs)
         self._runResult.emit(app_id, ok, output)
+
+    def _on_avail(self, available: bool) -> None:
+        self._available = available
+        self.availableChanged.emit()
 
     def _on_run(self, app_id: str, ok: bool, output: str) -> None:
         if app_id != self._app_id:

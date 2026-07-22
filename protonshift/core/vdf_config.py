@@ -99,7 +99,20 @@ def set_launch_options(config_path: Path, app_id: str, options: str) -> bool:
     software = store.setdefault("Software", {})
     valve = software.setdefault("Valve", {})
     steam = valve.setdefault("Steam", {})
-    apps = steam.setdefault("apps", steam.pop("Apps", {}))
+
+    # Steam files in the wild carry either casing; some carry *both*. The old
+    # ``setdefault("apps", steam.pop("Apps", {}))`` popped and silently
+    # discarded the entire "Apps" subtree whenever "apps" also existed, so the
+    # next save dropped those per-app entries. Merge instead — existing
+    # lowercase "apps" keys win on collision.
+    legacy = steam.pop("Apps", None)
+    apps = steam.get("apps")
+    if not isinstance(apps, dict):
+        apps = {}
+        steam["apps"] = apps
+    if isinstance(legacy, dict):
+        for k, v in legacy.items():
+            apps.setdefault(k, v)
 
     if app_id not in apps or not isinstance(apps[app_id], dict):
         apps[app_id] = {}

@@ -8,9 +8,9 @@ saves through the same fail-closed path as any hand-typed option.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
+
+from ._worker import start_worker
 
 
 class FixesController(QObject):
@@ -19,6 +19,7 @@ class FixesController(QObject):
     statusChanged = Signal()
 
     _listResult = Signal(str, list)
+    _workError = Signal(str)  # unexpected worker exception -> status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -26,6 +27,7 @@ class FixesController(QObject):
         self._fixes: list[dict] = []
         self._status = ""
         self._listResult.connect(self._on_list)
+        self._workError.connect(self._on_work_error)
 
     @Property(str, notify=appIdChanged)
     def appId(self) -> str:  # noqa: N802
@@ -77,7 +79,7 @@ class FixesController(QObject):
     def refresh(self) -> None:
         if not self._app_id:
             return
-        threading.Thread(target=self._list_work, args=(self._app_id,), daemon=True).start()
+        start_worker(self._list_work, self._app_id, on_error=self._workError.emit)
 
     def _list_work(self, app_id: str) -> None:
         from ..core.fixes import get_fixes
@@ -98,3 +100,7 @@ class FixesController(QObject):
             return
         self._fixes = rows
         self.fixesChanged.emit()
+
+    def _on_work_error(self, message: str) -> None:
+        self._status = f"Unexpected error: {message}"
+        self.statusChanged.emit()

@@ -19,15 +19,17 @@ ComboBox {
     implicitHeight: 38
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fsSmall
+    Accessible.name: control.labelFor(control.currentText)
 
     onActivated: control.chosen(control.currentText)
 
+    // focus-visible: same treatment as the open-popup state
     background: Rectangle {
         radius: Theme.radiusSm
         color: control.enabled ? Theme.bgDeep : Theme.surface
         opacity: control.enabled ? 1.0 : 0.5
-        border.color: control.popup.visible ? Theme.primary : Theme.border
-        border.width: control.popup.visible ? 2 : 1
+        border.color: (control.popup.visible || control.activeFocus) ? Theme.primary : Theme.border
+        border.width: (control.popup.visible || control.activeFocus) ? 2 : 1
         Behavior on border.color { ColorAnimation { duration: 120 } }
     }
 

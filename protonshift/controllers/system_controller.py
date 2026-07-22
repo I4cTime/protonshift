@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import platform
-import threading
 from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
@@ -19,6 +18,7 @@ from ..core.gpu import (
     get_power_profiles,
     set_power_profile,
 )
+from ._worker import start_worker
 
 
 def _os_release_pretty() -> str:
@@ -66,6 +66,7 @@ class SystemController(QObject):
 
     _gpuResult = Signal(list, list, str)  # gpus, profiles, current
     _powerResult = Signal(bool, str, str)  # ok, msg, applied_profile
+    _workError = Signal(str)  # unexpected worker exception -> clear + status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -77,6 +78,7 @@ class SystemController(QObject):
         self._status = ""
         self._gpuResult.connect(self._on_gpu)
         self._powerResult.connect(self._on_power)
+        self._workError.connect(self._on_work_error)
         self.refresh()
 
     # --- static-ish -----------------------------------------------------------
@@ -115,13 +117,13 @@ class SystemController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._gpu_work, daemon=True).start()
+        start_worker(self._gpu_work, on_error=self._workError.emit)
 
     @Slot(str)
     def setPowerProfile(self, profile: str) -> None:  # noqa: N802
         if profile == self._current:
             return
-        threading.Thread(target=self._power_work, args=(profile,), daemon=True).start()
+        start_worker(self._power_work, profile, on_error=self._workError.emit)
 
     # --- workers --------------------------------------------------------------
 
@@ -157,4 +159,10 @@ class SystemController(QObject):
         self._current = applied
         self._status = msg if msg else ("Power profile set" if ok else "Couldn't set power profile")
         self.powerChanged.emit()
+        self.statusChanged.emit()
+
+    def _on_work_error(self, message: str) -> None:
+        self._loading = False
+        self._status = f"Unexpected error: {message}"
+        self.loadingChanged.emit()
         self.statusChanged.emit()

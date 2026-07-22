@@ -9,11 +9,10 @@ at the wrong title (the stale-snapshot bug from the old React app, review #L4).
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from ..core.steam import SteamGame, discover_games, invalidate_discovery_cache
+from ._worker import start_worker
 
 
 def _to_dict(g: SteamGame) -> dict:
@@ -70,6 +69,7 @@ class GamesController(QObject):
 
     # emitted from the worker thread; delivered to _on_result on the GUI thread
     _resultReady = Signal(bool, list)
+    _workError = Signal(str)  # unexpected worker exception -> clear loading
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -78,6 +78,7 @@ class GamesController(QObject):
         self._steam_found = False
         self._selected_app_id = ""
         self._resultReady.connect(self._on_result)
+        self._workError.connect(self._on_work_error)
         self.refresh()
 
     # --- read-only state ------------------------------------------------------
@@ -132,7 +133,7 @@ class GamesController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
-        threading.Thread(target=self._work, daemon=True).start()
+        start_worker(self._work, on_error=self._workError.emit)
 
     # --- worker ---------------------------------------------------------------
 
@@ -163,3 +164,9 @@ class GamesController(QObject):
         self.gamesChanged.emit()
         # selection resolves by id against the new list, so just re-notify
         self.selectedChanged.emit()
+
+    def _on_work_error(self, _message: str) -> None:
+        # Keep the previous game list; just stop the spinner so the UI
+        # (and any retry) isn't wedged behind a dead worker.
+        self._loading = False
+        self.loadingChanged.emit()

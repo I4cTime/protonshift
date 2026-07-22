@@ -10,9 +10,9 @@ is discarded, so switching games can't strand the editor on stale text
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
+
+from ._worker import start_worker
 
 
 class LaunchOptionsController(QObject):
@@ -132,9 +132,11 @@ class LaunchOptionsController(QObject):
             return
         if tool_name == self._proton_current:
             return
-        threading.Thread(
-            target=self._proton_save_work, args=(self._app_id, tool_name), daemon=True
-        ).start()
+        app_id = self._app_id
+        start_worker(
+            self._proton_save_work, app_id, tool_name,
+            on_error=lambda _m: self._protonSaveResult.emit(app_id, False, tool_name),
+        )
 
     # --- quick presets --------------------------------------------------------
 
@@ -167,9 +169,11 @@ class LaunchOptionsController(QObject):
             self._status = "Not saved — launch options weren't loaded."
             self.statusChanged.emit()
             return
-        threading.Thread(
-            target=self._save_work, args=(self._app_id, self._text), daemon=True
-        ).start()
+        app_id = self._app_id
+        start_worker(
+            self._save_work, app_id, self._text,
+            on_error=lambda _m: self._saveResult.emit(app_id, False),
+        )
 
     # --- internals ------------------------------------------------------------
 
@@ -185,7 +189,11 @@ class LaunchOptionsController(QObject):
         self._loaded = False
         self._error = ""
         self.stateChanged.emit()
-        threading.Thread(target=self._load_work, args=(self._app_id,), daemon=True).start()
+        app_id = self._app_id
+        start_worker(
+            self._load_work, app_id,
+            on_error=lambda _m: self._loadResult.emit(app_id, False, ""),
+        )
 
     @staticmethod
     def _config_path():
@@ -201,7 +209,11 @@ class LaunchOptionsController(QObject):
             self._proton_loaded = False
             self.protonChanged.emit()
             return
-        threading.Thread(target=self._proton_load_work, args=(self._app_id,), daemon=True).start()
+        app_id = self._app_id
+        start_worker(
+            self._proton_load_work, app_id,
+            on_error=lambda _m: self._protonResult.emit(app_id, False, "", []),
+        )
 
     def _proton_load_work(self, app_id: str) -> None:
         from ..core.compat_tool import get_config_vdf_path, read_compat_tool

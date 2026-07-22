@@ -11,7 +11,7 @@ ColumnLayout {
     function tempColor(t) {
         if (t < 0) return Theme.muted
         if (t < 55) return Theme.success
-        if (t < 78) return "#f0b048"
+        if (t < 78) return Theme.warning
         return Theme.danger
     }
 
@@ -153,6 +153,7 @@ ColumnLayout {
                 Repeater {
                     model: system.powerProfiles
                     delegate: Rectangle {
+                        id: profileRow
                         required property string modelData
                         Layout.fillWidth: true
                         implicitHeight: 44
@@ -163,21 +164,21 @@ ColumnLayout {
                         border.width: active ? 2 : 1
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: pw }
-                        TapHandler { onTapped: system.setPowerProfile(modelData) }
+                        TapHandler { onTapped: system.setPowerProfile(profileRow.modelData) }
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: Theme.space
                             anchors.rightMargin: Theme.space
                             Text {
                                 Layout.fillWidth: true
-                                text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                                color: parent.parent.active ? Theme.text : Theme.muted
+                                text: profileRow.modelData.charAt(0).toUpperCase() + profileRow.modelData.slice(1)
+                                color: profileRow.active ? Theme.text : Theme.muted
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fsSmall
-                                font.weight: parent.parent.active ? Font.Bold : Font.Normal
+                                font.weight: profileRow.active ? Font.Bold : Font.Normal
                             }
                             Rectangle {
-                                visible: parent.parent.active
+                                visible: profileRow.active
                                 width: 8; height: 8; radius: 4; color: Theme.primary
                             }
                         }

@@ -76,6 +76,12 @@ def _strip_inline_comment_unquoted(value: str) -> str:
     return value.rstrip()
 
 
+# Valid bash identifier — the only shape of key we ever read or write. These
+# .conf files are *sourced by bash* on every game launch, so an arbitrary key
+# string would be persistent command injection.
+_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def _assignment_key(line: str) -> str | None:
     """Return the variable name if ``line`` is a simple assignment, else None."""
     s = line.strip()
@@ -84,7 +90,7 @@ def _assignment_key(line: str) -> str | None:
     if "=" not in s:
         return None
     key = s.partition("=")[0].strip()
-    if key and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key):
+    if key and _KEY_RE.match(key):
         return key
     return None
 
@@ -114,7 +120,7 @@ def parse_scb_conf(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return {}
 
@@ -140,9 +146,22 @@ def parse_scb_conf(path: Path) -> dict[str, str]:
 
 
 def write_scb_conf(path: Path, cfg: dict[str, str]) -> bool:
-    """Merge ``cfg`` into ``path``, preserving comments and bash logic (#M2)."""
+    """Merge ``cfg`` into ``path``, preserving comments and bash logic (#M2).
+
+    Every key in ``cfg`` must be a valid bash identifier; anything else raises
+    ``ValueError`` before a byte is written — scb.conf is bash-sourced at game
+    launch, so an unvalidated key would be persistent command injection.
+    """
+    for key in cfg:
+        if not _KEY_RE.fullmatch(key):
+            raise ValueError(f"Invalid ScopeBuddy config key: {key!r}")
+
     try:
-        existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        existing = (
+            path.read_text(encoding="utf-8", errors="replace").splitlines()
+            if path.exists()
+            else []
+        )
     except OSError:
         return False
 
@@ -164,8 +183,8 @@ def write_scb_conf(path: Path, cfg: dict[str, str]) -> bool:
         depth = max(0, depth + _block_delta(raw))
 
     for key, value in cfg.items():
-        if key.strip() and key not in written:
-            out.append(_format_line(key.strip(), value))  # new key
+        if key not in written:
+            out.append(_format_line(key, value))  # new key (validated above)
 
     body = "\n".join(out)
     if body and not body.endswith("\n"):
@@ -226,12 +245,6 @@ def per_app_conf_path(app_key: str) -> Path:
     """Path to ``AppID/<sanitized>.conf`` for a Steam app id or Heroic/Lutris slug."""
     safe = sanitize_filename(app_key.replace(":", "_").replace("/", "_"), fallback="game")
     return SCOPEBUDDY_APPID_DIR / f"{safe}.conf"
-
-
-def list_per_app_overrides() -> list[dict[str, str]]:
-    if not SCOPEBUDDY_APPID_DIR.is_dir():
-        return []
-    return [{"key": p.stem, "path": str(p)} for p in sorted(SCOPEBUDDY_APPID_DIR.glob("*.conf"))]
 
 
 def read_per_app_config(app_key: str) -> tuple[bool, dict[str, str]]:

@@ -7,11 +7,11 @@ snippet, with the same merge-preserving save as the global editor.
 
 from __future__ import annotations
 
-import threading
-
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from ..core.env_vars import _valid_key
 from ..core.scopebuddy import SCB_KNOWN_KEYS
+from ._worker import start_worker
 from .env_controller import EnvVarsModel
 
 
@@ -25,6 +25,7 @@ class ScopeBuddyEnvvarsController(QObject):
 
     _listResult = Signal(list)
     _loadResult = Signal(str, bool, bool, list)  # name, ok, exists, rows
+    _workError = Signal(str)  # unexpected worker exception -> status
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -32,6 +33,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self._name = ""
         self._model = EnvVarsModel(self)
         self._model.modified.connect(self._mark_dirty)
+        self._model.invalidKey.connect(self._on_invalid_key)
         self._loaded = False
         self._dirty = False
         self._exists = False
@@ -39,6 +41,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self._known = list(SCB_KNOWN_KEYS)
         self._listResult.connect(self._on_list)
         self._loadResult.connect(self._on_loaded)
+        self._workError.connect(self._on_work_error)
         self.refresh()
 
     # --- static ---------------------------------------------------------------
@@ -81,7 +84,7 @@ class ScopeBuddyEnvvarsController(QObject):
 
     @Slot()
     def refresh(self) -> None:
-        threading.Thread(target=self._list_work, daemon=True).start()
+        start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str)
     def select(self, name: str) -> None:
@@ -93,7 +96,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self._dirty = False
         self.nameChanged.emit()
         self.dirtyChanged.emit()
-        threading.Thread(target=self._load_work, args=(name,), daemon=True).start()
+        start_worker(self._load_work, name, on_error=self._workError.emit)
 
     @Slot(str)
     def create(self, name: str) -> None:
@@ -116,24 +119,42 @@ class ScopeBuddyEnvvarsController(QObject):
     @Slot(str)
     def addKey(self, key: str) -> None:  # noqa: N802
         key = key.strip()
-        if key and key not in self._model.to_dict():
+        if not key:
+            return
+        if not _valid_key(key):
+            self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self.statusChanged.emit()
+            return
+        if key not in self._model.to_dict():
             self._model.merge({key: ""})
 
     @Slot()
     def save(self) -> None:
         if not self._loaded or not self._name:
             return
+        cfg = self._model.to_dict()
+        bad = next((k for k in cfg if not _valid_key(k)), None)
+        if bad is not None:
+            self._status = f"Not saved — key “{bad}” is invalid."
+            self.statusChanged.emit()
+            return
         from ..core.scopebuddy import write_envvars
 
-        if write_envvars(self._name, self._model.to_dict()):
-            self._dirty = False
-            self._exists = True
-            self._status = "Saved snippet"
-            self.dirtyChanged.emit()
-            self.existsChanged.emit()
-            self.refresh()
+        try:
+            ok = write_envvars(self._name, cfg)
+        except (ValueError, OSError) as exc:
+            ok = False
+            self._status = f"Save failed: {exc}"
         else:
-            self._status = "Save failed — check permissions."
+            if ok:
+                self._dirty = False
+                self._exists = True
+                self._status = "Saved snippet"
+                self.dirtyChanged.emit()
+                self.existsChanged.emit()
+                self.refresh()
+            else:
+                self._status = "Save failed — check permissions."
         self.statusChanged.emit()
 
     @Slot()
@@ -165,6 +186,14 @@ class ScopeBuddyEnvvarsController(QObject):
         if self._status:
             self._status = ""
             self.statusChanged.emit()
+
+    def _on_invalid_key(self, key: str) -> None:
+        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self.statusChanged.emit()
+
+    def _on_work_error(self, message: str) -> None:
+        self._status = f"Unexpected error: {message}"
+        self.statusChanged.emit()
 
     def _list_work(self) -> None:
         from ..core.scopebuddy import list_envvars

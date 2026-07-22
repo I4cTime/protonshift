@@ -11,8 +11,12 @@ RowLayout {
 
     property string query: ""
     property string sourceFilter: "all"   // all | steam | heroic | lutris
-    // re-evaluates when the query, source filter, OR the underlying list changes
-    property var filtered: {
+    // Rebuilt imperatively rather than via a binding: a fresh array on every
+    // change made the ListView reset and jump to the top. refilter() skips
+    // rebuilds whose result is identical, and preserves the scroll position
+    // when the rebuild was triggered by a background library refresh.
+    property var filtered: []
+    function computeFiltered() {
         var q = query.toLowerCase()
         var src = sourceFilter
         return library.games.filter(function (g) {
@@ -21,10 +25,24 @@ RowLayout {
             return true
         })
     }
+    function refilter(preserveScroll) {
+        var next = computeFiltered()
+        // identical result (e.g. a rescan that found nothing new): keep the model
+        if (JSON.stringify(next) === JSON.stringify(filtered))
+            return
+        var y = preserveScroll ? list.contentY : 0
+        filtered = next
+        if (preserveScroll)
+            list.contentY = Math.max(0, Math.min(y, list.contentHeight - list.height))
+    }
+    onQueryChanged: refilter(false)
+    onSourceFilterChanged: refilter(false)
+    Component.onCompleted: refilter(false)
 
     // selecting a game drives the launch-options + game-tools controllers
     Connections {
         target: library
+        function onGamesChanged() { page.refilter(true) }
         function onSelectedChanged() {
             launch.appId = library.selectedAppId
             gameTools.appId = library.selectedAppId
@@ -42,7 +60,8 @@ RowLayout {
 
     // ============================ LIST =====================================
     PsCard {
-        Layout.preferredWidth: 420
+        // responsive: ~1/3 of the page, clamped so neither pane starves
+        Layout.preferredWidth: Math.max(300, Math.min(420, Math.round(page.width * 0.34)))
         Layout.fillHeight: true
 
         ColumnLayout {
@@ -179,13 +198,21 @@ RowLayout {
                         radius: Theme.radiusSm
                         property bool current: modelData.appId === library.selectedAppId
                         color: current ? Theme.surfaceElevated
-                                       : (hover.hovered ? Theme.surface : "transparent")
+                                       : (rowMouse.containsMouse ? Theme.surface : "transparent")
                         border.width: current ? 1 : 0
                         border.color: Theme.borderStrong
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: 80 } }
 
-                        HoverHandler { id: hover }
-                        TapHandler { onTapped: library.select(modelData.appId) }
+                        // MouseArea (not HoverHandler): hover handlers in ListView
+                        // delegates drop their hovered state once the pointer rests,
+                        // leaving no steady highlight. containsMouse is reliable.
+                        MouseArea {
+                            id: rowMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: library.select(gameRow.modelData.appId)
+                        }
 
                         RowLayout {
                             anchors.fill: parent
@@ -253,7 +280,7 @@ RowLayout {
                                 implicitWidth: prefixLbl.implicitWidth + 12
                                 implicitHeight: 18
                                 radius: 9
-                                color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14)
+                                color: Theme.successTint
                                 border.color: Theme.success
                                 border.width: 1
                                 Text {
@@ -298,11 +325,16 @@ RowLayout {
             font.pixelSize: Theme.fsBody
         }
 
-        ColumnLayout {
+        ScrollView {
             anchors.fill: parent
             anchors.margins: Theme.spaceLg
-            spacing: Theme.space
             visible: detailCard.hasSelection
+            contentWidth: availableWidth
+            clip: true
+
+            ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
 
             Text {
                 Layout.fillWidth: true
@@ -326,7 +358,7 @@ RowLayout {
                     implicitWidth: statusLbl.implicitWidth + 16
                     implicitHeight: 22
                     radius: 11
-                    color: library.selected.hasPrefix ? Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14) : Theme.surfaceElevated
+                    color: library.selected.hasPrefix ? Theme.successTint : Theme.surfaceElevated
                     border.width: 1
                     border.color: library.selected.hasPrefix ? Theme.success : Theme.border
                     Text {
@@ -444,7 +476,7 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: launch.loadError.length > 0
                 radius: Theme.radiusSm
-                color: "#2a1216"
+                color: Theme.dangerSurface
                 border.color: Theme.danger
                 border.width: 1
                 implicitHeight: loErr.implicitHeight + 2 * Theme.spaceSm
@@ -453,7 +485,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f2a3ab"
+                    color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: launch.loadError
@@ -607,7 +639,7 @@ RowLayout {
                 font.pixelSize: Theme.fsCaption
             }
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
@@ -634,7 +666,6 @@ RowLayout {
                     enabled: gameTools.info.prefixExists === true
                     onClicked: gameTools.openFolder(library.selected.compatdataPath)
                 }
-                Item { Layout.fillWidth: true }
                 PsButton {
                     text: "Clear shader cache"
                     primary: false
@@ -668,7 +699,7 @@ RowLayout {
                 text: "Per-game tweaks"
                 subtitle: "gamescope/ScopeBuddy overrides just for this game"
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
@@ -696,11 +727,6 @@ RowLayout {
                         protontricksDialog.open()
                     }
                 }
-                Item { Layout.fillWidth: true }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.spaceSm
                 PsButton {
                     text: "Known fixes…"
                     primary: false
@@ -721,7 +747,6 @@ RowLayout {
                         savesDialog.open()
                     }
                 }
-                Item { Layout.fillWidth: true }
             }
             } // ===== end Steam-only (per-game tweaks + fixes/profiles/saves) =====
 
@@ -746,10 +771,22 @@ RowLayout {
                 // wine/proton version
                 PsSectionHeader { Layout.fillWidth: true; text: "Wine / Proton version" }
                 PsSelect {
+                    id: heroicWineSelect
                     Layout.fillWidth: true
                     enabled: heroic.wineVersions.length > 0
                     model: heroic.wineVersions.map(function (v) { return v.name })
-                    Component.onCompleted: currentIndex = Math.max(0, model.indexOf(heroic.config.wineName))
+                    function syncCurrent() {
+                        currentIndex = Math.max(0, model.indexOf(heroic.config.wineName))
+                    }
+                    // Re-sync whenever the selected game's config or the list of
+                    // builds changes (mirrors protonSelect): without this, switching
+                    // Heroic games kept showing the previous game's version.
+                    onModelChanged: syncCurrent()
+                    Component.onCompleted: syncCurrent()
+                    Connections {
+                        target: heroic
+                        function onConfigChanged() { heroicWineSelect.syncCurrent() }
+                    }
                     onChosen: {
                         for (var i = 0; i < heroic.wineVersions.length; i++) {
                             if (heroic.wineVersions[i].name === value) {
@@ -770,7 +807,7 @@ RowLayout {
                 // toggles
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: 2
+                    columns: width >= 520 ? 2 : 1
                     columnSpacing: Theme.spaceLg
                     rowSpacing: Theme.spaceXs
                     Repeater {
@@ -793,7 +830,7 @@ RowLayout {
                     }
                 }
 
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: Theme.spaceSm
                     PsButton { text: "Launch via Heroic"; primary: false; onClicked: heroic.launch() }
@@ -802,16 +839,18 @@ RowLayout {
                         enabled: (library.selected.compatdataPath || "").length > 0
                         onClicked: gameTools.openFolder(library.selected.compatdataPath)
                     }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        text: heroic.status
-                        color: heroic.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
-                        font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
-                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: heroic.status.length > 0
+                    text: heroic.status
+                    wrapMode: Text.WordWrap
+                    color: heroic.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
             }
 
-            Item { Layout.fillHeight: true }
+            }
         }
     }
 
@@ -908,7 +947,7 @@ RowLayout {
                     }
                     Rectangle {
                         width: 28; height: 28; radius: Theme.radiusSm
-                        color: rmv.hovered ? "#2a1216" : "transparent"
+                        color: rmv.hovered ? Theme.dangerSurface : "transparent"
                         border.width: 1
                         border.color: rmv.hovered ? Theme.danger : Theme.border
                         Text { anchors.centerIn: parent; text: "✕"; color: rmv.hovered ? Theme.danger : Theme.muted; font.pixelSize: 12 }
@@ -1088,7 +1127,7 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: !protontricks.available
                 radius: Theme.radiusSm
-                color: "#2a1216"
+                color: Theme.dangerSurface
                 border.color: Theme.danger
                 border.width: 1
                 implicitHeight: naText.implicitHeight + 2 * Theme.spaceSm
@@ -1097,7 +1136,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f2a3ab"
+                    color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: "protontricks isn't installed. Install it from your package manager, or the "
@@ -1163,7 +1202,7 @@ RowLayout {
                                     Text {
                                         anchors.centerIn: parent
                                         visible: verbRow.checked
-                                        text: "✓"; color: "#ffffff"; font.pixelSize: 11; font.bold: true
+                                        text: "✓"; color: Theme.onPrimary; font.pixelSize: 11; font.bold: true
                                     }
                                 }
                                 ColumnLayout {

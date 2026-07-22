@@ -111,7 +111,7 @@ def read_mangohud_config(path: Path | None = None) -> dict[str, str]:
     if not path.exists():
         return {}
     config: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -137,7 +137,11 @@ def write_mangohud_config(config: dict[str, str], path: Path | None = None) -> b
     if path is None:
         path = MANGOHUD_GLOBAL_CONF
     try:
-        existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        existing = (
+            path.read_text(encoding="utf-8", errors="replace").splitlines()
+            if path.exists()
+            else []
+        )
     except OSError:
         return False
 

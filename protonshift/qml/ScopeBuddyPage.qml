@@ -32,7 +32,7 @@ RowLayout {
                     implicitWidth: verLbl.implicitWidth + 16
                     implicitHeight: 22
                     radius: 11
-                    color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14)
+                    color: Theme.successTint
                     border.color: Theme.success
                     border.width: 1
                     Text {
@@ -74,7 +74,7 @@ RowLayout {
                         implicitWidth: capLbl.implicitWidth + 14
                         implicitHeight: 18
                         radius: 9
-                        color: modelData.ok ? Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.14) : Theme.bgDeep
+                        color: modelData.ok ? Theme.successTint : Theme.bgDeep
                         border.color: modelData.ok ? Theme.success : Theme.border
                         border.width: 1
                         Text {
@@ -104,8 +104,8 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: !scopebuddy.available
                 radius: Theme.radiusSm
-                color: "#2a1f12"
-                border.color: "#7c5a1e"
+                color: Theme.warningSurface
+                border.color: Theme.warningBorder
                 border.width: 1
                 implicitHeight: naLbl.implicitHeight + 2 * Theme.spaceSm
                 Text {
@@ -113,7 +113,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f0c088"
+                    color: Theme.warning
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: "ScopeBuddy (scb) isn't installed — you can still edit the config for later."
@@ -125,7 +125,7 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: scopebuddy.loadError.length > 0
                 radius: Theme.radiusSm
-                color: "#2a1216"
+                color: Theme.dangerSurface
                 border.color: Theme.danger
                 border.width: 1
                 implicitHeight: errLbl.implicitHeight + 2 * Theme.spaceSm
@@ -134,7 +134,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f2a3ab"
+                    color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: "Couldn't read scb.conf — editing disabled so nothing gets overwritten.\n" + scopebuddy.loadError
@@ -217,7 +217,7 @@ RowLayout {
                     }
                     Rectangle {
                         width: 28; height: 28; radius: Theme.radiusSm
-                        color: rm.hovered ? "#2a1216" : "transparent"
+                        color: rm.hovered ? Theme.dangerSurface : "transparent"
                         border.width: 1
                         border.color: rm.hovered ? Theme.danger : Theme.border
                         Text {
@@ -456,7 +456,7 @@ RowLayout {
                     EnvField { id: svf; Layout.fillWidth: true; mono: true; placeholder: "value"; Component.onCompleted: text = sr.value; onEdited: scbEnvvars.model.setValue(sr.index, newText) }
                     Rectangle {
                         width: 28; height: 28; radius: Theme.radiusSm
-                        color: srm.hovered ? "#2a1216" : "transparent"
+                        color: srm.hovered ? Theme.dangerSurface : "transparent"
                         border.width: 1; border.color: srm.hovered ? Theme.danger : Theme.border
                         Text { anchors.centerIn: parent; text: "✕"; color: srm.hovered ? Theme.danger : Theme.muted; font.pixelSize: 12 }
                         HoverHandler { id: srm }
