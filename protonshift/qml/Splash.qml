@@ -15,6 +15,18 @@ Item {
     visible: cover > 0.001
     signal finished()
 
+    // Swallow all pointer input (clicks, wheel, hover) while the splash is up,
+    // so nothing reaches the live UI underneath during the intro.
+    MouseArea {
+        anchors.fill: parent
+        z: 100
+        enabled: splash.visible
+        hoverEnabled: true
+        acceptedButtons: Qt.AllButtons
+        preventStealing: true
+        onWheel: (wheel) => { wheel.accepted = true }
+    }
+
     // opaque backdrop that masks the live UI during the intro
     Rectangle {
         anchors.fill: parent
@@ -88,16 +100,20 @@ Item {
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: Theme.spaceSm
-                Rectangle {
-                    width: 44; height: 44; radius: 12
-                    gradient: Gradient {
-                        orientation: Gradient.Vertical
-                        GradientStop { position: 0.0; color: Theme.gradA }
-                        GradientStop { position: 1.0; color: Theme.gradB }
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: "»"; color: "#ffffff"; font.pixelSize: 26; font.bold: true
+                Image {
+                    source: "assets/logo.png"
+                    Layout.preferredWidth: 96
+                    Layout.preferredHeight: 96
+                    sourceSize: Qt.size(192, 192)
+                    smooth: true
+                    mipmap: true
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: Theme.glow
+                        shadowOpacity: 0.6
+                        shadowBlur: 1.0
+                        shadowVerticalOffset: 2
                     }
                 }
                 RowLayout {
@@ -107,7 +123,7 @@ Item {
                         font.family: Theme.fontFamily; font.pixelSize: 28; font.weight: Font.Bold
                     }
                     Text {
-                        text: "Shift"; color: Theme.primaryBright
+                        text: "Shift"; color: Theme.wordmark
                         font.family: Theme.fontFamily; font.pixelSize: 28; font.weight: Font.Bold
                     }
                 }

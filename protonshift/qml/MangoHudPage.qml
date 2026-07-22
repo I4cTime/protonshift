@@ -38,8 +38,8 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: !mangohud.available
                 radius: Theme.radiusSm
-                color: "#2a1f12"
-                border.color: "#7c5a1e"
+                color: Theme.warningSurface
+                border.color: Theme.warningBorder
                 border.width: 1
                 implicitHeight: naLbl.implicitHeight + 2 * Theme.spaceSm
                 Text {
@@ -47,7 +47,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f0c088"
+                    color: Theme.warning
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: "MangoHud isn't installed — you can still edit the config for later."
@@ -59,7 +59,7 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: mangohud.loadError.length > 0
                 radius: Theme.radiusSm
-                color: "#2a1216"
+                color: Theme.dangerSurface
                 border.color: Theme.danger
                 border.width: 1
                 implicitHeight: errLbl.implicitHeight + 2 * Theme.spaceSm
@@ -68,7 +68,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f2a3ab"
+                    color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: "Couldn't read MangoHud.conf — editing disabled so nothing gets overwritten.\n" + mangohud.loadError

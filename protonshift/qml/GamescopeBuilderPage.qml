@@ -30,8 +30,8 @@ RowLayout {
                     Layout.fillWidth: true
                     visible: !gamescope.gamescopeAvailable
                     radius: Theme.radiusSm
-                    color: "#2a1a12"
-                    border.color: "#7c4a1e"
+                    color: Theme.warningSurface
+                    border.color: Theme.warningBorder
                     border.width: 1
                     implicitHeight: notice.implicitHeight + 2 * Theme.spaceSm
                     Text {
@@ -39,7 +39,7 @@ RowLayout {
                         anchors.fill: parent
                         anchors.margins: Theme.spaceSm
                         wrapMode: Text.WordWrap
-                        color: "#f0b088"
+                        color: Theme.warning
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fsCaption
                         text: "gamescope was not found on this system. You can still build a command to copy elsewhere."

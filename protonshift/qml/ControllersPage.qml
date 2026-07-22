@@ -54,6 +54,7 @@ RowLayout {
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar {}
                 delegate: Rectangle {
+                    id: ctrlRow
                     required property var modelData
                     width: ListView.view.width
                     implicitHeight: 64
@@ -86,12 +87,12 @@ RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.spaceXs
                             PsButton {
-                                text: parent.parent.parent.active ? "Stop test" : "Test"
+                                text: ctrlRow.active ? "Stop test" : "Test"
                                 primary: false
                                 implicitHeight: 28
-                                onClicked: parent.parent.parent.active
+                                onClicked: ctrlRow.active
                                            ? gamepad.stopTest()
-                                           : gamepad.startTest(modelData.devicePath, modelData.name)
+                                           : gamepad.startTest(ctrlRow.modelData.devicePath, ctrlRow.modelData.name)
                             }
                             PsButton { text: "Rumble"; primary: false; implicitHeight: 28; onClicked: gamepad.rumble(modelData.devicePath) }
                             PsButton { text: "Copy SDL"; primary: false; implicitHeight: 28; onClicked: gamepad.copyMapping(modelData.id) }
@@ -144,19 +145,24 @@ RowLayout {
                 spacing: Theme.spaceXs
                 visible: gamepad.testingPath.length > 0
                 Repeater {
-                    model: gamepad.buttons
+                    // model on the COUNT only: the buttons list is re-emitted at
+                    // ~60Hz while testing, and a list model would destroy and
+                    // recreate every delegate each tick (killing the Behaviors).
+                    // Persistent delegates read their own slot out of the list.
+                    model: gamepad.buttons.length
                     delegate: Rectangle {
+                        id: buttonCell
                         required property int index
-                        required property var modelData
+                        readonly property bool pressed: gamepad.buttons[buttonCell.index] ? true : false
                         width: 34; height: 34; radius: 8
-                        color: modelData ? Theme.primary : Theme.bgDeep
-                        border.color: modelData ? Theme.primaryBright : Theme.border
+                        color: pressed ? Theme.primary : Theme.bgDeep
+                        border.color: pressed ? Theme.primaryBright : Theme.border
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 60 } }
                         Text {
                             anchors.centerIn: parent
-                            text: index
-                            color: modelData ? "#ffffff" : Theme.faint
+                            text: buttonCell.index
+                            color: buttonCell.pressed ? Theme.onPrimary : Theme.faint
                             font.family: Theme.monoFamily; font.pixelSize: 11; font.weight: Font.Bold
                         }
                     }
@@ -170,14 +176,21 @@ RowLayout {
                 spacing: Theme.spaceXs
                 visible: gamepad.testingPath.length > 0
                 Repeater {
-                    model: gamepad.axes
+                    // count-only model for the same reason as the buttons above:
+                    // keep delegates alive across the ~60Hz axes re-emits so the
+                    // x/width Behaviors actually animate.
+                    model: gamepad.axes.length
                     delegate: RowLayout {
+                        id: axisRow
                         required property int index
-                        required property var modelData
+                        readonly property real axisValue: {
+                            var v = gamepad.axes[axisRow.index]
+                            return v === undefined ? 0 : v
+                        }
                         Layout.fillWidth: true
                         spacing: Theme.spaceSm
                         Text {
-                            text: "a" + index
+                            text: "a" + axisRow.index
                             color: Theme.muted
                             font.family: Theme.monoFamily; font.pixelSize: 11
                             Layout.preferredWidth: 28
@@ -193,14 +206,14 @@ RowLayout {
                                 // fill from centre toward the axis value
                                 height: parent.height - 2; y: 1; radius: 5
                                 color: Theme.primary
-                                x: modelData >= 0 ? parent.width / 2 : parent.width / 2 * (1 + modelData)
-                                width: Math.max(2, Math.abs(modelData) * parent.width / 2)
+                                x: axisRow.axisValue >= 0 ? parent.width / 2 : parent.width / 2 * (1 + axisRow.axisValue)
+                                width: Math.max(2, Math.abs(axisRow.axisValue) * parent.width / 2)
                                 Behavior on x { NumberAnimation { duration: 40 } }
                                 Behavior on width { NumberAnimation { duration: 40 } }
                             }
                         }
                         Text {
-                            text: modelData.toFixed(2)
+                            text: axisRow.axisValue.toFixed(2)
                             color: Theme.primaryBright
                             font.family: Theme.monoFamily; font.pixelSize: 11
                             Layout.preferredWidth: 42

@@ -38,7 +38,7 @@ RowLayout {
                 Layout.fillWidth: true
                 visible: env.loadError.length > 0
                 radius: Theme.radiusSm
-                color: "#2a1216"
+                color: Theme.dangerSurface
                 border.color: Theme.danger
                 border.width: 1
                 implicitHeight: errLbl.implicitHeight + 2 * Theme.spaceSm
@@ -47,7 +47,7 @@ RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
                     wrapMode: Text.WordWrap
-                    color: "#f2a3ab"
+                    color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                     text: "Couldn't read the config — not showing an editor so a save can't overwrite it.\n" + env.loadError
@@ -61,6 +61,8 @@ RowLayout {
                 Layout.fillHeight: true
                 clip: true
                 spacing: 6
+                // key column tracks the editor width so narrow windows keep a usable value field
+                property int keyColWidth: Math.max(140, Math.min(220, Math.round(width * 0.3)))
                 model: env.model
                 visible: !env.loadError.length
                 boundsBehavior: Flickable.StopAtBounds
@@ -71,7 +73,7 @@ RowLayout {
                     height: keyHead.implicitHeight + 6
                     spacing: Theme.spaceSm
                     Text {
-                        Layout.preferredWidth: 220
+                        Layout.preferredWidth: list.keyColWidth
                         id: keyHead; text: "KEY"; color: Theme.muted
                         font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                         font.weight: Font.DemiBold
@@ -108,7 +110,7 @@ RowLayout {
 
                     EnvField {
                         id: keyField
-                        Layout.preferredWidth: 220
+                        Layout.preferredWidth: list.keyColWidth
                         mono: true
                         placeholder: "VAR_NAME"
                         Component.onCompleted: text = row.key
@@ -124,7 +126,7 @@ RowLayout {
                     }
                     Rectangle {
                         width: 28; height: 28; radius: Theme.radiusSm
-                        color: rm.hovered ? "#2a1216" : "transparent"
+                        color: rm.hovered ? Theme.dangerSurface : "transparent"
                         border.width: 1
                         border.color: rm.hovered ? Theme.danger : Theme.border
                         Text {
@@ -163,9 +165,11 @@ RowLayout {
                     enabled: env.loaded
                     onClicked: env.model.addRow()
                 }
-                Item { Layout.fillWidth: true }
                 Text {
+                    Layout.fillWidth: true
                     text: env.status
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignRight
                     color: env.status.indexOf("Not saved") === 0 || env.status.indexOf("failed") >= 0
                            ? Theme.danger : Theme.success
                     font.family: Theme.fontFamily
@@ -204,40 +208,53 @@ RowLayout {
                 subtitle: "Merge a set of known-good vars into the list."
             }
 
-            Repeater {
-                model: env.presetNames
-                delegate: Rectangle {
-                    required property string modelData
-                    Layout.fillWidth: true
-                    implicitHeight: 40
-                    radius: Theme.radiusSm
-                    color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                    border.color: ph.hovered ? Theme.borderStrong : Theme.border
-                    border.width: 1
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    HoverHandler { id: ph }
-                    TapHandler { onTapped: if (env.loaded) env.applyPreset(modelData) }
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.spaceSm
-                        anchors.rightMargin: Theme.spaceSm
-                        Text {
+            // scrolls when the preset list outgrows the window
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                clip: true
+
+                ColumnLayout {
+                    width: parent.width
+                    spacing: Theme.space
+
+                    Repeater {
+                        model: env.presetNames
+                        delegate: Rectangle {
+                            required property string modelData
                             Layout.fillWidth: true
-                            text: modelData
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fsSmall
-                            font.weight: Font.Medium
-                        }
-                        Text {
-                            text: "+"
-                            color: Theme.primaryBright
-                            font.pixelSize: 16; font.bold: true
+                            implicitHeight: 40
+                            radius: Theme.radiusSm
+                            color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
+                            border.color: ph.hovered ? Theme.borderStrong : Theme.border
+                            border.width: 1
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            HoverHandler { id: ph }
+                            TapHandler { onTapped: if (env.loaded) env.applyPreset(modelData) }
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.spaceSm
+                                anchors.rightMargin: Theme.spaceSm
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData
+                                    elide: Text.ElideRight
+                                    color: Theme.text
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fsSmall
+                                    font.weight: Font.Medium
+                                }
+                                Text {
+                                    text: "+"
+                                    color: Theme.primaryBright
+                                    font.pixelSize: 16; font.bold: true
+                                }
+                            }
                         }
                     }
                 }
             }
-            Item { Layout.fillHeight: true }
         }
     }
 }
