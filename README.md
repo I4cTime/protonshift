@@ -18,12 +18,6 @@
   <a href="https://protonshift.i4c.studio"><img src="https://img.shields.io/badge/website-protonshift.i4c.studio-8b5cf6" alt="Website"></a>
 </p>
 
-<!-- remove after v1.0.0 release -->
-<p align="center">
-  <sub>The latest tagged release (v0.9.7) predates the Qt rewrite — see <a href="#install">Install</a> for the current build.</sub>
-</p>
-<!-- remove after v1.0.0 release -->
-
 <p align="center">
   <a href="#why-protonshift">Why</a> &middot;
   <a href="#install">Install</a> &middot;
