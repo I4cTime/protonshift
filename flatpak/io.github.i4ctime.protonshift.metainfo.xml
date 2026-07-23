@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.i4ctime.protonshift</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0-or-later</project_license>
+  <project_license>AGPL-3.0-or-later</project_license>
 
   <name>ProtonShift</name>
   <summary>Configure Proton, gamescope, MangoHud and your Steam library</summary>

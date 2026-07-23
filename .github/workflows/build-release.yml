@@ -1,15 +1,19 @@
 name: Build & Release
 
 on:
-  release:
-    # Fires when a release is published (including from draft); avoids duplicate runs with `created`
-    types: [published]
+  push:
+    # The tag push is the single release trigger: action-gh-release below
+    # creates the GitHub release for the tag if none exists yet.
+    tags: ["v*"]
+  # Manual dry-run: builds the bundle and uploads it as a workflow artifact
+  # without creating or touching any release.
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-release-${{ github.event.release.tag_name }}
+  group: build-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -22,6 +26,31 @@ jobs:
       RUNTIME_VERSION: "24.08"
     steps:
       - uses: actions/checkout@v6
+
+      # Resolve the tag the bundle is named after: the pushed tag on tag runs,
+      # or "v<pyproject version>-dev" on workflow_dispatch dry-runs (where no
+      # tag exists).
+      - name: Resolve bundle tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          if [ "$IS_TAG" = "true" ]; then
+            TAG="$REF_NAME"
+          else
+            VERSION="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+            TAG="v${VERSION}-dev"
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Version guard (tag must match pyproject.toml)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::Tag ${TAG} does not match pyproject.toml version ${VERSION}. Bump pyproject.toml (or retag) so they agree, then push the tag again."
+            exit 1
+          fi
 
       # Raw flatpak/flatpak-builder CLI rather than a marketplace action
       # (e.g. flatpak-github-actions/flatpak-builder): that action is built
@@ -36,6 +65,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak
+
+      # Runtimes + SDK + builder are ~2 GB of downloads; cache them keyed on
+      # the manifest (which pins the runtime version).
+      - name: Cache flatpak runtimes
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/flatpak
+          key: flatpak-${{ runner.os }}-${{ hashFiles('flatpak/io.github.i4ctime.protonshift.yml') }}
 
       - name: Add Flathub remote
         run: |
@@ -57,10 +94,20 @@ jobs:
       - name: Bundle
         run: |
           flatpak build-bundle repo "${APP_ID}-${TAG}.flatpak" "${APP_ID}"
-        env:
-          TAG: ${{ github.event.release.tag_name }}
 
+      # Tag runs: create the release for this tag (if it doesn't exist yet)
+      # and attach the bundle. This is the only release-creating path.
       - name: Upload bundle to release
-        uses: softprops/action-gh-release@v3
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
-          files: ${{ env.APP_ID }}-${{ github.event.release.tag_name }}.flatpak
+          files: ${{ env.APP_ID }}-${{ env.TAG }}.flatpak
+
+      # Dispatch dry-runs: prove the build without publishing anything.
+      - name: Upload bundle artifact (dry-run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_ID }}-${{ env.TAG }}
+          path: ${{ env.APP_ID }}-${{ env.TAG }}.flatpak
+          retention-days: 7

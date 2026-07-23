@@ -15,7 +15,14 @@
   <a href="https://github.com/I4cTime/protonshift/releases/latest"><img src="https://img.shields.io/github/v/release/I4cTime/protonshift?label=release&color=8b5cf6" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
   <img src="https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black" alt="Platform: Linux">
+  <a href="https://protonshift.i4c.studio"><img src="https://img.shields.io/badge/website-protonshift.i4c.studio-8b5cf6" alt="Website"></a>
 </p>
+
+<!-- remove after v1.0.0 release -->
+<p align="center">
+  <sub>The latest tagged release (v0.9.7) predates the Qt rewrite — see <a href="#install">Install</a> for the current build.</sub>
+</p>
+<!-- remove after v1.0.0 release -->
 
 <p align="center">
   <a href="#why-protonshift">Why</a> &middot;
@@ -23,7 +30,8 @@
   <a href="#features">Features</a> &middot;
   <a href="ARCHITECTURE.md">Architecture</a> &middot;
   <a href="#development">Development</a> &middot;
-  <a href="#license">License</a>
+  <a href="#license">License</a> &middot;
+  <a href="https://protonshift.i4c.studio">Website</a>
 </p>
 
 ---

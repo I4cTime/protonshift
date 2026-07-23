@@ -14,7 +14,7 @@ body:
     attributes:
       label: ProtonShift version
       description: "Check the app's About dialog or `pyproject.toml`."
-      placeholder: "0.9.7"
+      placeholder: "1.0.0 (or a commit hash)"
     validations:
       required: true
 

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [develop]
+    branches: [main, develop]
   pull_request:
     branches: [develop, main]
 
@@ -18,6 +18,7 @@ jobs:
   python:
     name: Python (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # qmllint and pytest both run headless; neither needs a real display, but
     # QT_QPA_PLATFORM=offscreen covers any future test that instantiates a
     # QGuiApplication (e.g. testing a controller end-to-end) without needing
@@ -48,6 +49,12 @@ jobs:
         run: |
           shopt -s globstar nullglob
           pyside6-qmllint -I protonshift/qml protonshift/qml/**/*.qml
+
+      # Importing protonshift.controllers pulls in PySide6.QtGui, which dlopens
+      # libEGL.so.1 — absent on ubuntu-latest. Tests are otherwise headless
+      # (QT_QPA_PLATFORM=offscreen above); no display server needed.
+      - name: Install Qt runtime library (libEGL)
+        run: sudo apt-get update && sudo apt-get install -y libegl1
 
       - name: Test
         run: pytest
