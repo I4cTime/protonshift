@@ -25,8 +25,11 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
-  # game controllers (gamepad tester)
-  - --device=input
+  # game controllers (gamepad tester + rumble ioctls). The narrow `input`
+  # device class needs flatpak >= 1.16, which CI's apt flatpak-builder
+  # predates — `all` is the compatible superset here; the Flathub manifest
+  # (flatpak/flathub/) keeps `input` since Flathub's builders are current.
+  - --device=all
   # ProtonShift reads game libraries (read-only home) and writes only the
   # specific config dirs below. `home` rw + org.freedesktop.Flatpak talk-name
   # is a Flathub-rejected combination (it is a sandbox escape); restoring a
