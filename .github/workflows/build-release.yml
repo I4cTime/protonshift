@@ -69,7 +69,7 @@ jobs:
       # Runtimes + SDK + builder are ~2 GB of downloads; cache them keyed on
       # the manifest (which pins the runtime version).
       - name: Cache flatpak runtimes
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/share/flatpak
           key: flatpak-${{ runner.os }}-${{ hashFiles('flatpak/io.github.i4ctime.protonshift.yml') }}
