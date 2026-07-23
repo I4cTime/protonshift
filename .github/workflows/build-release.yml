@@ -25,7 +25,7 @@ jobs:
       APP_ID: io.github.i4ctime.protonshift
       RUNTIME_VERSION: "24.08"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Resolve the tag the bundle is named after: the pushed tag on tag runs,
       # or "v<pyproject version>-dev" on workflow_dispatch dry-runs (where no
