@@ -25,7 +25,7 @@ jobs:
       APP_ID: io.github.i4ctime.protonshift
       RUNTIME_VERSION: "24.08"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Resolve the tag the bundle is named after: the pushed tag on tag runs,
       # or "v<pyproject version>-dev" on workflow_dispatch dry-runs (where no
@@ -57,19 +57,23 @@ jobs:
       # around Flathub-style offline manifests, and its exact input surface
       # for our network-enabled *local* manifest
       # (flatpak/io.github.i4ctime.protonshift.yml — see flatpak/README.md,
-      # "works today" variant) isn't worth guessing at. Driving flatpak /
-      # org.flatpak.Builder directly also mirrors, step for step, the build
-      # command already documented for local dev in flatpak/README.md, so
-      # there's one source of truth for "how do you build this".
-      - name: Install flatpak
+      # "works today" variant) isn't worth guessing at.
+      #
+      # CI uses the *host* flatpak-builder (apt), not org.flatpak.Builder:
+      # `flatpak run org.flatpak.Builder` executes flatpak-builder inside its
+      # own sandbox, where the runner user's --user installation is not
+      # visible — the build fails with "Unable to find sdk
+      # org.freedesktop.Sdk version 24.08" even though the SDK is installed.
+      # Local dev still uses org.flatpak.Builder per flatpak/README.md.
+      - name: Install flatpak + flatpak-builder
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak
+          sudo apt-get install -y flatpak flatpak-builder
 
       # Runtimes + SDK + builder are ~2 GB of downloads; cache them keyed on
       # the manifest (which pins the runtime version).
       - name: Cache flatpak runtimes
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.local/share/flatpak
           key: flatpak-${{ runner.os }}-${{ hashFiles('flatpak/io.github.i4ctime.protonshift.yml') }}
@@ -79,17 +83,18 @@ jobs:
           flatpak remote-add --if-not-exists --user flathub \
             https://flathub.org/repo/flathub.flatpakrepo
 
-      - name: Install builder + runtime + SDK
+      # Preinstalling Platform + Sdk (rather than relying solely on
+      # --install-deps-from below) keeps the actions/cache path warm.
+      - name: Install runtime + SDK
         run: |
           flatpak install -y --user --noninteractive flathub \
-            org.flatpak.Builder \
             "org.freedesktop.Platform//${RUNTIME_VERSION}" \
             "org.freedesktop.Sdk//${RUNTIME_VERSION}"
 
       - name: Build (into a local repo)
         run: |
-          flatpak run org.flatpak.Builder --user --force-clean --repo=repo \
-            build-dir flatpak/io.github.i4ctime.protonshift.yml
+          flatpak-builder --user --force-clean --install-deps-from=flathub \
+            --repo=repo build-dir flatpak/io.github.i4ctime.protonshift.yml
 
       - name: Bundle
         run: |
@@ -106,7 +111,7 @@ jobs:
       # Dispatch dry-runs: prove the build without publishing anything.
       - name: Upload bundle artifact (dry-run)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.APP_ID }}-${{ env.TAG }}
           path: ${{ env.APP_ID }}-${{ env.TAG }}.flatpak
