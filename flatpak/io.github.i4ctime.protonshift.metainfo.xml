@@ -56,6 +56,16 @@
   </developer>
 
   <releases>
+    <release version="1.0.0" date="2026-07-22">
+      <description>
+        <p>First stable release of the native Qt Quick / PySide6 rewrite.</p>
+        <ul>
+          <li>Steam, Heroic, and Lutris library management</li>
+          <li>gamescope, MangoHud, and ScopeBuddy configuration</li>
+          <li>Gamepad support and shader cache tools</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-07-11">
       <description>
         <p>First native Qt Quick preview: Steam library browser and gamescope command builder.</p>
