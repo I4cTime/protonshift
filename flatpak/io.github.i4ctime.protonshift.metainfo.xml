@@ -56,6 +56,11 @@
   </developer>
 
   <releases>
+    <release version="1.0.1" date="2026-07-25">
+      <description>
+        <p>Bug fix: the remove button in the Environment Variables editor now actually deletes the row.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-07-22">
       <description>
         <p>First stable release of the native Qt Quick / PySide6 rewrite.</p>

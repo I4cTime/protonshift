@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-07-25
+
+### Fixed
+- **Environment Variables: the ✕ button now removes the row** (#52). QML's
+  `model.removeRow(i)` was resolving to QAbstractItemModel's built-in C++
+  convenience instead of the same-named Python slot, landing in the default
+  `removeRows()` stub that does nothing. The model now overrides the
+  `removeRows()` virtual — the supported hook — so removal works and marks
+  the editor dirty.
+
 ### Docs
 - Dropped the stale-release caveat from the README now that `v1.0.0` is
   published.

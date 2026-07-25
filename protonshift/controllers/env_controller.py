@@ -82,16 +82,17 @@ class EnvVarsModel(QAbstractListModel):
         self.endInsertRows()
         self.modified.emit()
 
-    # Properly overrides the QAbstractItemModel::removeRow(int, QModelIndex)
-    # virtual (compatible signature + bool return) instead of shadowing it with
-    # an incompatible Slot. QML's existing `model.removeRow(i)` calls still
-    # work — the extra parent argument defaults and the return is ignorable.
-    @Slot(int, result=bool)
-    def removeRow(self, row: int, parent: QModelIndex = QModelIndex()) -> bool:  # noqa: N802
-        if parent.isValid() or not (0 <= row < len(self._rows)):
+    # QML's ✕ button calls `model.removeRow(i)`. Never define a Python method
+    # named `removeRow` here: QAbstractItemModel already exposes an invokable
+    # C++ removeRow(int, parent) convenience, and QML dispatches to that
+    # built-in — a same-named Python slot is unreachable from QML (#52: the
+    # ✕ button was a silent no-op). The convenience delegates to the
+    # *virtual* removeRows(), so that is the hook to override.
+    def removeRows(self, row: int, count: int, parent: QModelIndex = QModelIndex()) -> bool:  # noqa: N802
+        if parent.isValid() or count < 1 or row < 0 or row + count > len(self._rows):
             return False
-        self.beginRemoveRows(QModelIndex(), row, row)
-        del self._rows[row]
+        self.beginRemoveRows(QModelIndex(), row, row + count - 1)
+        del self._rows[row : row + count]
         self.endRemoveRows()
         self.modified.emit()
         return True
