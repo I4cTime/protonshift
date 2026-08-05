@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- ProtonShift mark, small-size cut (favicons / <=48px): runes, second
+       orbit, nodes and glow layers dropped; strokes thickened so the sigil
+       stays legible at 16-32px. Canonical geometry: components/ui/BrandMark.tsx. -->
+  <defs>
+    <linearGradient id="pgs" gradientUnits="userSpaceOnUse" x1="72" y1="256" x2="440" y2="256">
+      <stop offset="0" stop-color="#6d28d9"/>
+      <stop offset="0.5" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#d946ef"/>
+    </linearGradient>
+    <mask id="pholes" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <circle cx="256" cy="256" r="52" fill="#000"/>
+    </mask>
+  </defs>
+  <g stroke="url(#pgs)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke-width="16">
+      <path d="M429.83 283.54 A176 176 0 0 1 283.54 429.83"/>
+      <path d="M228.46 429.83 A176 176 0 0 1 82.17 283.54"/>
+      <path d="M82.17 228.46 A176 176 0 0 1 228.46 82.17"/>
+      <path d="M283.54 82.17 A176 176 0 0 1 429.83 228.46"/>
+    </g>
+    <g mask="url(#pholes)" stroke-width="12">
+      <ellipse cx="256" cy="256" rx="130" ry="46" transform="rotate(-16 256 256)"/>
+    </g>
+    <circle cx="256" cy="256" r="60" stroke-width="11"/>
+  </g>
+  <circle cx="256" cy="256" r="34" fill="url(#pgs)"/>
+</svg>

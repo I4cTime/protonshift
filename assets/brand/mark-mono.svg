@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- ProtonShift mark, monochrome cut (single brand violet, no gradient or
+       glow) for contexts that need one flat color. Canonical geometry:
+       components/ui/BrandMark.tsx. -->
+  <defs>
+    <mask id="pholem" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <circle cx="256" cy="256" r="48" fill="#000"/>
+    </mask>
+  </defs>
+  <g stroke="#8b5cf6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke-width="9">
+      <path d="M429.83 283.54 A176 176 0 0 1 283.54 429.83"/>
+      <path d="M228.46 429.83 A176 176 0 0 1 82.17 283.54"/>
+      <path d="M82.17 228.46 A176 176 0 0 1 228.46 82.17"/>
+      <path d="M283.54 82.17 A176 176 0 0 1 429.83 228.46"/>
+    </g>
+    <g stroke-width="5">
+      <path d="M432 247 L441 256 L432 265 L423 256 Z"/>
+      <path d="M256 423 L265 432 L256 441 L247 432 Z"/>
+      <path d="M80 247 L89 256 L80 265 L71 256 Z"/>
+      <path d="M256 71 L265 80 L256 89 L247 80 Z"/>
+    </g>
+    <g mask="url(#pholem)" stroke-width="6">
+      <ellipse cx="256" cy="256" rx="130" ry="46" transform="rotate(-16 256 256)"/>
+      <ellipse cx="256" cy="256" rx="130" ry="46" transform="rotate(16 256 256)"/>
+    </g>
+    <circle cx="256" cy="256" r="56" stroke-width="6"/>
+  </g>
+  <circle cx="256" cy="256" r="30" fill="#8b5cf6"/>
+  <circle cx="380.97" cy="220.17" r="10" fill="#8b5cf6"/>
+  <circle cx="131.03" cy="291.83" r="10" fill="#8b5cf6"/>
+</svg>

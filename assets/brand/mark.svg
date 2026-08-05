@@ -1,0 +1,49 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- ProtonShift mark ("broken ring" sigil). Canonical source:
+       components/ui/BrandMark.tsx — keep geometry and hexes in sync.
+       Brand hexes: #6d28d9 / #8b5cf6 / #d946ef (see app/globals.css). -->
+  <defs>
+    <linearGradient id="pg" gradientUnits="userSpaceOnUse" x1="72" y1="256" x2="440" y2="256">
+      <stop offset="0" stop-color="#6d28d9"/>
+      <stop offset="0.5" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#d946ef"/>
+    </linearGradient>
+    <mask id="phole" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <circle cx="256" cy="256" r="48" fill="#000"/>
+    </mask>
+    <filter id="pglow-wide" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="pglow-tight" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+    <g id="part">
+      <g stroke="url(#pg)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke-width="9">
+          <path d="M429.83 283.54 A176 176 0 0 1 283.54 429.83"/>
+          <path d="M228.46 429.83 A176 176 0 0 1 82.17 283.54"/>
+          <path d="M82.17 228.46 A176 176 0 0 1 228.46 82.17"/>
+          <path d="M283.54 82.17 A176 176 0 0 1 429.83 228.46"/>
+        </g>
+        <g stroke-width="5">
+          <path d="M432 247 L441 256 L432 265 L423 256 Z"/>
+          <path d="M256 423 L265 432 L256 441 L247 432 Z"/>
+          <path d="M80 247 L89 256 L80 265 L71 256 Z"/>
+          <path d="M256 71 L265 80 L256 89 L247 80 Z"/>
+        </g>
+        <g mask="url(#phole)" stroke-width="6">
+          <ellipse cx="256" cy="256" rx="130" ry="46" transform="rotate(-16 256 256)"/>
+          <ellipse cx="256" cy="256" rx="130" ry="46" transform="rotate(16 256 256)"/>
+        </g>
+        <circle cx="256" cy="256" r="56" stroke-width="6"/>
+      </g>
+      <circle cx="256" cy="256" r="30" fill="url(#pg)"/>
+      <circle cx="380.97" cy="220.17" r="10" fill="url(#pg)"/>
+      <circle cx="131.03" cy="291.83" r="10" fill="url(#pg)"/>
+    </g>
+  </defs>
+  <use href="#part" filter="url(#pglow-wide)" opacity="0.75"/>
+  <use href="#part" filter="url(#pglow-tight)" opacity="0.9"/>
+  <use href="#part"/>
+</svg>

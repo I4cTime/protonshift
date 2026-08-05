@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="flatpak/icons/io.github.i4ctime.protonshift-256.png" alt="ProtonShift" width="96">
+  <img src="assets/brand/mark.svg" alt="ProtonShift" width="120">
 </p>
 
 <h1 align="center">ProtonShift</h1>
@@ -17,6 +17,7 @@
   <img src="https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black" alt="Platform: Linux">
   <a href="https://protonshift.i4c.studio"><img src="https://img.shields.io/badge/website-protonshift.i4c.studio-8b5cf6" alt="Website"></a>
   <a href="https://discord.gg/5uEApw5uEz"><img src="https://img.shields.io/badge/discord-join%20the%20studio-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://x.com/i4c_studio"><img src="https://img.shields.io/badge/follow-%40i4c__studio-000000?logo=x&logoColor=white" alt="X (Twitter)"></a>
 </p>
 
 <p align="center">
