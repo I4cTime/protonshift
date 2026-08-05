@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-08-04
+
+### Changed
+
+- **New brand**: the app icon (Flatpak icon set + scalable SVG) and in-app
+  logo (header + splash) are now the "broken ring" sigil mark — a
+  summoning circle with a proton core in the Arcane violet gradient —
+  replacing the old chevron tile and matching the refreshed
+  [protonshift.i4c.studio](https://protonshift.i4c.studio).
+
 ## [1.0.1] — 2026-07-25
 
 ### Fixed

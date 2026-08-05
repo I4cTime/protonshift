@@ -56,6 +56,11 @@
   </developer>
 
   <releases>
+    <release version="1.1.0" date="2026-08-04">
+      <description>
+        <p>New brand: the app icon and in-app logo are now the "broken ring" sigil mark, matching the refreshed protonshift.i4c.studio.</p>
+      </description>
+    </release>
     <release version="1.0.1" date="2026-07-25">
       <description>
         <p>Bug fix: the remove button in the Environment Variables editor now actually deletes the row.</p>
