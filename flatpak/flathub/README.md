@@ -9,7 +9,7 @@ the fast local build in the parent `flatpak/` dir.
 |---|---|---|
 | Network at build | yes (`--share=network`) | **no** (forbidden) |
 | PySide6 | `pip install PySide6` | **`io.qt.PySide.BaseApp`** |
-| Runtime | `org.freedesktop.Platform//24.08` | `org.kde.Platform//6.8` |
+| Runtime | `org.freedesktop.Platform//24.08` | `org.kde.Platform//6.11` |
 | krb5 | bundled module | provided by KDE runtime |
 | vdf | pip | vendored wheel (`python3-vdf.yaml`) |
 
@@ -29,7 +29,7 @@ pure-Python `vdf`.
 
 ```bash
 flatpak install -y flathub \
-  org.kde.Sdk//6.8 org.kde.Platform//6.8 io.qt.PySide.BaseApp//6.8
+  org.kde.Sdk//6.11 org.kde.Platform//6.11 io.qt.PySide.BaseApp//6.11
 
 flatpak run org.flatpak.Builder --user --install --force-clean \
   build-dir flatpak/flathub/io.github.i4ctime.protonshift.yml
@@ -46,15 +46,18 @@ dependency isn't vendored.
 - [x] `.desktop`, `.metainfo.xml`, `.svg` all renamed to the app ID
 - [x] `metainfo.xml` has `<id>`, `<launchable>`, license, developer, OARS rating
 - [x] Offline manifest builds on the PySide BaseApp (no network)
-- [ ] **Screenshots**: add `<screenshots>` to `metainfo.xml` with URLs hosted in
-      the app's git repo (Flathub requires ≥1). Can't be a data URI.
-- [ ] **Runtime version**: confirm `6.8` matches a current `io.qt.PySide.BaseApp`
-      branch at submission time (bump `runtime-version` + `base-version` together).
-- [ ] Validate metadata: `flatpak run org.freedesktop.appstream-cli validate \
-      flatpak/io.github.i4ctime.protonshift.metainfo.xml`
+- [x] **Screenshots**: three 1440x900 captures in `flatpak/screenshots/`
+      (library, MangoHud, Gamescope), referenced from `metainfo.xml` via
+      raw.githubusercontent URLs.
+- [x] **Runtime version**: bumped to `6.11` (2026-08-06) — matches the PySide6
+      version the app is developed against; BaseApp publishes `branch/6.11`.
+- [x] Validate metadata: `appstreamcli validate --pedantic
+      flatpak/io.github.i4ctime.protonshift.metainfo.xml` passes (screenshot
+      URLs resolve once pushed).
 - [ ] Fork `flathub/flathub`, add the manifest, open a PR against `new-pr`.
-- [ ] The Flathub manifest's `sources: - type: dir` becomes a `type: git`
-      source pointing at the tagged release commit for the real submission.
+- [x] The Flathub manifest's source is `type: git`, pinned to the packaging
+      commit on `main` (update `commit:` on each release before the flathub
+      update PR).
 
 ## aarch64
 

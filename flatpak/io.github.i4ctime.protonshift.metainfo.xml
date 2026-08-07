@@ -48,6 +48,21 @@
 
   <content_rating type="oars-1.1"/>
 
+  <screenshots>
+    <screenshot type="default">
+      <caption>Library view with per-game Proton version, launch options, and maintenance tools</caption>
+      <image>https://raw.githubusercontent.com/I4cTime/protonshift/main/flatpak/screenshots/library.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>MangoHud overlay editor with metric toggles and presets</caption>
+      <image>https://raw.githubusercontent.com/I4cTime/protonshift/main/flatpak/screenshots/mangohud.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Gamescope launch command builder</caption>
+      <image>https://raw.githubusercontent.com/I4cTime/protonshift/main/flatpak/screenshots/gamescope.png</image>
+    </screenshot>
+  </screenshots>
+
   <url type="homepage">https://github.com/I4cTime/protonshift</url>
   <url type="bugtracker">https://github.com/I4cTime/protonshift/issues</url>
 
