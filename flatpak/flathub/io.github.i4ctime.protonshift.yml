@@ -23,17 +23,19 @@ base-version: "6.11"
 command: protonshift
 
 finish-args:
+  # --device=input needs flatpak >= 1.16
+  - --require-version=1.16.0
   - --share=ipc
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
   # game controllers (gamepad tester)
   - --device=input
-  # ProtonShift reads game libraries (read-only home) and writes only the
-  # specific config dirs below. `home` rw + org.freedesktop.Flatpak talk-name
-  # is a Flathub-rejected combination (it is a sandbox escape); restoring a
-  # save backup to an arbitrary native path now requires the file portal.
-  - --filesystem=home:ro
+  # ProtonShift writes only the specific config dirs below. Steam/Heroic in
+  # their default locations are covered by the grants further down; a custom
+  # library folder elsewhere needs a user override (Flatseal or
+  # `flatpak override --filesystem=`). Save-backup restores to arbitrary
+  # paths go through the file portal.
   - --filesystem=~/.config/protonshift:create
   - --filesystem=~/.config/scopebuddy:create
   - --filesystem=~/.config/MangoHud:create
@@ -45,7 +47,11 @@ finish-args:
   - --filesystem=~/.var/app/com.valvesoftware.Steam
   - --filesystem=~/.config/heroic
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl
-  # so detected host tools (gamescope, mangohud, protontricks) can be run
+  # Host tool detection and launch (gamescope, mangohud, protontricks) and
+  # display enumeration (wlr-randr) run on the host via `flatpak-spawn --host`.
+  # Core functionality — linter exception requested in the submission PR;
+  # precedent: io.github.dvlv.boxbuddyrs ("Requires use of Distrobox on the
+  # host"). Steam/Heroic appdata rw precedent: com.github.Matoking.protontricks.
   - --talk-name=org.freedesktop.Flatpak
 
 # The PySide BaseApp stages PySide6 under /app/lib; keep it on the path.
