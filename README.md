@@ -49,22 +49,20 @@ those tools a sensible UI.
 
 ## Install
 
-There's no packaged release yet. The [Flatpak local build](flatpak/README.md)
-is the current supported path, and a Flathub submission is in prep (see
-[`flatpak/flathub/`](flatpak/flathub/)).
+The recommended path is the signed [I4C Flatpak repository](https://flatpak.i4c.studio) —
+add it once and updates arrive with `flatpak update`:
 
 ```bash
-flatpak install -y flathub org.flatpak.Builder org.freedesktop.Sdk//24.08
-
-flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir flatpak/io.github.i4ctime.protonshift.yml
-
+flatpak remote-add --user --if-not-exists i4c https://flatpak.i4c.studio/index.flatpakrepo
+flatpak install i4c io.github.i4ctime.protonshift
 flatpak run io.github.i4ctime.protonshift
 ```
 
-Tagged GitHub releases also attach a prebuilt `.flatpak` bundle — see
-[Releases](https://github.com/I4cTime/protonshift/releases). Full build
-variants and options are in [flatpak/README.md](flatpak/README.md).
+Alternatively, tagged GitHub releases attach a prebuilt `.flatpak` bundle
+(one-shot install, no auto-updates) — see
+[Releases](https://github.com/I4cTime/protonshift/releases) — or build
+locally from the manifest; full variants and options are in
+[flatpak/README.md](flatpak/README.md).
 
 ## Features
 
