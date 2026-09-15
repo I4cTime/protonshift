@@ -85,8 +85,8 @@ modules:
       - install -Dm644 flatpak/icons/io.github.i4ctime.protonshift-64.png
           ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/io.github.i4ctime.protonshift.png
     sources:
-      # Pinned to the packaging-prep commit on main (v1.1.0 + flathub metadata).
+      # Pinned to the v1.1.1 release commit on main.
       # Bump `commit:` to the release commit before each flathub update PR.
       - type: git
         url: https://github.com/I4cTime/protonshift.git
-        commit: 5adedcf5ab40b0be3a13da0d9b095411eb3d4af0
+        commit: 54abef04de96914b7693bbfc761fb57ec2b0e0c9
