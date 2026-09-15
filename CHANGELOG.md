@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-09-15
+
+### Fixed
+- **Environment Variables: warn when environment.d can't reach your session**
+  (#47). `~/.config/environment.d` is only read by systemd's user manager, so
+  on desktops a display manager starts directly (Cinnamon, XFCE, MATE, a bare
+  `startx` session) or on systems without systemd the file is written but
+  games never see it — MangoHud/Gamemode silently don't activate. The page
+  now probes `graphical-session.target` and shows a warning with the
+  alternatives (`~/.xsessionrc` / `~/.profile` exports, or per-game Steam
+  launch options) instead of letting "Saved" imply it works. Quoting in the
+  written file was never the problem.
+
+### Changed
+- Lint: ruff 0.16 (wider default rule set) — dropped ~110 stale `noqa`
+  markers for rules that were never enabled, and tidied the handful of real
+  findings (explicit `check=False` on `subprocess.run`, no call in argument
+  defaults, `contextlib.suppress` for best-effort discovery).
+- CI: `github/codeql-action` 4.37.9 (init + analyze bumped together — split
+  Dependabot bumps fail with a config-version mismatch), `action-gh-release`
+  3.0.3.
+
 ## [1.1.0] — 2026-08-04
 
 ### Changed

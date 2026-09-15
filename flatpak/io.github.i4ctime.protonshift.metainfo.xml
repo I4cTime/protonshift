@@ -71,6 +71,11 @@
   </developer>
 
   <releases>
+    <release version="1.1.1" date="2026-09-15">
+      <description>
+        <p>Environment Variables now warns when your desktop session isn't started by systemd (Cinnamon, XFCE, MATE, startx), where environment.d is never read, and points at working alternatives.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-08-04">
       <description>
         <p>New brand: the app icon and in-app logo are now the "broken ring" sigil mark, matching the refreshed protonshift.i4c.studio.</p>
