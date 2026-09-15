@@ -36,16 +36,16 @@ class EnvVarsModel(QAbstractListModel):
     # Emitted when an edited key is not a valid env identifier. The edit still
     # sticks (the user may be mid-typing) — controllers surface it as status
     # and refuse to save while any key is invalid.
-    invalidKey = Signal(str)  # noqa: N815 (QML-facing camelCase)
+    invalidKey = Signal(str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._rows: list[list[str]] = []
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
-        return 0 if parent.isValid() else len(self._rows)
+    def rowCount(self, parent: QModelIndex | None = None) -> int:
+        return 0 if parent is not None and parent.isValid() else len(self._rows)
 
-    def data(self, index: QModelIndex, role: int = Qt.DisplayRole):  # noqa: N802
+    def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
         if not index.isValid() or not (0 <= index.row() < len(self._rows)):
             return None
         key, value = self._rows[index.row()]
@@ -55,11 +55,11 @@ class EnvVarsModel(QAbstractListModel):
             return value
         return None
 
-    def roleNames(self):  # noqa: N802
+    def roleNames(self):
         return {self.KeyRole: QByteArray(b"key"), self.ValueRole: QByteArray(b"value")}
 
     @Slot(int, str)
-    def setKey(self, row: int, value: str) -> None:  # noqa: N802
+    def setKey(self, row: int, value: str) -> None:
         if 0 <= row < len(self._rows) and self._rows[row][0] != value:
             self._rows[row][0] = value
             self.dataChanged.emit(self.index(row), self.index(row), [self.KeyRole])
@@ -68,14 +68,14 @@ class EnvVarsModel(QAbstractListModel):
                 self.invalidKey.emit(value)
 
     @Slot(int, str)
-    def setValue(self, row: int, value: str) -> None:  # noqa: N802
+    def setValue(self, row: int, value: str) -> None:
         if 0 <= row < len(self._rows) and self._rows[row][1] != value:
             self._rows[row][1] = value
             self.dataChanged.emit(self.index(row), self.index(row), [self.ValueRole])
             self.modified.emit()
 
     @Slot()
-    def addRow(self) -> None:  # noqa: N802
+    def addRow(self) -> None:
         n = len(self._rows)
         self.beginInsertRows(QModelIndex(), n, n)
         self._rows.append(["", ""])
@@ -88,8 +88,8 @@ class EnvVarsModel(QAbstractListModel):
     # built-in — a same-named Python slot is unreachable from QML (#52: the
     # ✕ button was a silent no-op). The convenience delegates to the
     # *virtual* removeRows(), so that is the hook to override.
-    def removeRows(self, row: int, count: int, parent: QModelIndex = QModelIndex()) -> bool:  # noqa: N802
-        if parent.isValid() or count < 1 or row < 0 or row + count > len(self._rows):
+    def removeRows(self, row: int, count: int, parent: QModelIndex | None = None) -> bool:
+        if (parent is not None and parent.isValid()) or count < 1 or row < 0 or row + count > len(self._rows):
             return False
         self.beginRemoveRows(QModelIndex(), row, row + count - 1)
         del self._rows[row : row + count]
@@ -130,8 +130,8 @@ class EnvController(QObject):
     dirtyChanged = Signal()
     statusChanged = Signal()
 
-    # worker -> GUI thread: (ok, error_message, rows)
-    _loadResult = Signal(bool, str, list)
+    # worker -> GUI thread: (ok, error_message, rows, session_warning)
+    _loadResult = Signal(bool, str, list, str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -142,6 +142,7 @@ class EnvController(QObject):
         self._loaded = False
         self._dirty = False
         self._load_error = ""
+        self._session_warning = ""
         self._status = ""
         self._presets = list(ENV_PRESETS.keys())
         self._loadResult.connect(self._on_loaded)
@@ -154,7 +155,7 @@ class EnvController(QObject):
         return self._model
 
     @Property("QStringList", constant=True)
-    def presetNames(self) -> list:  # noqa: N802
+    def presetNames(self) -> list:
         return self._presets
 
     @Property(bool, notify=loadingChanged)
@@ -170,12 +171,17 @@ class EnvController(QObject):
         return self._dirty
 
     @Property(str, notify=loadedChanged)
-    def loadError(self) -> str:  # noqa: N802
+    def loadError(self) -> str:
         return self._load_error
 
     @Property(str, notify=statusChanged)
     def status(self) -> str:
         return self._status
+
+    @Property(str, notify=loadedChanged)
+    def sessionWarning(self) -> str:
+        """Non-empty when environment.d can't reach this desktop session (#47)."""
+        return self._session_warning
 
     # --- actions --------------------------------------------------------------
 
@@ -187,11 +193,11 @@ class EnvController(QObject):
         self.loadingChanged.emit()
         start_worker(
             self._load_work,
-            on_error=lambda m: self._loadResult.emit(False, m, []),
+            on_error=lambda m: self._loadResult.emit(False, m, [], ""),
         )
 
     @Slot(str)
-    def applyPreset(self, name: str) -> None:  # noqa: N802
+    def applyPreset(self, name: str) -> None:
         items = ENV_PRESETS.get(name)
         if items:
             self._model.merge(items)
@@ -246,14 +252,21 @@ class EnvController(QObject):
 
     def _load_work(self) -> None:
         from ..core.env_vars import get_gaming_conf_path, read_conf
+        from ..core.session import current_desktop, env_d_warning, session_env_support
 
+        # #47: the session probe is advisory — it must never break the load.
+        try:
+            warning = env_d_warning(session_env_support(), current_desktop())
+        except Exception:  # noqa: BLE001 — the probe shells out; any surprise just means "no banner"
+            warning = ""
         try:
             data = read_conf(get_gaming_conf_path())  # {} for a missing file is legit
-            self._loadResult.emit(True, "", sorted(data.items()))
+            self._loadResult.emit(True, "", sorted(data.items()), warning)
         except OSError as exc:
-            self._loadResult.emit(False, str(exc), [])
+            self._loadResult.emit(False, str(exc), [], warning)
 
-    def _on_loaded(self, ok: bool, error: str, rows: list) -> None:
+    def _on_loaded(self, ok: bool, error: str, rows: list, session_warning: str) -> None:
+        self._session_warning = session_warning
         if ok:
             self._model.reset_rows(rows)
             self._loaded = True

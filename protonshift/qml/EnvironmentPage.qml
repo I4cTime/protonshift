@@ -54,6 +54,29 @@ RowLayout {
                 }
             }
 
+            // #47: environment.d only reaches desktops started by systemd's user
+            // manager. On Cinnamon/XFCE/MATE/startx the file is written but never
+            // read — say so instead of letting "Saved" imply it works.
+            Rectangle {
+                Layout.fillWidth: true
+                visible: env.sessionWarning.length > 0
+                radius: Theme.radiusSm
+                color: Theme.warningSurface
+                border.color: Theme.warningBorder
+                border.width: 1
+                implicitHeight: warnLbl.implicitHeight + 2 * Theme.spaceSm
+                Text {
+                    id: warnLbl
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    wrapMode: Text.WordWrap
+                    color: Theme.warning
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                    text: env.sessionWarning
+                }
+            }
+
             // rows
             ListView {
                 id: list

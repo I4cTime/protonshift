@@ -116,7 +116,10 @@ toggle hotkey, and log folder, with presets to get started fast.
 
 Manage environment variables persisted to
 `~/.config/environment.d/70-protonshift.conf`, with presets for common
-GPU/Proton/Wayland tuning.
+GPU/Proton/Wayland tuning. Note that `environment.d` is only read by desktops
+started under systemd's user manager (GNOME, KDE Plasma, uwsm sessions); the
+page warns when yours isn't (Cinnamon, XFCE, MATE, `startx`) and suggests
+`~/.xsessionrc`/`~/.profile` exports or per-game Steam launch options instead.
 
 ### Wine/Proton prefixes, shader cache, and save backups
 
