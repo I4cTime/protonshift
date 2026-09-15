@@ -53,11 +53,11 @@ class ProtontricksController(QObject):
     # --- inputs ---------------------------------------------------------------
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -68,11 +68,11 @@ class ProtontricksController(QObject):
         self.outputChanged.emit()
 
     @Property(str, notify=gameNameChanged)
-    def gameName(self) -> str:  # noqa: N802
+    def gameName(self) -> str:
         return self._game_name
 
     @gameName.setter
-    def gameName(self, value: str) -> None:  # noqa: N802
+    def gameName(self, value: str) -> None:
         if value == self._game_name:
             return
         self._game_name = value
@@ -95,7 +95,7 @@ class ProtontricksController(QObject):
     # --- actions --------------------------------------------------------------
 
     @Slot("QStringList")
-    def installVerbs(self, verbs: list) -> None:  # noqa: N802
+    def installVerbs(self, verbs: list) -> None:
         if self._running or not self._app_id:
             return
         clean = [str(v) for v in verbs if str(v).strip()]
@@ -116,8 +116,8 @@ class ProtontricksController(QObject):
         )
 
     @Slot()
-    def openGui(self) -> None:  # noqa: N802
-        ok, msg = launch_gui(self._app_id)
+    def openGui(self) -> None:
+        _ok, msg = launch_gui(self._app_id)
         self._status = msg
         self.statusChanged.emit()
 

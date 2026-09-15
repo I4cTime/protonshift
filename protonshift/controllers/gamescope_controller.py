@@ -27,10 +27,10 @@ def _opt_property(name: str, type_: type, notify: Signal) -> Property:
     property to its current value does not churn the preview.
     """
 
-    def getter(self):  # noqa: ANN001
+    def getter(self):
         return getattr(self._opts, name)
 
-    def setter(self, value):  # noqa: ANN001
+    def setter(self, value):
         if getattr(self._opts, name) != value:
             setattr(self._opts, name, value)
             self.changed.emit()
@@ -63,7 +63,7 @@ class GamescopeController(QObject):
         return build_gamescope_cmd(self._opts) or "gamescope --"
 
     @Property(bool, notify=availabilityChanged)
-    def gamescopeAvailable(self) -> bool:  # noqa: N802 (QML camelCase)
+    def gamescopeAvailable(self) -> bool:
         return self._available
 
     def _avail_work(self) -> None:

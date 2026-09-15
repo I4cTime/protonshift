@@ -98,11 +98,11 @@ class ThemeController(QObject):
         return self._choice
 
     @Property(bool, notify=resolvedChanged)
-    def systemIsDark(self) -> bool:  # noqa: N802
+    def systemIsDark(self) -> bool:
         return self._system_is_dark()
 
     @Property(str, notify=resolvedChanged)
-    def resolvedTheme(self) -> str:  # noqa: N802
+    def resolvedTheme(self) -> str:
         """The concrete palette id Theme.qml should use."""
         if self._choice != "system":
             return self._choice
@@ -111,7 +111,7 @@ class ThemeController(QObject):
     # --- actions --------------------------------------------------------------
 
     @Slot(str)
-    def setTheme(self, choice: str) -> None:  # noqa: N802
+    def setTheme(self, choice: str) -> None:
         if choice not in _VALID or choice == self._choice:
             return
         self._choice = choice

@@ -316,9 +316,9 @@ def delete_envvars(name: str) -> bool:
 def _gdctl_supports_json(gdctl_path: str) -> bool:
     """True if this gdctl understands ``--format=json`` (GNOME 47+)."""
     try:
-        r = subprocess.run(  # noqa: S603 — path from find_tool, constant args
+        r = subprocess.run(
             [gdctl_path, "show", "--help"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True, text=True, timeout=3, check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return False

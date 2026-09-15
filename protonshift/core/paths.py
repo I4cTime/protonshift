@@ -83,7 +83,7 @@ _USER_PATH_ROOTS: tuple[Path, ...] = (
     Path("/run/media"),
     Path("/media"),
     Path("/mnt"),
-    Path("/tmp"),  # noqa: S108 — explicit allow, the API never *creates* in /tmp
+    Path("/tmp"),
 )
 
 

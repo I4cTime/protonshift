@@ -23,7 +23,6 @@ from protonshift.core.shader_cache import clear_shader_cache, get_shader_cache_i
 from protonshift.core.steam import get_userdata_dir
 from protonshift.core.vdf_config import read_launch_options, set_launch_options
 
-
 # --------------------------------------------------------------------------- #
 # 1 — shader cache: app_id validation + containment
 # --------------------------------------------------------------------------- #
@@ -273,7 +272,7 @@ class _FrozenDatetime:
     _FIXED = datetime(2026, 7, 22, 12, 0, 0, 123456, tzinfo=UTC)
 
     @classmethod
-    def now(cls, tz=None):  # noqa: ANN001, ANN206
+    def now(cls, tz=None):
         return cls._FIXED
 
     fromtimestamp = datetime.fromtimestamp

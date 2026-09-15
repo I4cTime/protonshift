@@ -39,11 +39,11 @@ class SavesController(QObject):
         self._workError.connect(self._on_work_error)
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -55,11 +55,11 @@ class SavesController(QObject):
         self.statusChanged.emit()
 
     @Property(str, notify=prefixPathChanged)
-    def prefixPath(self) -> str:  # noqa: N802
+    def prefixPath(self) -> str:
         return self._prefix_path
 
     @prefixPath.setter
-    def prefixPath(self, value: str) -> None:  # noqa: N802
+    def prefixPath(self, value: str) -> None:
         if value != self._prefix_path:
             self._prefix_path = value
             self.prefixPathChanged.emit()

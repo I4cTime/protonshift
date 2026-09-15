@@ -50,7 +50,9 @@ def _load_user_fixes_strict(app_id: str) -> list[dict[str, Any]]:
         return []
     data = json.loads(path.read_text(encoding="utf-8"))  # JSONDecodeError propagates
     if not isinstance(data, list):
-        raise ValueError(f"User fixes file {path} is not a JSON list")
+        # ValueError is the documented contract above (JSONDecodeError is one too),
+        # so callers catch a single type.
+        raise ValueError(f"User fixes file {path} is not a JSON list")  # noqa: TRY004
     return data
 
 

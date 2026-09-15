@@ -51,7 +51,7 @@ class ScopeBuddyEnvvarsController(QObject):
         return self._model
 
     @Property("QStringList", constant=True)
-    def knownKeys(self) -> list:  # noqa: N802
+    def knownKeys(self) -> list:
         return self._known
 
     # --- reactive -------------------------------------------------------------
@@ -117,7 +117,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self.statusChanged.emit()
 
     @Slot(str)
-    def addKey(self, key: str) -> None:  # noqa: N802
+    def addKey(self, key: str) -> None:
         key = key.strip()
         if not key:
             return
@@ -158,7 +158,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self.statusChanged.emit()
 
     @Slot()
-    def deleteSnippet(self) -> None:  # noqa: N802
+    def deleteSnippet(self) -> None:
         if not self._name:
             return
         from ..core.scopebuddy import delete_envvars

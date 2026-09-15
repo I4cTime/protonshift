@@ -68,11 +68,11 @@ class GamepadController(QObject):
         return self._loading
 
     @Property(str, notify=testChanged)
-    def testingPath(self) -> str:  # noqa: N802
+    def testingPath(self) -> str:
         return self._test_path
 
     @Property(str, notify=testChanged)
-    def testingName(self) -> str:  # noqa: N802
+    def testingName(self) -> str:
         return self._test_name
 
     @Property("QVariantList", notify=stateChanged)
@@ -98,7 +98,7 @@ class GamepadController(QObject):
         start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str)
-    def copyMapping(self, controller_id: str) -> None:  # noqa: N802
+    def copyMapping(self, controller_id: str) -> None:
         info = self._infos.get(controller_id)
         if not info:
             return
@@ -111,12 +111,12 @@ class GamepadController(QObject):
 
     @Slot(str)
     def rumble(self, device_path: str) -> None:
-        ok, msg = rumble(device_path)
+        _ok, msg = rumble(device_path)
         self._status = msg
         self.statusChanged.emit()
 
     @Slot(str, str)
-    def startTest(self, device_path: str, name: str) -> None:  # noqa: N802
+    def startTest(self, device_path: str, name: str) -> None:
         self.stopTest()
         fd = open_js(device_path)
         if fd is None:
@@ -138,7 +138,7 @@ class GamepadController(QObject):
         self.stateChanged.emit()
 
     @Slot()
-    def stopTest(self) -> None:  # noqa: N802
+    def stopTest(self) -> None:
         if self._stop is not None:
             self._stop.set()
         if self._thread and self._thread.is_alive():

@@ -15,11 +15,11 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QUrl  # noqa: E402
-from PySide6.QtGui import QGuiApplication  # noqa: E402
-from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
 
-from protonshift.controllers.env_controller import EnvVarsModel  # noqa: E402
+from protonshift.controllers.env_controller import EnvVarsModel
 
 _QML = b"""
 import QtQml
@@ -47,7 +47,7 @@ def test_qml_remove_row_removes_from_model() -> None:
     modified: list[bool] = []
     model.modified.connect(lambda: modified.append(True))
 
-    engine, root = _qml_root(model)
+    _engine, root = _qml_root(model)
     assert root.removeAt(0) is True
     assert model.to_dict() == {"BAR": "2"}
     assert modified, "removal must emit modified so the editor turns dirty"
@@ -58,7 +58,7 @@ def test_qml_remove_row_out_of_range_is_rejected() -> None:
     model = EnvVarsModel()
     model.reset_rows([("FOO", "1")])
 
-    engine, root = _qml_root(model)
+    _engine, root = _qml_root(model)
     assert root.removeAt(5) is False
     assert root.removeAt(-1) is False
     assert model.to_dict() == {"FOO": "1"}

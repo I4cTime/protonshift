@@ -155,7 +155,7 @@ def launch_gui(appid: str = "") -> tuple[bool, str]:
         return False, "protontricks is not installed."
     argv = [*base, "--gui"] if not appid else [*base, appid, "--gui"]
     try:
-        subprocess.Popen(  # noqa: S603 — argv is built from constants + numeric appid
+        subprocess.Popen(
             host_argv(argv),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

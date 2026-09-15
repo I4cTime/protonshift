@@ -61,7 +61,7 @@ class ScopeBuddyController(QObject):
         return self._available
 
     @Property(str, notify=infoChanged)
-    def binaryName(self) -> str:  # noqa: N802
+    def binaryName(self) -> str:
         return self._binary
 
     @Property(str, notify=infoChanged)
@@ -73,15 +73,15 @@ class ScopeBuddyController(QObject):
         return self._model
 
     @Property("QStringList", constant=True)
-    def knownKeys(self) -> list:  # noqa: N802
+    def knownKeys(self) -> list:
         return self._known
 
     @Property("QStringList", constant=True)
-    def presetNames(self) -> list:  # noqa: N802
+    def presetNames(self) -> list:
         return self._presets
 
     @Property("QVariantMap", notify=infoChanged)
-    def autoCaps(self) -> dict:  # noqa: N802
+    def autoCaps(self) -> dict:
         """Which SCB_AUTO_* backends this session can actually drive."""
         return self._auto_caps
 
@@ -96,7 +96,7 @@ class ScopeBuddyController(QObject):
         return self._loaded
 
     @Property(str, notify=loadedChanged)
-    def loadError(self) -> str:  # noqa: N802
+    def loadError(self) -> str:
         return self._error
 
     @Property(bool, notify=dirtyChanged)
@@ -110,7 +110,7 @@ class ScopeBuddyController(QObject):
     # --- actions --------------------------------------------------------------
 
     @Slot(str)
-    def addKey(self, key: str) -> None:  # noqa: N802
+    def addKey(self, key: str) -> None:
         key = key.strip()
         if not key:
             return
@@ -122,7 +122,7 @@ class ScopeBuddyController(QObject):
             self._model.merge({key: ""})
 
     @Slot(str)
-    def applyPreset(self, name: str) -> None:  # noqa: N802
+    def applyPreset(self, name: str) -> None:
         preset = SCOPEBUDDY_PRESETS.get(name)
         if preset:
             self._model.merge(dict(preset))

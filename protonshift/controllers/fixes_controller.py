@@ -30,11 +30,11 @@ class FixesController(QObject):
         self._workError.connect(self._on_work_error)
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -51,7 +51,7 @@ class FixesController(QObject):
         return self._status
 
     @Slot(str)
-    def addUserFix(self, args_json: str) -> None:  # noqa: N802
+    def addUserFix(self, args_json: str) -> None:
         """Add a user fix from a JSON blob {title,description,type,key,value}."""
         import json
 

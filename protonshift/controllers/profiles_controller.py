@@ -34,11 +34,11 @@ class ProfilesController(QObject):
         self.refresh()
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -63,7 +63,7 @@ class ProfilesController(QObject):
         start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str)
-    def saveCurrent(self, name: str) -> None:  # noqa: N802
+    def saveCurrent(self, name: str) -> None:
         name = name.strip()
         if self._busy or not name or not self._app_id:
             return
@@ -84,7 +84,7 @@ class ProfilesController(QObject):
         )
 
     @Slot(str)
-    def deleteProfile(self, name: str) -> None:  # noqa: N802
+    def deleteProfile(self, name: str) -> None:
         from ..core.profiles_storage import delete_profile
 
         ok = delete_profile(name)

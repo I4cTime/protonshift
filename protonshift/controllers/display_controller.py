@@ -64,7 +64,7 @@ class DisplayController(QObject):
         start_worker(self._list_work, on_error=self._workError.emit)
 
     @Slot(str, int, int, float)
-    def applyMode(self, output: str, width: int, height: int, refresh: float) -> None:  # noqa: N802
+    def applyMode(self, output: str, width: int, height: int, refresh: float) -> None:
         start_worker(
             self._apply_work, output, width, height, refresh,
             on_error=lambda m: self._applyResult.emit(False, f"Apply failed: {m}"),

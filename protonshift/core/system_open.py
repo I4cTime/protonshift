@@ -20,7 +20,7 @@ _ALLOWED_SCHEMES = ("steam:", "heroic:")
 
 def _spawn(argv: list[str]) -> tuple[bool, str]:
     try:
-        subprocess.Popen(  # noqa: S603 — argv is validated / constant
+        subprocess.Popen(
             host_argv(argv),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

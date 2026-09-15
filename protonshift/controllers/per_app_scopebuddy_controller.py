@@ -48,17 +48,17 @@ class PerAppScopeBuddyController(QObject):
         return self._model
 
     @Property("QStringList", constant=True)
-    def knownKeys(self) -> list:  # noqa: N802
+    def knownKeys(self) -> list:
         return self._known
 
     # --- appId (drives load) --------------------------------------------------
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -96,7 +96,7 @@ class PerAppScopeBuddyController(QObject):
     # --- actions --------------------------------------------------------------
 
     @Slot(str)
-    def addKey(self, key: str) -> None:  # noqa: N802
+    def addKey(self, key: str) -> None:
         key = key.strip()
         if not key:
             return
@@ -136,7 +136,7 @@ class PerAppScopeBuddyController(QObject):
         self.statusChanged.emit()
 
     @Slot()
-    def deleteOverride(self) -> None:  # noqa: N802
+    def deleteOverride(self) -> None:
         if not self._app_id:
             return
         from ..core.scopebuddy import delete_per_app_config

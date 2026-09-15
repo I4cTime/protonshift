@@ -41,25 +41,25 @@ class PerGameMangoHudController(QObject):
     # --- static ---------------------------------------------------------------
 
     @Property("QVariantList", constant=True)
-    def toggleParams(self) -> list:  # noqa: N802
+    def toggleParams(self) -> list:
         return self._toggle_params
 
     @Property("QVariantList", constant=True)
-    def valueParams(self) -> list:  # noqa: N802
+    def valueParams(self) -> list:
         return self._value_params
 
     @Property("QStringList", constant=True)
-    def presetNames(self) -> list:  # noqa: N802
+    def presetNames(self) -> list:
         return self._presets
 
     # --- gameName (drives load) ----------------------------------------------
 
     @Property(str, notify=gameNameChanged)
-    def gameName(self) -> str:  # noqa: N802
+    def gameName(self) -> str:
         return self._name
 
     @gameName.setter
-    def gameName(self, value: str) -> None:  # noqa: N802
+    def gameName(self, value: str) -> None:
         if value == self._name:
             return
         self._name = value
@@ -87,7 +87,7 @@ class PerGameMangoHudController(QObject):
         return self._loaded
 
     @Property(str, notify=loadedChanged)
-    def loadError(self) -> str:  # noqa: N802
+    def loadError(self) -> str:
         return self._error
 
     @Property(bool, notify=existsChanged)
@@ -105,7 +105,7 @@ class PerGameMangoHudController(QObject):
     # --- actions --------------------------------------------------------------
 
     @Slot(str, bool)
-    def setToggle(self, key: str, on: bool) -> None:  # noqa: N802
+    def setToggle(self, key: str, on: bool) -> None:
         present = key in self._config
         if on and not present:
             self._config[key] = ""
@@ -116,7 +116,7 @@ class PerGameMangoHudController(QObject):
         self._touch()
 
     @Slot(str, str)
-    def setValue(self, key: str, value: str) -> None:  # noqa: N802
+    def setValue(self, key: str, value: str) -> None:
         value = value.strip()
         if value:
             if self._config.get(key) == value:
@@ -129,7 +129,7 @@ class PerGameMangoHudController(QObject):
         self._touch()
 
     @Slot(str)
-    def applyPreset(self, name: str) -> None:  # noqa: N802
+    def applyPreset(self, name: str) -> None:
         preset = MANGOHUD_PRESETS.get(name)
         if preset:
             self._config = dict(preset)
@@ -158,7 +158,7 @@ class PerGameMangoHudController(QObject):
         self.statusChanged.emit()
 
     @Slot()
-    def deleteOverride(self) -> None:  # noqa: N802
+    def deleteOverride(self) -> None:
         if not self._name:
             return
         from ..core.mangohud import delete_per_game_config

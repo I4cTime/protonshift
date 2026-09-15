@@ -77,7 +77,7 @@ def _find_libraryfolders(steam_root: Path) -> list[Path]:
             continue
         folders = data.get("libraryfolders", data)
         if isinstance(folders, dict):
-            for _key, folder in folders.items():
+            for folder in folders.values():
                 if isinstance(folder, dict) and "path" in folder:
                     p = Path(folder["path"])
                     if p.exists():
@@ -252,7 +252,10 @@ def get_available_proton_tools(steam_root: Path | None) -> list[str]:
     compat_dir = get_compattools_dir(steam_root)
     if compat_dir and compat_dir.exists():
         for item in sorted(compat_dir.iterdir()):
-            if item.is_dir() and not item.name.startswith("."):
-                if (item / "proton").exists() or (item / "compatibilitytool.vdf").exists():
-                    tools.append(item.name)
+            if (
+                item.is_dir()
+                and not item.name.startswith(".")
+                and ((item / "proton").exists() or (item / "compatibilitytool.vdf").exists())
+            ):
+                tools.append(item.name)
     return tools

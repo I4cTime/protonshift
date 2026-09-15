@@ -31,4 +31,4 @@ def host_argv(argv: list[str]) -> list[str]:
 
 def host_run(argv: list[str], **kwargs) -> subprocess.CompletedProcess:
     """``subprocess.run`` that targets the host when inside a Flatpak."""
-    return subprocess.run(host_argv(argv), **kwargs)
+    return subprocess.run(host_argv(argv), check=kwargs.pop("check", False), **kwargs)

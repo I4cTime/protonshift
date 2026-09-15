@@ -51,32 +51,32 @@ class GameToolsController(QObject):
     # --- inputs ---------------------------------------------------------------
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
         self.appIdChanged.emit()
 
     @Property(str, notify=prefixPathChanged)
-    def prefixPath(self) -> str:  # noqa: N802
+    def prefixPath(self) -> str:
         return self._prefix_path
 
     @prefixPath.setter
-    def prefixPath(self, value: str) -> None:  # noqa: N802
+    def prefixPath(self, value: str) -> None:
         if value != self._prefix_path:
             self._prefix_path = value
             self.prefixPathChanged.emit()
 
     @Property(str, notify=installPathChanged)
-    def installPath(self) -> str:  # noqa: N802
+    def installPath(self) -> str:
         return self._install_path
 
     @installPath.setter
-    def installPath(self, value: str) -> None:  # noqa: N802
+    def installPath(self, value: str) -> None:
         if value != self._install_path:
             self._install_path = value
             self.installPathChanged.emit()
@@ -115,7 +115,7 @@ class GameToolsController(QObject):
         )
 
     @Slot()
-    def deletePrefix(self) -> None:  # noqa: N802
+    def deletePrefix(self) -> None:
         if self._busy or not self._prefix_path:
             return
         self._begin()
@@ -126,7 +126,7 @@ class GameToolsController(QObject):
         )
 
     @Slot()
-    def clearShaderCache(self) -> None:  # noqa: N802
+    def clearShaderCache(self) -> None:
         if self._busy or not self._app_id:
             return
         self._begin()
@@ -137,13 +137,13 @@ class GameToolsController(QObject):
         )
 
     @Slot(str)
-    def openFolder(self, path: str) -> None:  # noqa: N802
+    def openFolder(self, path: str) -> None:
         ok, msg = open_path(path)
         self._status = msg or ("Opened" if ok else "Couldn't open folder.")
         self.statusChanged.emit()
 
     @Slot()
-    def openInSteam(self) -> None:  # noqa: N802
+    def openInSteam(self) -> None:
         if not self._app_id:
             return
         ok, msg = open_uri(f"steam://nav/games/details/{self._app_id}")
@@ -151,7 +151,7 @@ class GameToolsController(QObject):
         self.statusChanged.emit()
 
     @Slot()
-    def launchGame(self) -> None:  # noqa: N802
+    def launchGame(self) -> None:
         if not self._app_id:
             return
         ok, msg = open_uri(f"steam://rungameid/{self._app_id}")

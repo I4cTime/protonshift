@@ -51,11 +51,11 @@ class LaunchOptionsController(QObject):
     # --- selection ------------------------------------------------------------
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -77,7 +77,7 @@ class LaunchOptionsController(QObject):
         return self._text
 
     @Slot(str)
-    def setText(self, value: str) -> None:  # noqa: N802
+    def setText(self, value: str) -> None:
         if value != self._text:
             self._text = value
             if not self._dirty:
@@ -96,7 +96,7 @@ class LaunchOptionsController(QObject):
         return self._loading
 
     @Property(str, notify=stateChanged)
-    def loadError(self) -> str:  # noqa: N802
+    def loadError(self) -> str:
         return self._error
 
     @Property(bool, notify=dirtyChanged)
@@ -110,23 +110,23 @@ class LaunchOptionsController(QObject):
     # --- proton / compat tool -------------------------------------------------
 
     @Property("QStringList", notify=protonChanged)
-    def protonTools(self) -> list:  # noqa: N802
+    def protonTools(self) -> list:
         return self._proton_tools
 
     @Property(str, notify=protonChanged)
-    def protonCurrent(self) -> str:  # noqa: N802
+    def protonCurrent(self) -> str:
         return self._proton_current
 
     @Property(bool, notify=protonChanged)
-    def protonLoaded(self) -> bool:  # noqa: N802
+    def protonLoaded(self) -> bool:
         return self._proton_loaded
 
     @Property(str, notify=protonStatusChanged)
-    def protonStatus(self) -> str:  # noqa: N802
+    def protonStatus(self) -> str:
         return self._proton_status
 
     @Slot(str)
-    def setProton(self, tool_name: str) -> None:  # noqa: N802
+    def setProton(self, tool_name: str) -> None:
         """Immediately persist a Proton selection to config.vdf (fail-closed)."""
         if not self._proton_loaded or not self._app_id:
             return
@@ -141,14 +141,14 @@ class LaunchOptionsController(QObject):
     # --- quick presets --------------------------------------------------------
 
     @Property("QVariantList", constant=True)
-    def launchPresets(self) -> list:  # noqa: N802
+    def launchPresets(self) -> list:
         """Common launch-option snippets, each tagged with live install status."""
         from ..core.launch_presets import launch_presets
 
         return launch_presets()
 
     @Slot(str)
-    def appendPreset(self, value: str) -> None:  # noqa: N802
+    def appendPreset(self, value: str) -> None:
         """Append a preset snippet to the launch options (no-op if already present)."""
         value = value.strip()
         if not value or not self._loaded or value in self._text:

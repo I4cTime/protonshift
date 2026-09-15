@@ -41,11 +41,11 @@ class HeroicController(QObject):
         self._workError.connect(self._on_work_error)
 
     @Property(str, notify=appIdChanged)
-    def appId(self) -> str:  # noqa: N802
+    def appId(self) -> str:
         return self._app_id
 
     @appId.setter
-    def appId(self, value: str) -> None:  # noqa: N802
+    def appId(self, value: str) -> None:
         if value == self._app_id:
             return
         self._app_id = value
@@ -62,7 +62,7 @@ class HeroicController(QObject):
         return self._config
 
     @Property("QVariantList", notify=versionsChanged)
-    def wineVersions(self) -> list:  # noqa: N802
+    def wineVersions(self) -> list:
         return self._versions
 
     @Property(bool, notify=loadingChanged)
@@ -76,7 +76,7 @@ class HeroicController(QObject):
     # --- actions --------------------------------------------------------------
 
     @Slot(str, bool)
-    def setToggle(self, key: str, value: bool) -> None:  # noqa: N802
+    def setToggle(self, key: str, value: bool) -> None:
         """Persist one boolean toggle (e.g. enableEsync) immediately."""
         if not self._app_id:
             return
@@ -85,7 +85,7 @@ class HeroicController(QObject):
         )
 
     @Slot(str, str, str)
-    def setWineVersion(self, name: str, bin_path: str, wine_type: str) -> None:  # noqa: N802
+    def setWineVersion(self, name: str, bin_path: str, wine_type: str) -> None:
         if not self._app_id:
             return
         start_worker(

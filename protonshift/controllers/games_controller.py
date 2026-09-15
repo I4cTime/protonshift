@@ -9,6 +9,8 @@ at the wrong title (the stale-snapshot bug from the old React app, review #L4).
 
 from __future__ import annotations
 
+import contextlib
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from ..core.steam import SteamGame, discover_games, invalidate_discovery_cache
@@ -96,11 +98,11 @@ class GamesController(QObject):
         return self._loading
 
     @Property(bool, notify=gamesChanged)
-    def steamFound(self) -> bool:  # noqa: N802
+    def steamFound(self) -> bool:
         return self._steam_found
 
     @Property("QVariantMap", notify=gamesChanged)
-    def sourceCounts(self) -> dict:  # noqa: N802
+    def sourceCounts(self) -> dict:
         """Per-source game counts for the library filter (steam/heroic/lutris)."""
         counts: dict[str, int] = {"steam": 0, "heroic": 0, "lutris": 0}
         for g in self._games:
@@ -108,7 +110,7 @@ class GamesController(QObject):
         return counts
 
     @Property(str, notify=selectedChanged)
-    def selectedAppId(self) -> str:  # noqa: N802
+    def selectedAppId(self) -> str:
         return self._selected_app_id
 
     @Property("QVariantMap", notify=selectedChanged)
@@ -146,14 +148,11 @@ class GamesController(QObject):
         merged = [_to_dict(g) for g in games]
         # Heroic (Epic/GOG) and Lutris games sit alongside Steam ones, tagged by
         # source so the UI can filter and gate Steam-only actions.
-        try:
+        # A broken Heroic or Lutris install must not kill Steam discovery.
+        with contextlib.suppress(Exception):
             merged += [_heroic_to_dict(g) for g in discover_heroic_games()]
-        except Exception:  # noqa: BLE001 — a broken Heroic install must not kill discovery
-            pass
-        try:
+        with contextlib.suppress(Exception):
             merged += [_lutris_to_dict(g) for g in discover_lutris_games()]
-        except Exception:  # noqa: BLE001
-            pass
         self._resultReady.emit(root is not None, merged)
 
     def _on_result(self, steam_found: bool, games: list) -> None:

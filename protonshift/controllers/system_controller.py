@@ -84,7 +84,7 @@ class SystemController(QObject):
     # --- static-ish -----------------------------------------------------------
 
     @Property("QVariantMap", constant=True)
-    def systemInfo(self) -> dict:  # noqa: N802
+    def systemInfo(self) -> dict:
         return self._info
 
     # --- reactive -------------------------------------------------------------
@@ -94,11 +94,11 @@ class SystemController(QObject):
         return self._gpus
 
     @Property("QStringList", notify=powerChanged)
-    def powerProfiles(self) -> list:  # noqa: N802
+    def powerProfiles(self) -> list:
         return self._profiles
 
     @Property(str, notify=powerChanged)
-    def currentProfile(self) -> str:  # noqa: N802
+    def currentProfile(self) -> str:
         return self._current
 
     @Property(bool, notify=loadingChanged)
@@ -120,7 +120,7 @@ class SystemController(QObject):
         start_worker(self._gpu_work, on_error=self._workError.emit)
 
     @Slot(str)
-    def setPowerProfile(self, profile: str) -> None:  # noqa: N802
+    def setPowerProfile(self, profile: str) -> None:
         if profile == self._current:
             return
         start_worker(self._power_work, profile, on_error=self._workError.emit)
