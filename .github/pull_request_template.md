@@ -1,7 +1,7 @@
 <!--
   Thanks for contributing to ProtonShift. Keep PRs focused; one logical
   change per PR. CI (ruff + pytest + qmllint, matrix on Python 3.11/3.12)
-  and CodeQL are required before merge on develop/main.
+  and CodeQL are required before merge on main.
 -->
 
 ## Summary
