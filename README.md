@@ -92,7 +92,8 @@ The Proton page lists the custom builds in Steam's `compatibilitytools.d`
 [GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) releases,
 and installs them with sha512 verification and a cancellable progress bar —
 or removes them, warning when a game still uses the build. New builds show
-up in the per-game Proton picker immediately.
+up in the per-game Proton picker immediately. Builds installed system-wide by
+your distro (`/usr/share/steam/compatibilitytools.d`) are listed as well.
 
 ### ProtonDB rating per game
 

@@ -25,7 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   latest GloriousEggroll releases, and installs them with sha512 verification
   and a cancellable progress bar — or removes them, warning when a game still
   uses the build. Installed builds appear in the per-game Proton picker right
-  away.
+  away. System-wide builds from distro packages (Arch's
+  `proton-ge-custom-bin`, anything in `/usr/share/steam/compatibilitytools.d`)
+  are listed too, tagged "system" and left to the package manager to remove.
+  Tools are identified by the internal name in `compatibilitytool.vdf` — the
+  key Steam actually uses — so "in use by" counts and the picker match what
+  Steam does.
 - **ProtonDB rating per game.** The game detail pane shows the community tier
   (Platinum → Borked), report count, confidence and trending tier, with a link
   to the ProtonDB page. Results are cached for a day. Lookups send only the
