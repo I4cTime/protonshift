@@ -31,6 +31,7 @@ class ProtontricksController(QObject):
         self._game_name = ""
         self._running = False
         self._status = ""
+        self._status_ok = True
         self._output = ""
         # M4: is_available() can shell out (`flatpak info`, up to 5 s) — probe
         # on a worker instead of blocking app construction.
@@ -88,6 +89,10 @@ class ProtontricksController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     @Property(str, notify=outputChanged)
     def output(self) -> str:
         return self._output
@@ -101,6 +106,7 @@ class ProtontricksController(QObject):
         clean = [str(v) for v in verbs if str(v).strip()]
         if not clean:
             self._status = "Pick at least one component."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         self._running = True
@@ -117,8 +123,9 @@ class ProtontricksController(QObject):
 
     @Slot()
     def openGui(self) -> None:
-        _ok, msg = launch_gui(self._app_id)
+        ok, msg = launch_gui(self._app_id)
         self._status = msg
+        self._status_ok = ok
         self.statusChanged.emit()
 
     # --- workers ----------------------------------------------------------------
@@ -144,6 +151,7 @@ class ProtontricksController(QObject):
         lines = output.splitlines()
         self._output = "\n".join(lines[-40:])
         self._status = "Done." if ok else "Install failed — see log below."
+        self._status_ok = ok
         self.runningChanged.emit()
         self.outputChanged.emit()
         self.statusChanged.emit()

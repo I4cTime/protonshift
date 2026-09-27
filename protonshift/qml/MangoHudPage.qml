@@ -9,6 +9,43 @@ RowLayout {
     id: page
     spacing: Theme.spaceLg
 
+    // Applying a preset replaces the whole config — confirm before overwriting.
+    PsDialog {
+        id: presetConfirmDialog
+        property string pendingPreset: ""
+        title: "Replace config?"
+        width: 420
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "“" + presetConfirmDialog.pendingPreset + "” replaces every metric and value below"
+                      + (mangohud.dirty ? ", including your unsaved edits." : ".")
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: presetConfirmDialog.close()
+                }
+                PsButton {
+                    text: "Replace"; primary: false; danger: true
+                    onClicked: {
+                        mangohud.applyPreset(presetConfirmDialog.pendingPreset)
+                        presetConfirmDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
     // ============================ EDITOR ===================================
     PsCard {
         Layout.fillWidth: true
@@ -156,9 +193,7 @@ RowLayout {
                 Text {
                     Layout.fillWidth: true
                     text: mangohud.status
-                    color: (mangohud.status.indexOf("failed") >= 0
-                            || mangohud.status.indexOf("Not saved") >= 0)
-                           ? Theme.danger : Theme.success
+                    color: mangohud.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -206,7 +241,18 @@ RowLayout {
                     border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
                     HoverHandler { id: ph }
-                    TapHandler { onTapped: if (mangohud.loaded) mangohud.applyPreset(modelData) }
+                    TapHandler {
+                        onTapped: if (mangohud.loaded) {
+                            presetConfirmDialog.pendingPreset = modelData
+                            presetConfirmDialog.open()
+                        }
+                    }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Apply preset " + modelData
+                    Accessible.onPressAction: if (mangohud.loaded) {
+                        presetConfirmDialog.pendingPreset = modelData
+                        presetConfirmDialog.open()
+                    }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left

@@ -33,6 +33,7 @@ class PerGameMangoHudController(QObject):
         self._exists = False
         self._error = ""
         self._status = ""
+        self._status_ok = True
         self._toggle_params = [p for p in MANGOHUD_PARAMS if p["type"] == "toggle"]
         self._value_params = [p for p in MANGOHUD_PARAMS if p["type"] == "value"]
         self._presets = list(MANGOHUD_PRESETS.keys())
@@ -102,6 +103,10 @@ class PerGameMangoHudController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot(str, bool)
@@ -155,6 +160,7 @@ class PerGameMangoHudController(QObject):
                 self.existsChanged.emit()
             else:
                 self._status = "Save failed — check permissions."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     @Slot()
@@ -168,11 +174,13 @@ class PerGameMangoHudController(QObject):
             self._exists = False
             self._dirty = False
             self._status = "Override removed"
+            self._status_ok = True
             self.configChanged.emit()
             self.existsChanged.emit()
             self.dirtyChanged.emit()
         else:
             self._status = "Couldn't remove override."
+            self._status_ok = False
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -218,6 +226,7 @@ class PerGameMangoHudController(QObject):
         self._loading = False
         self._dirty = False
         self._status = ""
+        self._status_ok = True
         self.loadingChanged.emit()
         self.loadedChanged.emit()
         self.existsChanged.emit()

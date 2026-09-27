@@ -263,8 +263,7 @@ RowLayout {
                     text: env.status
                     elide: Text.ElideRight
                     horizontalAlignment: Text.AlignRight
-                    color: env.status.indexOf("Not saved") === 0 || env.status.indexOf("failed") >= 0
-                           ? Theme.danger : Theme.success
+                    color: env.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }

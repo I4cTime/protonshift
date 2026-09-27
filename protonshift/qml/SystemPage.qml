@@ -143,19 +143,28 @@ ColumnLayout {
         PsCard {
             Layout.preferredWidth: 300
             Layout.fillHeight: true
+            // header + at least 2 rows before the list itself needs to scroll
+            Layout.minimumHeight: profileHeader.implicitHeight + 2 * 44 + 3 * Theme.spaceXs
+                                  + 2 * Theme.spaceLg + Theme.space
             visible: system.powerProfiles.length > 0
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.spaceLg
                 spacing: Theme.space
-                PsSectionHeader { Layout.fillWidth: true; text: "Power profile" }
+                PsSectionHeader { id: profileHeader; Layout.fillWidth: true; text: "Power profile" }
 
-                Repeater {
+                ListView {
+                    id: profileList
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: Theme.spaceXs
                     model: system.powerProfiles
+                    ScrollBar.vertical: ScrollBar {}
                     delegate: Rectangle {
                         id: profileRow
                         required property string modelData
-                        Layout.fillWidth: true
+                        width: profileList.width
                         implicitHeight: 44
                         radius: Theme.radiusSm
                         property bool active: system.currentProfile === modelData
@@ -165,6 +174,8 @@ ColumnLayout {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: pw }
                         TapHandler { onTapped: system.setPowerProfile(profileRow.modelData) }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: profileRow.modelData.charAt(0).toUpperCase() + profileRow.modelData.slice(1) + (profileRow.active ? " (active)" : "")
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: Theme.space
@@ -189,11 +200,10 @@ ColumnLayout {
                     visible: system.status.length > 0
                     text: system.status
                     wrapMode: Text.WordWrap
-                    color: system.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: system.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
-                Item { Layout.fillHeight: true }
             }
         }
     }

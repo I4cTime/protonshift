@@ -76,6 +76,7 @@ class SystemController(QObject):
         self._current = ""
         self._loading = False
         self._status = ""
+        self._status_ok = True
         self._gpuResult.connect(self._on_gpu)
         self._powerResult.connect(self._on_power)
         self._workError.connect(self._on_work_error)
@@ -108,6 +109,10 @@ class SystemController(QObject):
     @Property(str, notify=statusChanged)
     def status(self) -> str:
         return self._status
+
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
 
     # --- actions --------------------------------------------------------------
 
@@ -158,11 +163,13 @@ class SystemController(QObject):
     def _on_power(self, ok: bool, msg: str, applied: str) -> None:
         self._current = applied
         self._status = msg if msg else ("Power profile set" if ok else "Couldn't set power profile")
+        self._status_ok = ok
         self.powerChanged.emit()
         self.statusChanged.emit()
 
     def _on_work_error(self, message: str) -> None:
         self._loading = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.loadingChanged.emit()
         self.statusChanged.emit()

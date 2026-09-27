@@ -37,12 +37,14 @@ class LaunchOptionsController(QObject):
         self._loading = False
         self._dirty = False
         self._status = ""
+        self._status_ok = True
         self._error = ""
         # proton / compat tool
         self._proton_tools: list[str] = []
         self._proton_current = ""
         self._proton_loaded = False
         self._proton_status = ""
+        self._proton_status_ok = True
         self._loadResult.connect(self._on_loaded)
         self._saveResult.connect(self._on_saved)
         self._protonResult.connect(self._on_proton_loaded)
@@ -107,6 +109,10 @@ class LaunchOptionsController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- proton / compat tool -------------------------------------------------
 
     @Property("QStringList", notify=protonChanged)
@@ -124,6 +130,10 @@ class LaunchOptionsController(QObject):
     @Property(str, notify=protonStatusChanged)
     def protonStatus(self) -> str:
         return self._proton_status
+
+    @Property(bool, notify=protonStatusChanged)
+    def protonStatusOk(self) -> bool:
+        return self._proton_status_ok
 
     @Slot(str)
     def setProton(self, tool_name: str) -> None:
@@ -167,6 +177,7 @@ class LaunchOptionsController(QObject):
     def save(self) -> None:
         if not self._loaded or not self._app_id:
             self._status = "Not saved — launch options weren't loaded."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         app_id = self._app_id
@@ -247,6 +258,7 @@ class LaunchOptionsController(QObject):
         self._proton_current = current
         self._proton_loaded = ok
         self._proton_status = "" if ok else "Couldn't read config.vdf."
+        self._proton_status_ok = ok
         self.protonChanged.emit()
         self.protonStatusChanged.emit()
 
@@ -258,6 +270,7 @@ class LaunchOptionsController(QObject):
             self._proton_status = "Proton set — quit Steam first (it rewrites config.vdf on exit)."
         else:
             self._proton_status = "Couldn't write config.vdf."
+        self._proton_status_ok = ok
         self.protonChanged.emit()
         self.protonStatusChanged.emit()
 
@@ -302,4 +315,5 @@ class LaunchOptionsController(QObject):
             self.dirtyChanged.emit()
         else:
             self._status = "Save failed — localconfig.vdf unreadable or unwritable."
+        self._status_ok = ok
         self.statusChanged.emit()

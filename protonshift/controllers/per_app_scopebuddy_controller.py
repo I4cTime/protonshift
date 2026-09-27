@@ -37,6 +37,7 @@ class PerAppScopeBuddyController(QObject):
         self._dirty = False
         self._exists = False
         self._status = ""
+        self._status_ok = True
         self._known = list(SCB_KNOWN_KEYS)
         self._loadResult.connect(self._on_loaded)
         self._workError.connect(self._on_work_error)
@@ -93,6 +94,10 @@ class PerAppScopeBuddyController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot(str)
@@ -102,6 +107,7 @@ class PerAppScopeBuddyController(QObject):
             return
         if not _valid_key(key):
             self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         if key not in self._model.to_dict():
@@ -115,6 +121,7 @@ class PerAppScopeBuddyController(QObject):
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
             self._status = f"Not saved — key “{bad}” is invalid."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         from ..core.scopebuddy import write_per_app_config
@@ -133,6 +140,7 @@ class PerAppScopeBuddyController(QObject):
                 self.existsChanged.emit()
             else:
                 self._status = "Save failed — check permissions."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     @Slot()
@@ -146,10 +154,12 @@ class PerAppScopeBuddyController(QObject):
             self._exists = False
             self._dirty = False
             self._status = "Override removed"
+            self._status_ok = True
             self.existsChanged.emit()
             self.dirtyChanged.emit()
         else:
             self._status = "Couldn't remove override."
+            self._status_ok = False
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -164,11 +174,13 @@ class PerAppScopeBuddyController(QObject):
 
     def _on_invalid_key(self, key: str) -> None:
         self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status_ok = False
         self.statusChanged.emit()
 
     def _on_work_error(self, message: str) -> None:
         self._loading = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.loadingChanged.emit()
         self.statusChanged.emit()
 
@@ -193,6 +205,7 @@ class PerAppScopeBuddyController(QObject):
         self._loading = False
         self._dirty = False
         self._status = ""
+        self._status_ok = True
         self.loadingChanged.emit()
         self.loadedChanged.emit()
         self.existsChanged.emit()
