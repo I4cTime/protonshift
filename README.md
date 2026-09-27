@@ -85,6 +85,22 @@ Pick a Proton or Wine build from a dropdown — Steam's `compatibilitytools.d`
 and built-in tools, or Heroic's `tools/wine` and `tools/proton` — instead of
 hunting through config files.
 
+### GE-Proton manager
+
+The Proton page lists the custom builds in Steam's `compatibilitytools.d`
+(size, version, which games pin them), shows the latest
+[GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) releases,
+and installs them with sha512 verification and a cancellable progress bar —
+or removes them, warning when a game still uses the build. New builds show
+up in the per-game Proton picker immediately.
+
+### ProtonDB rating per game
+
+The game detail pane shows the community [ProtonDB](https://www.protondb.com)
+tier (Platinum → Borked), report count, confidence and trending tier, with a
+link to the full page. Lookups send only the Steam App ID, are cached for a
+day, and can be switched off in Settings.
+
 ### Heroic per-game toggles
 
 Esync/Fsync, DXVK/VKD3D auto-install, MangoHud, GameMode, and NVIDIA Prime
@@ -112,14 +128,18 @@ Visual editing for global (`~/.config/MangoHud/MangoHud.conf`) and per-game
 (`wine-<game>.conf`) configs — metrics grouped by category, overlay position,
 toggle hotkey, and log folder, with presets to get started fast.
 
-### Environment variables
+### Environment variables, wherever your desktop reads them
 
-Manage environment variables persisted to
-`~/.config/environment.d/70-protonshift.conf`, with presets for common
-GPU/Proton/Wayland tuning. Note that `environment.d` is only read by desktops
-started under systemd's user manager (GNOME, KDE Plasma, uwsm sessions); the
-page warns when yours isn't (Cinnamon, XFCE, MATE, `startx`) and suggests
-`~/.xsessionrc`/`~/.profile` exports or per-game Steam launch options instead.
+Manage system-wide gaming environment variables with presets for common
+GPU/Proton/Wayland tuning, and choose where they go:
+`~/.config/environment.d/70-protonshift.conf` (systemd user sessions — GNOME,
+KDE Plasma, sway/Hyprland under uwsm), `~/.profile` (login shells and
+display-manager session wrappers) or `~/.xsessionrc` (Debian/Ubuntu/Mint X11
+sessions). ProtonShift detects how your session was started, recommends the
+target it actually reads, and warns with a one-click switch when the selected
+one isn't it. Shell files get a clearly marked managed block; everything
+outside it is left untouched. "Copy as Steam launch options" turns the same
+variables into a `KEY=value … %command%` prefix for a single game.
 
 ### Wine/Proton prefixes, shader cache, and save backups
 
@@ -131,7 +151,9 @@ via timestamped ZIPs.
 
 Save a game's launch options, compatibility tool, environment variables, and
 power profile as a named profile, then reapply it later — to the same game or
-a different one.
+a different one. Export all profiles (or one) to a JSON bundle and import it
+on another machine; imports are validated entry by entry and never overwrite
+an existing profile unless you ask.
 
 ### Game-specific fixes database
 

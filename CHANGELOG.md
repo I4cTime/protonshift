@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-27
+
+### Added
+- **Environment variables that reach every desktop** (#47). The Environment
+  page now has a "Where variables go" selector: `~/.config/environment.d`
+  (systemd user sessions — GNOME, KDE, sway/Hyprland under uwsm),
+  `~/.profile` (login shells and display-manager session wrappers) or
+  `~/.xsessionrc` (Debian/Ubuntu/Mint X11 sessions). ProtonShift recommends
+  the one your session actually reads and offers a one-click switch when the
+  selected target isn't it. Shell files get a clearly marked managed block
+  (`export KEY='value'`, POSIX-quoted); everything outside it is preserved
+  byte-for-byte. A "Copy as Steam launch options" button turns the same rows
+  into a `KEY=value … %command%` prefix for the stubborn cases.
+- **Proton page: GE-Proton manager.** Lists the custom builds in Steam's
+  `compatibilitytools.d` (size, version, which games pin them), fetches the
+  latest GloriousEggroll releases, and installs them with sha512 verification
+  and a cancellable progress bar — or removes them, warning when a game still
+  uses the build. Installed builds appear in the per-game Proton picker right
+  away.
+- **ProtonDB rating per game.** The game detail pane shows the community tier
+  (Platinum → Borked), report count, confidence and trending tier, with a link
+  to the ProtonDB page. Results are cached for a day. Lookups send only the
+  Steam App ID to protondb.com and can be switched off in Settings (and from
+  the pane itself).
+- **Profile export / import.** The profiles dialog can export all profiles or
+  a single one to a versioned JSON bundle and import a bundle back, skipping
+  same-named profiles unless you flip the overwrite switch. Imports are
+  validated entry by entry (types, env var keys, no newline injection) and
+  report imported / skipped / invalid counts.
+
+### Changed
+- Flatpak: the sandbox now has `--share=network` (GE-Proton downloads and
+  ProtonDB lookups) and may create `~/.profile` / `~/.xsessionrc` for the
+  managed env block. Nothing else talks to the network.
+- Docs: release flow and contributing notes describe the main-only branching
+  model (`develop` is gone since 1.1.1).
+
 ## [1.1.1] — 2026-09-15
 
 ### Fixed

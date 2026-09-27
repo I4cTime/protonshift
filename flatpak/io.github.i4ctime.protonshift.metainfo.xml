@@ -71,6 +71,11 @@
   </developer>
 
   <releases>
+    <release version="1.2.0" date="2026-09-27">
+      <description>
+        <p>Environment variables now reach every desktop: pick environment.d, ~/.profile or ~/.xsessionrc, with a recommendation for your session and a "copy as Steam launch options" fallback. New Proton page installs and removes GE-Proton builds with checksum verification. Game details show the ProtonDB rating (opt-out in Settings). Profiles can be exported and imported as JSON bundles.</p>
+      </description>
+    </release>
     <release version="1.1.1" date="2026-09-15">
       <description>
         <p>Environment Variables now warns when your desktop session isn't started by systemd (Cinnamon, XFCE, MATE, startx), where environment.d is never read, and points at working alternatives.</p>
