@@ -450,7 +450,7 @@ RowLayout {
                 visible: launch.protonStatus.length > 0
                 text: launch.protonStatus
                 wrapMode: Text.WordWrap
-                color: launch.protonStatus.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                color: launch.protonStatusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fsCaption
             }
@@ -518,9 +518,7 @@ RowLayout {
                     Layout.fillWidth: true
                     text: launch.status
                     wrapMode: Text.WordWrap
-                    color: (launch.status.indexOf("failed") >= 0
-                            || launch.status.indexOf("Not saved") >= 0)
-                           ? Theme.danger : Theme.success
+                    color: launch.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -799,7 +797,7 @@ RowLayout {
                 visible: gameTools.status.length > 0
                 text: gameTools.status
                 wrapMode: Text.WordWrap
-                color: (gameTools.status.indexOf("Couldn't") >= 0) ? Theme.danger : Theme.success
+                color: gameTools.statusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fsCaption
             }
@@ -1010,7 +1008,7 @@ RowLayout {
                     visible: heroic.status.length > 0
                     text: heroic.status
                     wrapMode: Text.WordWrap
-                    color: heroic.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: heroic.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
             }
@@ -1131,15 +1129,18 @@ RowLayout {
                     onClicked: perAppScb.model.addRow()
                 }
                 PsButton {
-                    text: "Delete override"; primary: false
+                    text: "Delete override"; primary: false; danger: true
                     visible: perAppScb.exists
-                    onClicked: perAppScb.deleteOverride()
+                    onClicked: {
+                        deleteOverrideConfirm.controllerObj = perAppScb
+                        deleteOverrideConfirm.label = "ScopeBuddy"
+                        deleteOverrideConfirm.open()
+                    }
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: perAppScb.status
-                    color: perAppScb.status.indexOf("failed") >= 0
-                           || perAppScb.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: perAppScb.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -1202,7 +1203,12 @@ RowLayout {
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 100 } }
                         HoverHandler { id: ph }
-                        TapHandler { onTapped: if (perGameMango.loaded) perGameMango.applyPreset(modelData) }
+                        TapHandler {
+                            onTapped: if (perGameMango.loaded) {
+                                perGameMangoPresetConfirm.pendingPreset = modelData
+                                perGameMangoPresetConfirm.open()
+                            }
+                        }
                         Text {
                             id: pl
                             anchors.centerIn: parent
@@ -1243,15 +1249,18 @@ RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
-                    text: "Delete override"; primary: false
+                    text: "Delete override"; primary: false; danger: true
                     visible: perGameMango.exists
-                    onClicked: perGameMango.deleteOverride()
+                    onClicked: {
+                        deleteOverrideConfirm.controllerObj = perGameMango
+                        deleteOverrideConfirm.label = "MangoHud"
+                        deleteOverrideConfirm.open()
+                    }
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: perGameMango.status
-                    color: perGameMango.status.indexOf("failed") >= 0
-                           || perGameMango.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: perGameMango.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -1436,9 +1445,7 @@ RowLayout {
                     Layout.maximumWidth: 260
                     text: protontricks.status
                     elide: Text.ElideRight
-                    color: protontricks.status.indexOf("failed") >= 0
-                           || protontricks.status.indexOf("Couldn't") >= 0
-                           || protontricks.status.indexOf("not installed") >= 0 ? Theme.danger : Theme.success
+                    color: protontricks.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -1639,7 +1646,11 @@ RowLayout {
                             implicitWidth: 80
                             onClicked: { exportDialog.profileName = modelData; exportDialog.open() }
                         }
-                        PsButton { text: "Delete"; primary: false; danger: true; enabled: !profiles.busy; onClicked: profiles.deleteProfile(modelData) }
+                        PsButton {
+                            text: "Delete"; primary: false; danger: true
+                            enabled: !profiles.busy
+                            onClicked: { deleteProfileConfirm.pendingName = modelData; deleteProfileConfirm.open() }
+                        }
                     }
                 }
             }
@@ -1650,8 +1661,44 @@ RowLayout {
                 Text {
                     Layout.fillWidth: true; text: profiles.status
                     wrapMode: Text.WordWrap
-                    color: profiles.status.indexOf("Couldn't") >= 0 || profiles.status.indexOf("Nothing") >= 0 ? Theme.danger : Theme.success
+                    color: profiles.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+            }
+        }
+    }
+
+    // Deleting a profile removes its saved snapshot outright — confirm first.
+    PsDialog {
+        id: deleteProfileConfirm
+        property string pendingName: ""
+        title: "Delete profile?"
+        width: 380
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "“" + deleteProfileConfirm.pendingName + "” will be permanently removed."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: deleteProfileConfirm.close()
+                }
+                PsButton {
+                    text: "Delete"; primary: false; danger: true
+                    onClicked: {
+                        profiles.deleteProfile(deleteProfileConfirm.pendingName)
+                        deleteProfileConfirm.close()
+                    }
                 }
             }
         }
@@ -1760,8 +1807,86 @@ RowLayout {
                 visible: saves.status.length > 0
                 text: saves.status
                 wrapMode: Text.WordWrap
-                color: saves.status.indexOf("failed") >= 0 ? Theme.danger : Theme.success
+                color: saves.statusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+        }
+    }
+
+    // Shared confirm for the per-game ScopeBuddy / MangoHud override delete
+    // buttons above — both just call deleteOverride() on whichever controller
+    // was armed.
+    PsDialog {
+        id: deleteOverrideConfirm
+        property var controllerObj: null
+        property string label: ""
+        title: "Delete override?"
+        width: 380
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "This removes the " + deleteOverrideConfirm.label + " override for this game."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: deleteOverrideConfirm.close()
+                }
+                PsButton {
+                    text: "Delete"; primary: false; danger: true
+                    onClicked: {
+                        if (deleteOverrideConfirm.controllerObj)
+                            deleteOverrideConfirm.controllerObj.deleteOverride()
+                        deleteOverrideConfirm.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // Applying a MangoHud preset to a per-game override replaces every
+    // metric/value in it — confirm before overwriting.
+    PsDialog {
+        id: perGameMangoPresetConfirm
+        property string pendingPreset: ""
+        title: "Replace override?"
+        width: 420
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "“" + perGameMangoPresetConfirm.pendingPreset + "” replaces every metric and value in this game's MangoHud override"
+                      + (perGameMango.dirty ? ", including your unsaved edits." : ".")
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: perGameMangoPresetConfirm.close()
+                }
+                PsButton {
+                    text: "Replace"; primary: false; danger: true
+                    onClicked: {
+                        perGameMango.applyPreset(perGameMangoPresetConfirm.pendingPreset)
+                        perGameMangoPresetConfirm.close()
+                    }
+                }
             }
         }
     }

@@ -48,6 +48,7 @@ class ScopeBuddyController(QObject):
         self._dirty = False
         self._error = ""
         self._status = ""
+        self._status_ok = True
         self._known = list(SCB_KNOWN_KEYS)
         self._presets = list(SCOPEBUDDY_PRESETS.keys())
         self._infoResult.connect(self._on_info)
@@ -107,6 +108,10 @@ class ScopeBuddyController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot(str)
@@ -116,6 +121,7 @@ class ScopeBuddyController(QObject):
             return
         if not _valid_key(key):
             self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         if key not in self._model.to_dict():
@@ -142,6 +148,7 @@ class ScopeBuddyController(QObject):
     def save(self) -> None:
         if not self._loaded:
             self._status = "Not saved — config was never loaded."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         cfg = self._model.to_dict()
@@ -150,6 +157,7 @@ class ScopeBuddyController(QObject):
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
             self._status = f"Not saved — key “{bad}” is invalid."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         from ..core.scopebuddy import write_global_config
@@ -166,6 +174,7 @@ class ScopeBuddyController(QObject):
                 self.dirtyChanged.emit()
             else:
                 self._status = "Save failed — check permissions."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -180,6 +189,7 @@ class ScopeBuddyController(QObject):
 
     def _on_invalid_key(self, key: str) -> None:
         self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status_ok = False
         self.statusChanged.emit()
 
     def _load_work(self) -> None:

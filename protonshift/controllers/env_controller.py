@@ -188,6 +188,7 @@ class EnvController(QObject):
         self._load_error = ""
         self._session_warning = ""
         self._status = ""
+        self._status_ok = True
         self._target = _load_target_choice()
         self._recommended = env_targets.ENV_D
         # last session probe, cached so a target switch can re-derive the
@@ -227,6 +228,10 @@ class EnvController(QObject):
     @Property(str, notify=statusChanged)
     def status(self) -> str:
         return self._status
+
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
 
     @Property(str, notify=loadedChanged)
     def sessionWarning(self) -> str:
@@ -288,11 +293,13 @@ class EnvController(QObject):
         prefix = self.launchPrefix
         if not prefix:
             self._status = "Nothing to copy — add a variable first."
+            self._status_ok = False
         else:
             clipboard = QGuiApplication.clipboard()
             if clipboard is not None:
                 clipboard.setText(prefix)
             self._status = "Launch options copied — paste into a game's Properties → Launch Options."
+            self._status_ok = True
         self.statusChanged.emit()
 
     # --- actions --------------------------------------------------------------
@@ -321,6 +328,7 @@ class EnvController(QObject):
         # #21 fix: never write over a config we failed to (or never) read.
         if not self._loaded:
             self._status = "Not saved — config was never loaded."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         # L3 fix: the core writer silently drops keys failing its identifier
@@ -332,6 +340,7 @@ class EnvController(QObject):
                 f"Not saved — key “{bad}” is invalid "
                 "(letters, digits, underscore; can't start with a digit)."
             )
+            self._status_ok = False
             self.statusChanged.emit()
             return
         try:
@@ -346,6 +355,7 @@ class EnvController(QObject):
                 self.dirtyChanged.emit()
             else:
                 self._status = "Save failed — check permissions."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -361,6 +371,7 @@ class EnvController(QObject):
 
     def _on_invalid_key(self, key: str) -> None:
         self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status_ok = False
         self.statusChanged.emit()
 
     def _load_work(self, target: str) -> None:

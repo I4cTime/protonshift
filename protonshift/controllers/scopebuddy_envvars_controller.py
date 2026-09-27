@@ -38,6 +38,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self._dirty = False
         self._exists = False
         self._status = ""
+        self._status_ok = True
         self._known = list(SCB_KNOWN_KEYS)
         self._listResult.connect(self._on_list)
         self._loadResult.connect(self._on_loaded)
@@ -79,6 +80,10 @@ class ScopeBuddyEnvvarsController(QObject):
     @Property(str, notify=statusChanged)
     def status(self) -> str:
         return self._status
+
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
 
     # --- actions --------------------------------------------------------------
 
@@ -123,6 +128,7 @@ class ScopeBuddyEnvvarsController(QObject):
             return
         if not _valid_key(key):
             self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         if key not in self._model.to_dict():
@@ -136,6 +142,7 @@ class ScopeBuddyEnvvarsController(QObject):
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
             self._status = f"Not saved — key “{bad}” is invalid."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         from ..core.scopebuddy import write_envvars
@@ -155,6 +162,7 @@ class ScopeBuddyEnvvarsController(QObject):
                 self.refresh()
             else:
                 self._status = "Save failed — check permissions."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     @Slot()
@@ -169,12 +177,14 @@ class ScopeBuddyEnvvarsController(QObject):
             self._loaded = False
             self._dirty = False
             self._status = "Snippet removed"
+            self._status_ok = True
             self.existsChanged.emit()
             self.loadedChanged.emit()
             self.dirtyChanged.emit()
             self.refresh()
         else:
             self._status = "Couldn't remove snippet."
+            self._status_ok = False
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------
@@ -189,10 +199,12 @@ class ScopeBuddyEnvvarsController(QObject):
 
     def _on_invalid_key(self, key: str) -> None:
         self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status_ok = False
         self.statusChanged.emit()
 
     def _on_work_error(self, message: str) -> None:
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.statusChanged.emit()
 
     def _list_work(self) -> None:
@@ -218,6 +230,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self._loaded = ok
         self._dirty = False
         self._status = ""
+        self._status_ok = True
         self.existsChanged.emit()
         self.loadedChanged.emit()
         self.dirtyChanged.emit()

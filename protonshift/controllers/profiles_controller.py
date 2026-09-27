@@ -31,7 +31,7 @@ class ProfilesController(QObject):
     busyChanged = Signal()
 
     _listResult = Signal(list)
-    _actionResult = Signal(str)
+    _actionResult = Signal(str, bool)  # message, ok
     _workError = Signal(str)  # unexpected worker exception (list path — no refresh loop)
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -39,6 +39,7 @@ class ProfilesController(QObject):
         self._app_id = ""
         self._profiles: list[str] = []
         self._status = ""
+        self._status_ok = True
         self._busy = False
         self._listResult.connect(self._on_list)
         self._actionResult.connect(self._on_action)
@@ -64,6 +65,10 @@ class ProfilesController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
         return self._busy
@@ -82,7 +87,7 @@ class ProfilesController(QObject):
         self._begin(f"Capturing “{name}”…")
         start_worker(
             self._save_work, name, self._app_id,
-            on_error=lambda m: self._actionResult.emit(f"Capture failed: {m}"),
+            on_error=lambda m: self._actionResult.emit(f"Capture failed: {m}", False),
         )
 
     @Slot(str)
@@ -92,7 +97,7 @@ class ProfilesController(QObject):
         self._begin(f"Applying “{name}”…")
         start_worker(
             self._apply_work, name, self._app_id,
-            on_error=lambda m: self._actionResult.emit(f"Apply failed: {m}"),
+            on_error=lambda m: self._actionResult.emit(f"Apply failed: {m}", False),
         )
 
     @Slot(QUrl)
@@ -113,7 +118,7 @@ class ProfilesController(QObject):
         self._begin("Importing profiles…")
         start_worker(
             self._import_work, path, overwrite,
-            on_error=lambda m: self._actionResult.emit(f"Import failed: {m}"),
+            on_error=lambda m: self._actionResult.emit(f"Import failed: {m}", False),
         )
 
     @Slot(str)
@@ -122,6 +127,7 @@ class ProfilesController(QObject):
 
         ok = delete_profile(name)
         self._status = f"Deleted “{name}”." if ok else "Couldn't delete profile."
+        self._status_ok = ok
         self.statusChanged.emit()
         self.refresh()
 
@@ -134,7 +140,7 @@ class ProfilesController(QObject):
         self._begin("Exporting…")
         start_worker(
             self._export_work, names, path,
-            on_error=lambda m: self._actionResult.emit(f"Export failed: {m}"),
+            on_error=lambda m: self._actionResult.emit(f"Export failed: {m}", False),
         )
 
     # --- workers --------------------------------------------------------------
@@ -144,7 +150,7 @@ class ProfilesController(QObject):
 
         n = export_profiles(names, path)
         noun = "profile" if n == 1 else "profiles"
-        self._actionResult.emit(f"Exported {n} {noun} to {path.name}.")
+        self._actionResult.emit(f"Exported {n} {noun} to {path.name}.", True)
 
     def _import_work(self, path, overwrite: bool) -> None:
         from ..core.profiles_storage import BundleError, import_profiles
@@ -152,9 +158,9 @@ class ProfilesController(QObject):
         try:
             result = import_profiles(path, overwrite=overwrite)
         except BundleError as exc:
-            self._actionResult.emit(f"Couldn't import: {exc}")
+            self._actionResult.emit(f"Couldn't import: {exc}", False)
             return
-        self._actionResult.emit(result.summary)
+        self._actionResult.emit(result.summary, True)
 
     def _list_work(self) -> None:
         from ..core.profiles_storage import list_profiles
@@ -181,13 +187,15 @@ class ProfilesController(QObject):
                 ok, launch_opts = read_launch_options(lc, app_id)
                 if not ok:
                     self._actionResult.emit(
-                        "Couldn't capture — localconfig.vdf unreadable; profile not saved."
+                        "Couldn't capture — localconfig.vdf unreadable; profile not saved.",
+                        False,
                     )
                     return
             ok, compat = read_compat_tool(get_config_vdf_path(root), app_id)
             if not ok:
                 self._actionResult.emit(
-                    "Couldn't capture — config.vdf unreadable; profile not saved."
+                    "Couldn't capture — config.vdf unreadable; profile not saved.",
+                    False,
                 )
                 return
         env = read_gaming_env()
@@ -200,7 +208,7 @@ class ProfilesController(QObject):
             power_profile=power,
         )
         ok = save_profile(prof)
-        self._actionResult.emit(f"Saved “{name}”." if ok else "Couldn't save profile.")
+        self._actionResult.emit(f"Saved “{name}”." if ok else "Couldn't save profile.", ok)
 
     def _apply_work(self, name: str, app_id: str) -> None:
         from ..core.compat_tool import get_config_vdf_path, set_compat_tool
@@ -212,7 +220,7 @@ class ProfilesController(QObject):
 
         prof = load_profile(name)
         if prof is None:
-            self._actionResult.emit("Couldn't load profile.")
+            self._actionResult.emit("Couldn't load profile.", False)
             return
         applied: list[str] = []
         root, _ = discover_games()
@@ -238,7 +246,7 @@ class ProfilesController(QObject):
                 applied.append("power profile")
         msg = ("Applied " + ", ".join(applied) + " — quit Steam first.") if applied \
             else "Nothing applied (check permissions / Steam running)."
-        self._actionResult.emit(msg)
+        self._actionResult.emit(msg, bool(applied))
 
     def _begin(self, msg: str) -> None:
         self._busy = True
@@ -250,9 +258,10 @@ class ProfilesController(QObject):
         self._profiles = names
         self.profilesChanged.emit()
 
-    def _on_action(self, msg: str) -> None:
+    def _on_action(self, msg: str, ok: bool) -> None:
         self._busy = False
         self._status = msg
+        self._status_ok = ok
         self.busyChanged.emit()
         self.statusChanged.emit()
         self.refresh()
@@ -262,5 +271,6 @@ class ProfilesController(QObject):
         # refresh — that would retry the failing worker in a loop.
         self._busy = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.busyChanged.emit()
         self.statusChanged.emit()
