@@ -12,6 +12,7 @@ from .game_tools_controller import GameToolsController
 from .gamepad_controller import GamepadController
 from .games_controller import GamesController
 from .gamescope_controller import GamescopeController
+from .ge_proton_controller import GeProtonController
 from .heroic_controller import HeroicController
 from .launch_controller import LaunchOptionsController
 from .mangohud_controller import MangoHudController
@@ -33,6 +34,7 @@ __all__ = [
     "GamepadController",
     "GamesController",
     "GamescopeController",
+    "GeProtonController",
     "HeroicController",
     "LaunchOptionsController",
     "MangoHudController",

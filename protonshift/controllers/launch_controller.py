@@ -202,6 +202,11 @@ class LaunchOptionsController(QObject):
         root, _ = discover_games()
         return get_localconfig_path(root) if root else None
 
+    @Slot()
+    def reloadProton(self) -> None:
+        """Re-read the Proton tool list (e.g. after the GE-Proton page installs a build)."""
+        self._reload_proton()
+
     def _reload_proton(self) -> None:
         if not self._app_id:
             self._proton_tools = []

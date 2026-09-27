@@ -24,7 +24,7 @@ ApplicationWindow {
     GlowBackground { anchors.fill: parent }
 
     property int currentPage: 0
-    readonly property var pages: ["Library", "Environment", "MangoHud", "ScopeBuddy", "Gamescope", "Displays", "System", "Controllers"]
+    readonly property var pages: ["Library", "Proton", "Environment", "MangoHud", "ScopeBuddy", "Gamescope", "Displays", "System", "Controllers"]
 
     ColumnLayout {
         anchors.fill: parent
@@ -306,7 +306,7 @@ ApplicationWindow {
         // --- page stack -----------------------------------------------------
         // Each page sits behind a Loader that activates on first visit and then
         // stays loaded, so page state persists but startup doesn't pay for all
-        // eight pages (GamesPage alone carries six dialogs).
+        // nine pages (GamesPage alone carries six dialogs).
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -324,47 +324,54 @@ ApplicationWindow {
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 1
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: EnvironmentPage {}
+                sourceComponent: ProtonPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 2
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: MangoHudPage {}
+                sourceComponent: EnvironmentPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 3
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: ScopeBuddyPage {}
+                sourceComponent: MangoHudPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 4
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: GamescopeBuilderPage {}
+                sourceComponent: ScopeBuddyPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 5
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: DisplayPage {}
+                sourceComponent: GamescopeBuilderPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 6
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: SystemPage {}
+                sourceComponent: DisplayPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 7
+                onLoaded: Qt.callLater(() => loadedOnce = true)
+                sourceComponent: SystemPage {}
+            }
+            Loader {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                property bool loadedOnce: false
+                active: loadedOnce || window.currentPage === 8
                 onLoaded: Qt.callLater(() => loadedOnce = true)
                 sourceComponent: ControllersPage {}
             }
