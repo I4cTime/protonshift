@@ -99,7 +99,7 @@ up in the per-game Proton picker immediately.
 The game detail pane shows the community [ProtonDB](https://www.protondb.com)
 tier (Platinum → Borked), report count, confidence and trending tier, with a
 link to the full page. Lookups send only the Steam App ID, are cached for a
-day, and can be switched off in Settings.
+day, and can be switched off in the System page's Privacy card.
 
 ### Heroic per-game toggles
 

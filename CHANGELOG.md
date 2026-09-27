@@ -29,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ProtonDB rating per game.** The game detail pane shows the community tier
   (Platinum → Borked), report count, confidence and trending tier, with a link
   to the ProtonDB page. Results are cached for a day. Lookups send only the
-  Steam App ID to protondb.com and can be switched off in Settings (and from
-  the pane itself).
+  Steam App ID to protondb.com and can be switched off in the System page's
+  Privacy card (or from the pane itself).
 - **Profile export / import.** The profiles dialog can export all profiles or
   a single one to a versioned JSON bundle and import a bundle back, skipping
   same-named profiles unless you flip the overwrite switch. Imports are
