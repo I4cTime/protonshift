@@ -10,9 +10,20 @@ ColumnLayout {
 
     function backendLabel(b) {
         if (b === "xrandr") return "X11 · xrandr"
+        if (b === "hyprctl") return "Hyprland · hyprctl"
         if (b === "wlr-randr") return "Wayland · wlr-randr"
         if (b === "kscreen-doctor") return "KDE Wayland · kscreen-doctor"
         return "no display tool"
+    }
+
+    // Mimics Python's `{:g}` formatting (up to 6 significant figures, no
+    // trailing zeros) so "144.000" reads as "144 Hz" and "59.940" as
+    // "59.94 Hz" — matches core/display.py's DisplayMode.key/.label.
+    function formatRefresh(r) {
+        var s = r.toPrecision(6)
+        if (s.indexOf(".") >= 0)
+            s = s.replace(/0+$/, "").replace(/\.$/, "")
+        return s + " Hz"
     }
 
     RowLayout {
@@ -39,8 +50,7 @@ ColumnLayout {
         visible: display.status.length > 0
         text: display.status
         wrapMode: Text.WordWrap
-        color: (display.status.indexOf("Couldn't") >= 0 || display.status.indexOf("Failed") >= 0
-                || display.status.indexOf("not found") >= 0) ? Theme.danger : Theme.success
+        color: display.statusOk ? Theme.success : Theme.danger
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fsCaption
     }
@@ -81,6 +91,7 @@ ColumnLayout {
                 delegate: PsCard {
                     id: outCard
                     required property var modelData
+                    onModelDataChanged: outCol.resetSelection()
                     Layout.fillWidth: true
                     glowing: modelData.primary
                     Layout.preferredHeight: outCol.implicitHeight + 2 * Theme.spaceLg
@@ -133,42 +144,141 @@ ColumnLayout {
 
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-                        // mode grid — click to apply
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: Theme.spaceXs
+                        // resolution + refresh rate pickers
+                        // Unique WxH keys, largest first (modelData.modes is
+                        // already sorted by area desc, then refresh desc).
+                        property var resKeys: {
+                            var seen = ({})
+                            var out = []
+                            var modes = outCard.modelData.modes
+                            for (var i = 0; i < modes.length; i++) {
+                                var key = modes[i].width + "x" + modes[i].height
+                                if (!seen[key]) {
+                                    seen[key] = true
+                                    out.push(key)
+                                }
+                            }
+                            return out
+                        }
+                        property string selectedRes: ""
+                        property var refreshRates: {
+                            var out = []
+                            var modes = outCard.modelData.modes
+                            var parts = outCol.selectedRes.split("x")
+                            var w = parseInt(parts[0] || "0", 10)
+                            var h = parseInt(parts[1] || "0", 10)
+                            for (var i = 0; i < modes.length; i++)
+                                if (modes[i].width === w && modes[i].height === h)
+                                    out.push(modes[i].refresh)
+                            return out
+                        }
+                        property string selectedRefresh: ""
+                        // full mode key for the current selection, in the same
+                        // "WxH@refresh.mmm" shape as core/display.py's
+                        // DisplayMode.key, so it can be compared directly.
+                        property string selectedKey: outCol.selectedRes.length && outCol.selectedRefresh.length
+                                ? outCol.selectedRes + "@" + parseFloat(outCol.selectedRefresh).toFixed(3)
+                                : ""
 
-                            Repeater {
-                                model: outCard.modelData.modes
-                                delegate: Rectangle {
-                                    id: modeChip
-                                    required property var modelData
-                                    property bool active: modeChip.modelData.key === outCard.modelData.currentKey
-                                    implicitWidth: modeLbl.implicitWidth + 22
-                                    implicitHeight: 30
-                                    radius: Theme.radiusSm
-                                    color: active ? Theme.surfaceElevated
-                                                  : (mh.hovered ? Theme.surface : Theme.bgDeep)
-                                    border.color: active ? Theme.primary : (mh.hovered ? Theme.borderStrong : Theme.border)
-                                    border.width: active ? 2 : 1
-                                    Behavior on color { ColorAnimation { duration: 100 } }
-                                    HoverHandler { id: mh }
-                                    TapHandler {
-                                        onTapped: if (!modeChip.active)
-                                            display.applyMode(outCard.modelData.name,
-                                                              modeChip.modelData.width,
-                                                              modeChip.modelData.height,
-                                                              modeChip.modelData.refresh)
+                        function resetSelection() {
+                            var parts = outCard.modelData.currentKey.split("@")
+                            outCol.selectedRes = parts[0] || (outCol.resKeys.length ? outCol.resKeys[0] : "")
+                            resSelect.currentIndex = outCol.resKeys.indexOf(outCol.selectedRes)
+                            outCol.selectedRefresh = outCol.refreshRates.length ? String(outCol.refreshRates[0]) : ""
+                            refreshSelect.currentIndex = 0
+                            if (parts.length > 1) {
+                                var want = parseFloat(parts[1])
+                                for (var i = 0; i < outCol.refreshRates.length; i++) {
+                                    if (Math.abs(outCol.refreshRates[i] - want) < 0.001) {
+                                        outCol.selectedRefresh = String(outCol.refreshRates[i])
+                                        refreshSelect.currentIndex = i
+                                        break
                                     }
-                                    Text {
-                                        id: modeLbl
-                                        anchors.centerIn: parent
-                                        text: modeChip.modelData.label
-                                        color: modeChip.active ? Theme.text
-                                                               : (mh.hovered ? Theme.text : Theme.muted)
-                                        font.family: Theme.monoFamily
-                                        font.pixelSize: Theme.fsCaption
-                                        font.weight: modeChip.active ? Font.Bold : Font.Normal
+                                }
+                            }
+                        }
+                        Component.onCompleted: outCol.resetSelection()
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.space
+
+                            ColumnLayout {
+                                spacing: Theme.spaceXs
+                                Text {
+                                    text: "Resolution"
+                                    color: Theme.muted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fsCaption
+                                    font.weight: Font.DemiBold
+                                }
+                                PsSelect {
+                                    id: resSelect
+                                    Layout.preferredWidth: 160
+                                    enabled: outCol.resKeys.length > 0
+                                    model: outCol.resKeys
+                                    Accessible.name: "Resolution for " + outCard.modelData.name
+                                    onChosen: {
+                                        outCol.selectedRes = value
+                                        // default the refresh pick to the
+                                        // highest rate for the new resolution
+                                        refreshSelect.currentIndex = 0
+                                        outCol.selectedRefresh = outCol.refreshRates.length
+                                                ? String(outCol.refreshRates[0]) : ""
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                spacing: Theme.spaceXs
+                                Text {
+                                    text: "Refresh rate"
+                                    color: Theme.muted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fsCaption
+                                    font.weight: Font.DemiBold
+                                }
+                                PsSelect {
+                                    id: refreshSelect
+                                    Layout.preferredWidth: 140
+                                    enabled: outCol.refreshRates.length > 0
+                                    model: outCol.refreshRates.map(function (r) { return String(r) })
+                                    displayMap: {
+                                        var m = ({})
+                                        for (var i = 0; i < outCol.refreshRates.length; i++)
+                                            m[String(outCol.refreshRates[i])] = page.formatRefresh(outCol.refreshRates[i])
+                                        return m
+                                    }
+                                    Accessible.name: "Refresh rate for " + outCard.modelData.name
+                                    onChosen: outCol.selectedRefresh = value
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            ColumnLayout {
+                                Layout.alignment: Qt.AlignBottom
+                                spacing: Theme.spaceXs
+                                Text {
+                                    text: outCard.modelData.currentKey.length
+                                          ? "Current: " + outCard.modelData.currentKey.split("@")[0] + " @ "
+                                            + page.formatRefresh(parseFloat(outCard.modelData.currentKey.split("@")[1]))
+                                          : "Current mode not detected"
+                                    color: Theme.faint
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fsCaption
+                                }
+                                PsButton {
+                                    text: "Apply"
+                                    enabled: outCol.selectedKey.length > 0
+                                             && outCol.selectedKey !== outCard.modelData.currentKey
+                                    Accessible.name: "Apply mode to " + outCard.modelData.name
+                                    onClicked: {
+                                        var parts = outCol.selectedRes.split("x")
+                                        display.applyMode(outCard.modelData.name,
+                                                          parseInt(parts[0], 10),
+                                                          parseInt(parts[1], 10),
+                                                          parseFloat(outCol.selectedRefresh))
                                     }
                                 }
                             }

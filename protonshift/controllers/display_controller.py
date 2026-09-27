@@ -30,6 +30,7 @@ class DisplayController(QObject):
         self._outputs: list[dict] = []
         self._loading = False
         self._status = ""
+        self._status_ok = True
         self._listResult.connect(self._on_list)
         self._applyResult.connect(self._on_apply)
         self._workError.connect(self._on_work_error)
@@ -52,6 +53,10 @@ class DisplayController(QObject):
     @Property(str, notify=statusChanged)
     def status(self) -> str:
         return self._status
+
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
 
     # --- actions --------------------------------------------------------------
 
@@ -112,6 +117,7 @@ class DisplayController(QObject):
 
     def _on_apply(self, ok: bool, msg: str) -> None:
         self._status = msg
+        self._status_ok = ok
         self.statusChanged.emit()
         # Re-read so the highlighted current mode reflects what actually stuck.
         self.refresh()
@@ -120,5 +126,6 @@ class DisplayController(QObject):
         # List-worker failure: clear loading, surface status, no auto-retry.
         self._loading = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.loadingChanged.emit()
         self.statusChanged.emit()

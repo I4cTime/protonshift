@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-27
+
+### Added
+- **Environment variables that reach every desktop** (#47). The Environment
+  page now has a "Where variables go" selector: `~/.config/environment.d`
+  (systemd user sessions — GNOME, KDE, sway/Hyprland under uwsm),
+  `~/.profile` (login shells and display-manager session wrappers) or
+  `~/.xsessionrc` (Debian/Ubuntu/Mint X11 sessions). ProtonShift recommends
+  the one your session actually reads and offers a one-click switch when the
+  selected target isn't it. Shell files get a clearly marked managed block
+  (`export KEY='value'`, POSIX-quoted); everything outside it is preserved
+  byte-for-byte. A "Copy as Steam launch options" button turns the same rows
+  into a `KEY=value … %command%` prefix for the stubborn cases.
+- **Proton page: GE-Proton manager.** Lists the custom builds in Steam's
+  `compatibilitytools.d` (size, version, which games pin them), fetches the
+  latest GloriousEggroll releases, and installs them with sha512 verification
+  and a cancellable progress bar — or removes them, warning when a game still
+  uses the build. Installed builds appear in the per-game Proton picker right
+  away. System-wide builds from distro packages (Arch's
+  `proton-ge-custom-bin`, anything in `/usr/share/steam/compatibilitytools.d`)
+  are listed too, tagged "system" and left to the package manager to remove.
+  Tools are identified by the internal name in `compatibilitytool.vdf` — the
+  key Steam actually uses — so "in use by" counts and the picker match what
+  Steam does.
+- **ProtonDB rating per game.** The game detail pane shows the community tier
+  (Platinum → Borked), report count, confidence and trending tier, with a link
+  to the ProtonDB page. Results are cached for a day. Lookups send only the
+  Steam App ID to protondb.com and can be switched off in the System page's
+  Privacy card (or from the pane itself).
+- **Profile export / import.** The profiles dialog can export all profiles or
+  a single one to a versioned JSON bundle and import a bundle back, skipping
+  same-named profiles unless you flip the overwrite switch. Imports are
+  validated entry by entry (types, env var keys, no newline injection) and
+  report imported / skipped / invalid counts.
+
+- **Settings page.** Appearance moved out of the header into a Settings tab
+  and was rebuilt around *styles* instead of fixed palettes: Proton Neon,
+  Phosphor Console, Soft Glass and Deepslate, each with default colors, plus
+  a system/dark/light mode and an accent color override (eight presets or any
+  hex). Existing theme choices migrate automatically. The page also hosts
+  the ProtonDB privacy toggle and an About card.
+
+- **Displays: resolution and refresh-rate dropdowns.** Each output gets a
+  Resolution select, a Refresh rate select scoped to that resolution, the
+  current mode as a caption, and an Apply button that only enables when the
+  choice differs from what's active — no more scanning a wall of mode chips.
+  Hyprland sessions get a native backend (`hyprctl monitors` / `hyprctl
+  keyword monitor`), so every mode the panel offers is listed even without
+  wlr-randr installed — the XWayland fallback only ever showed one.
+- Theme: `Theme.inkOn(fill)` picks dark or light text for any colored
+  surface from its luminance; primary buttons and the ProtonDB tier badges
+  use it, so custom accents stay readable.
+
+### Changed
+- Visual pass across every page: destructive actions (delete override /
+  profile / snippet, preset apply that replaces a whole config) now confirm
+  first; status lines color by a real success flag from each controller
+  instead of sniffing message text; the System page's power profile list
+  scrolls instead of clipping on short windows.
+- Flatpak: the sandbox now has `--share=network` (GE-Proton downloads and
+  ProtonDB lookups) and may create `~/.profile` / `~/.xsessionrc` for the
+  managed env block. Nothing else talks to the network.
+- Docs: release flow and contributing notes describe the main-only branching
+  model (`develop` is gone since 1.1.1).
+
 ## [1.1.1] — 2026-09-15
 
 ### Fixed

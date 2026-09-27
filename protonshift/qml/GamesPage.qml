@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import App
 
 // Second slice: Steam library discovery -> QML list model -> master/detail.
@@ -449,7 +450,7 @@ RowLayout {
                 visible: launch.protonStatus.length > 0
                 text: launch.protonStatus
                 wrapMode: Text.WordWrap
-                color: launch.protonStatus.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                color: launch.protonStatusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fsCaption
             }
@@ -517,9 +518,7 @@ RowLayout {
                     Layout.fillWidth: true
                     text: launch.status
                     wrapMode: Text.WordWrap
-                    color: (launch.status.indexOf("failed") >= 0
-                            || launch.status.indexOf("Not saved") >= 0)
-                           ? Theme.danger : Theme.success
+                    color: launch.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -569,6 +568,170 @@ RowLayout {
             }
 
             } // ===== end Steam-only (Proton + launch options + presets) =====
+
+            // ===== ProtonDB community rating (Steam-only; opt-in network lookup) =====
+            ColumnLayout {
+                id: protondbSection
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                visible: detailCard.isSteam
+
+                // Only Steam ids are ProtonDB ids — Heroic/Lutris games bind 0,
+                // which clears the controller and fires no request.
+                Binding {
+                    target: protondb
+                    property: "appid"
+                    value: detailCard.isSteam ? (parseInt(library.selectedAppId, 10) || 0) : 0
+                }
+                // The controller hands over a Theme token *name*; resolve it here.
+                function tierColor(key) {
+                    var c = Theme[key]
+                    return c !== undefined ? c : Theme.tierPending
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spaceSm
+                    PsSectionHeader {
+                        Layout.fillWidth: true
+                        text: "ProtonDB"
+                        subtitle: "Community compatibility reports · protondb.com"
+                    }
+                    BusyIndicator {
+                        running: protondb.loading
+                        visible: protondb.loading
+                        implicitWidth: 20; implicitHeight: 20
+                    }
+                    PsButton {
+                        text: "\u21bb"
+                        primary: false
+                        visible: protondb.enabled
+                        enabled: !protondb.loading
+                        implicitWidth: 40
+                        implicitHeight: 32
+                        Accessible.name: "Refresh ProtonDB rating"
+                        onClicked: protondb.refresh()
+                    }
+                }
+
+                // privacy opt-in — shown while lookups are switched off
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !protondb.enabled
+                    spacing: Theme.spaceSm
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Lookups are off. Enabling sends this game's Steam app id to protondb.com."
+                        wrapMode: Text.WordWrap
+                        color: Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                    PsButton {
+                        text: "Enable lookups"
+                        primary: false
+                        onClicked: protondb.setEnabled(true)
+                    }
+                }
+
+                // tier badge + report count
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: protondb.enabled && protondb.loaded
+                    spacing: Theme.spaceSm
+                    Rectangle {
+                        implicitWidth: tierLbl.implicitWidth + 20
+                        implicitHeight: 26
+                        radius: 13
+                        color: protondbSection.tierColor(protondb.tierColorKey)
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: "ProtonDB tier: " + protondb.tierLabel
+                        Text {
+                            id: tierLbl
+                            anchors.centerIn: parent
+                            text: protondb.tierLabel
+                            color: Theme.inkOn(parent.color)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fsCaption
+                            font.weight: Font.Bold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 0.6
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: protondb.total === 0
+                              ? "No reports yet"
+                              : protondb.total + (protondb.total === 1 ? " report" : " reports")
+                                + (protondb.confidence.length > 0 ? " \u00b7 " + protondb.confidence + " confidence" : "")
+                        elide: Text.ElideRight
+                        color: Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                }
+
+                // trending tier — only when it differs from the overall one
+                RowLayout {
+                    visible: protondb.enabled && protondb.loaded && protondb.trendingLabel.length > 0
+                    spacing: Theme.spaceXs
+                    Text {
+                        text: "Trending"
+                        color: Theme.faint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                    Rectangle {
+                        implicitWidth: trendLbl.implicitWidth + 14
+                        implicitHeight: 20
+                        radius: 10
+                        color: protondbSection.tierColor(protondb.trendingColorKey)
+                        Text {
+                            id: trendLbl
+                            anchors.centerIn: parent
+                            text: protondb.trendingLabel
+                            color: Theme.inkOn(parent.color)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                            font.weight: Font.Bold
+                            font.capitalization: Font.AllUppercase
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: protondb.enabled && protondb.error.length > 0
+                    text: protondb.error + (protondb.loaded ? " \u2014 showing the cached rating" : "")
+                    wrapMode: Text.WordWrap
+                    color: Theme.danger
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: protondb.enabled
+                    spacing: Theme.spaceSm
+                    PsButton {
+                        text: "Open on ProtonDB"
+                        primary: false
+                        enabled: protondb.pageUrl.length > 0
+                        onClicked: protondb.openPage()
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: protondb.fetchedLabel.length > 0
+                        text: protondb.fetchedLabel
+                        elide: Text.ElideRight
+                        color: Theme.faint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                }
+            } // ===== end ProtonDB =====
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
@@ -634,7 +797,7 @@ RowLayout {
                 visible: gameTools.status.length > 0
                 text: gameTools.status
                 wrapMode: Text.WordWrap
-                color: (gameTools.status.indexOf("Couldn't") >= 0) ? Theme.danger : Theme.success
+                color: gameTools.statusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fsCaption
             }
@@ -845,7 +1008,7 @@ RowLayout {
                     visible: heroic.status.length > 0
                     text: heroic.status
                     wrapMode: Text.WordWrap
-                    color: heroic.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: heroic.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
             }
@@ -966,15 +1129,18 @@ RowLayout {
                     onClicked: perAppScb.model.addRow()
                 }
                 PsButton {
-                    text: "Delete override"; primary: false
+                    text: "Delete override"; primary: false; danger: true
                     visible: perAppScb.exists
-                    onClicked: perAppScb.deleteOverride()
+                    onClicked: {
+                        deleteOverrideConfirm.controllerObj = perAppScb
+                        deleteOverrideConfirm.label = "ScopeBuddy"
+                        deleteOverrideConfirm.open()
+                    }
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: perAppScb.status
-                    color: perAppScb.status.indexOf("failed") >= 0
-                           || perAppScb.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: perAppScb.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -1037,7 +1203,12 @@ RowLayout {
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 100 } }
                         HoverHandler { id: ph }
-                        TapHandler { onTapped: if (perGameMango.loaded) perGameMango.applyPreset(modelData) }
+                        TapHandler {
+                            onTapped: if (perGameMango.loaded) {
+                                perGameMangoPresetConfirm.pendingPreset = modelData
+                                perGameMangoPresetConfirm.open()
+                            }
+                        }
                         Text {
                             id: pl
                             anchors.centerIn: parent
@@ -1078,15 +1249,18 @@ RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
-                    text: "Delete override"; primary: false
+                    text: "Delete override"; primary: false; danger: true
                     visible: perGameMango.exists
-                    onClicked: perGameMango.deleteOverride()
+                    onClicked: {
+                        deleteOverrideConfirm.controllerObj = perGameMango
+                        deleteOverrideConfirm.label = "MangoHud"
+                        deleteOverrideConfirm.open()
+                    }
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: perGameMango.status
-                    color: perGameMango.status.indexOf("failed") >= 0
-                           || perGameMango.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: perGameMango.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -1271,9 +1445,7 @@ RowLayout {
                     Layout.maximumWidth: 260
                     text: protontricks.status
                     elide: Text.ElideRight
-                    color: protontricks.status.indexOf("failed") >= 0
-                           || protontricks.status.indexOf("Couldn't") >= 0
-                           || protontricks.status.indexOf("not installed") >= 0 ? Theme.danger : Theme.success
+                    color: protontricks.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -1412,6 +1584,36 @@ RowLayout {
                 }
             }
 
+            // Export / import: profiles travel as one JSON bundle so a whole
+            // setup can move between machines (or be shared).
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    text: "Profiles are stored as JSON — export a bundle to back them up or move them to another PC."
+                    wrapMode: Text.WordWrap
+                    color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Import…"; primary: false
+                    enabled: !profiles.busy
+                    onClicked: importDialog.open()
+                }
+                PsButton {
+                    text: "Export all…"; primary: false
+                    enabled: profiles.profiles.length > 0 && !profiles.busy
+                    onClicked: { exportDialog.profileName = ""; exportDialog.open() }
+                }
+            }
+            PsSwitchRow {
+                id: importOverwrite
+                text: "Replace same-named profiles when importing"
+                subtitle: "Off: existing profiles are kept and the import reports what it skipped."
+                checked: false
+                onToggled: function(v) { checked = v }
+            }
+
             Text {
                 Layout.fillWidth: true
                 visible: profiles.profiles.length === 0
@@ -1439,7 +1641,16 @@ RowLayout {
                             color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
                         }
                         PsButton { text: "Apply"; primary: false; enabled: !profiles.busy; onClicked: profiles.apply(modelData) }
-                        PsButton { text: "Delete"; primary: false; danger: true; enabled: !profiles.busy; onClicked: profiles.deleteProfile(modelData) }
+                        PsButton {
+                            text: "Export"; primary: false; enabled: !profiles.busy
+                            implicitWidth: 80
+                            onClicked: { exportDialog.profileName = modelData; exportDialog.open() }
+                        }
+                        PsButton {
+                            text: "Delete"; primary: false; danger: true
+                            enabled: !profiles.busy
+                            onClicked: { deleteProfileConfirm.pendingName = modelData; deleteProfileConfirm.open() }
+                        }
                     }
                 }
             }
@@ -1450,13 +1661,72 @@ RowLayout {
                 Text {
                     Layout.fillWidth: true; text: profiles.status
                     wrapMode: Text.WordWrap
-                    color: profiles.status.indexOf("Couldn't") >= 0 || profiles.status.indexOf("Nothing") >= 0 ? Theme.danger : Theme.success
+                    color: profiles.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
             }
         }
     }
 
+    // Deleting a profile removes its saved snapshot outright — confirm first.
+    PsDialog {
+        id: deleteProfileConfirm
+        property string pendingName: ""
+        title: "Delete profile?"
+        width: 380
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "“" + deleteProfileConfirm.pendingName + "” will be permanently removed."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: deleteProfileConfirm.close()
+                }
+                PsButton {
+                    text: "Delete"; primary: false; danger: true
+                    onClicked: {
+                        profiles.deleteProfile(deleteProfileConfirm.pendingName)
+                        deleteProfileConfirm.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // Native pickers (xdg portal under Flatpak). One export dialog serves both
+    // "export all" (profileName === "") and a single row's Export button.
+    FileDialog {
+        id: exportDialog
+        property string profileName: ""
+        title: profileName.length > 0 ? "Export profile “" + profileName + "”" : "Export all profiles"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["ProtonShift profiles (*.json)"]
+        defaultSuffix: "json"
+        currentFile: "file:///" + (profileName.length > 0
+            ? profileName.replace(/[^A-Za-z0-9._-]+/g, "_")
+            : "protonshift-profiles") + ".json"
+        onAccepted: profileName.length > 0
+            ? profiles.exportOne(profileName, selectedFile)
+            : profiles.exportAll(selectedFile)
+    }
+    FileDialog {
+        id: importDialog
+        title: "Import profiles"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["ProtonShift profiles (*.json)", "All files (*)"]
+        onAccepted: profiles.importFrom(selectedFile, importOverwrite.checked)
+    }
     // ============================ SAVE BACKUPS DIALOG ======================
     PsDialog {
         id: savesDialog
@@ -1537,8 +1807,86 @@ RowLayout {
                 visible: saves.status.length > 0
                 text: saves.status
                 wrapMode: Text.WordWrap
-                color: saves.status.indexOf("failed") >= 0 ? Theme.danger : Theme.success
+                color: saves.statusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+        }
+    }
+
+    // Shared confirm for the per-game ScopeBuddy / MangoHud override delete
+    // buttons above — both just call deleteOverride() on whichever controller
+    // was armed.
+    PsDialog {
+        id: deleteOverrideConfirm
+        property var controllerObj: null
+        property string label: ""
+        title: "Delete override?"
+        width: 380
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "This removes the " + deleteOverrideConfirm.label + " override for this game."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: deleteOverrideConfirm.close()
+                }
+                PsButton {
+                    text: "Delete"; primary: false; danger: true
+                    onClicked: {
+                        if (deleteOverrideConfirm.controllerObj)
+                            deleteOverrideConfirm.controllerObj.deleteOverride()
+                        deleteOverrideConfirm.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // Applying a MangoHud preset to a per-game override replaces every
+    // metric/value in it — confirm before overwriting.
+    PsDialog {
+        id: perGameMangoPresetConfirm
+        property string pendingPreset: ""
+        title: "Replace override?"
+        width: 420
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "“" + perGameMangoPresetConfirm.pendingPreset + "” replaces every metric and value in this game's MangoHud override"
+                      + (perGameMango.dirty ? ", including your unsaved edits." : ".")
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: perGameMangoPresetConfirm.close()
+                }
+                PsButton {
+                    text: "Replace"; primary: false; danger: true
+                    onClicked: {
+                        perGameMango.applyPreset(perGameMangoPresetConfirm.pendingPreset)
+                        perGameMangoPresetConfirm.close()
+                    }
+                }
             }
         }
     }

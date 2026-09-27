@@ -44,6 +44,7 @@ class GameToolsController(QObject):
         self._loading = False
         self._busy = False
         self._status = ""
+        self._status_ok = True
         self._infoResult.connect(self._on_info)
         self._actionResult.connect(self._on_action)
         self._workError.connect(self._on_work_error)
@@ -99,6 +100,10 @@ class GameToolsController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot()
@@ -140,6 +145,7 @@ class GameToolsController(QObject):
     def openFolder(self, path: str) -> None:
         ok, msg = open_path(path)
         self._status = msg or ("Opened" if ok else "Couldn't open folder.")
+        self._status_ok = ok
         self.statusChanged.emit()
 
     @Slot()
@@ -148,6 +154,7 @@ class GameToolsController(QObject):
             return
         ok, msg = open_uri(f"steam://nav/games/details/{self._app_id}")
         self._status = msg or ("Opening in Steam…" if ok else "Couldn't open Steam.")
+        self._status_ok = ok
         self.statusChanged.emit()
 
     @Slot()
@@ -156,6 +163,7 @@ class GameToolsController(QObject):
             return
         ok, msg = open_uri(f"steam://rungameid/{self._app_id}")
         self._status = msg or ("Launching…" if ok else "Couldn't launch.")
+        self._status_ok = ok
         self.statusChanged.emit()
 
     # --- workers --------------------------------------------------------------
@@ -217,6 +225,7 @@ class GameToolsController(QObject):
         if app_id != self._app_id:
             return
         self._status = message
+        self._status_ok = kind == "ok"
         self.statusChanged.emit()
         # reflect the new on-disk state
         self.refresh()
@@ -225,5 +234,6 @@ class GameToolsController(QObject):
         # Info-worker failure: clear loading, surface status, no auto-retry.
         self._loading = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.loadingChanged.emit()
         self.statusChanged.emit()

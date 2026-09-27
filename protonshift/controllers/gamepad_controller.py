@@ -41,6 +41,7 @@ class GamepadController(QObject):
         self._controllers: list[dict] = []
         self._loading = False
         self._status = ""
+        self._status_ok = True
         # live test state. The poll thread OWNS its fd (opens-close lifecycle):
         # stopTest only signals the per-test Event — it never closes the fd,
         # so a slow thread can't read from a recycled descriptor (L2). Each
@@ -87,6 +88,10 @@ class GamepadController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot()
@@ -107,12 +112,14 @@ class GamepadController(QObject):
         if cb:
             cb.setText(mapping)
         self._status = "SDL mapping copied to clipboard."
+        self._status_ok = True
         self.statusChanged.emit()
 
     @Slot(str)
     def rumble(self, device_path: str) -> None:
-        _ok, msg = rumble(device_path)
+        ok, msg = rumble(device_path)
         self._status = msg
+        self._status_ok = ok
         self.statusChanged.emit()
 
     @Slot(str, str)
@@ -121,6 +128,7 @@ class GamepadController(QObject):
         fd = open_js(device_path)
         if fd is None:
             self._status = f"Couldn't open {device_path} (permissions?)."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         naxes, nbtn = js_counts(device_path)
@@ -200,6 +208,7 @@ class GamepadController(QObject):
     def _on_work_error(self, message: str) -> None:
         self._loading = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.loadingChanged.emit()
         self.statusChanged.emit()
 

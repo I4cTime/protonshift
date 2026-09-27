@@ -14,8 +14,10 @@ ApplicationWindow {
     title: "ProtonShift"
     color: Theme.bg
 
-    // theme: drive the Theme singleton from the persisted/ resolved choice
-    Binding { target: Theme; property: "themeName"; value: themeCtl.resolvedTheme }
+    // theme: drive the Theme singleton from the persisted/resolved appearance
+    Binding { target: Theme; property: "style"; value: themeCtl.style }
+    Binding { target: Theme; property: "dark"; value: themeCtl.resolvedDark }
+    Binding { target: Theme; property: "accent"; value: themeCtl.resolvedAccent }
 
     // smooth cross-fade when the palette changes
     Behavior on color { ColorAnimation { duration: 220 } }
@@ -24,7 +26,7 @@ ApplicationWindow {
     GlowBackground { anchors.fill: parent }
 
     property int currentPage: 0
-    readonly property var pages: ["Library", "Environment", "MangoHud", "ScopeBuddy", "Gamescope", "Displays", "System", "Controllers"]
+    readonly property var pages: ["Library", "Proton", "Environment", "MangoHud", "ScopeBuddy", "Gamescope", "Displays", "System", "Controllers", "Settings"]
 
     ColumnLayout {
         anchors.fill: parent
@@ -72,171 +74,6 @@ ApplicationWindow {
             }
 
             Item { Layout.fillWidth: true }
-
-            // --- theme picker ---
-            Rectangle {
-                id: themeBtn
-                implicitWidth: themeRow.implicitWidth + 2 * Theme.spaceSm
-                implicitHeight: 30
-                radius: Theme.radiusSm
-                color: themeHover.hovered || themeMenu.visible ? Theme.surfaceElevated : Theme.surface
-                border.color: themeBtn.activeFocus ? Theme.accentBright
-                              : (themeMenu.visible ? Theme.primary : Theme.border)
-                border.width: themeBtn.activeFocus ? 2 : 1
-                Behavior on color { ColorAnimation { duration: 120 } }
-
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: "Theme: " + themeBtn.labelFor(themeCtl.choice)
-                Accessible.focusable: true
-                Keys.onPressed: (event) => {
-                    if (event.key === Qt.Key_Space || event.key === Qt.Key_Return
-                            || event.key === Qt.Key_Enter || event.key === Qt.Key_Down) {
-                        themeMenu.open()
-                        event.accepted = true
-                    }
-                }
-
-                function labelFor(choice) {
-                    if (choice === "system") return "System"
-                    for (var i = 0; i < themeCtl.themes.length; i++)
-                        if (themeCtl.themes[i].id === choice) return themeCtl.themes[i].label
-                    return choice
-                }
-
-                RowLayout {
-                    id: themeRow
-                    anchors.centerIn: parent
-                    spacing: 6
-                    // swatch of the active palette
-                    Rectangle {
-                        width: 14; height: 14; radius: 4
-                        color: Theme.surface
-                        border.color: Theme.border; border.width: 1
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: 8; height: 8; radius: 4
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0.0; color: Theme.gradA }
-                                GradientStop { position: 1.0; color: Theme.gradB }
-                            }
-                        }
-                    }
-                    Text {
-                        text: themeBtn.labelFor(themeCtl.choice)
-                        color: Theme.muted
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fsCaption
-                        font.weight: Font.DemiBold
-                    }
-                    Text { text: "▾"; color: Theme.faint; font.pixelSize: 10 }
-                }
-                HoverHandler { id: themeHover }
-                TapHandler { onTapped: themeMenu.open() }
-
-                Popup {
-                    id: themeMenu
-                    y: themeBtn.height + 6
-                    x: themeBtn.width - width
-                    width: 200
-                    padding: 6
-                    focus: true
-                    background: Rectangle {
-                        radius: Theme.radiusSm
-                        color: Theme.surface
-                        border.color: Theme.borderStrong
-                        border.width: 1
-                    }
-
-                    // keyboard model/selection: Up/Down move the highlight,
-                    // Enter/Space picks it, Escape closes (default closePolicy)
-                    readonly property var menuModel: [{ id: "system", label: "System (auto)" }].concat(themeCtl.themes)
-                    property int highlightIndex: 0
-                    function activateHighlight() {
-                        themeCtl.setTheme(menuModel[highlightIndex].id)
-                        themeMenu.close()
-                    }
-                    onOpened: {
-                        highlightIndex = 0
-                        for (var i = 0; i < menuModel.length; i++)
-                            if (menuModel[i].id === themeCtl.choice) { highlightIndex = i; break }
-                    }
-
-                    contentItem: ColumnLayout {
-                        spacing: 2
-                        focus: true
-                        Keys.onPressed: (event) => {
-                            var n = themeMenu.menuModel.length
-                            if (event.key === Qt.Key_Up) {
-                                themeMenu.highlightIndex = (themeMenu.highlightIndex + n - 1) % n
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Down) {
-                                themeMenu.highlightIndex = (themeMenu.highlightIndex + 1) % n
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
-                                       || event.key === Qt.Key_Space) {
-                                themeMenu.activateHighlight()
-                                event.accepted = true
-                            }
-                        }
-                        // System (auto) row
-                        Repeater {
-                            model: themeMenu.menuModel
-                            delegate: Rectangle {
-                                id: themeMenuRow
-                                required property int index
-                                required property var modelData
-                                Layout.fillWidth: true
-                                implicitWidth: 188
-                                implicitHeight: 34
-                                radius: Theme.radiusSm
-                                property bool active: themeCtl.choice === modelData.id
-                                property bool highlighted: themeMenu.highlightIndex === index
-                                color: active ? Theme.surfaceElevated
-                                     : (rowHov.hovered || highlighted ? Theme.bgDeep : "transparent")
-                                border.width: highlighted ? 1 : 0
-                                border.color: Theme.accentBright
-                                Accessible.role: Accessible.MenuItem
-                                Accessible.name: themeMenuRow.modelData.label
-                                HoverHandler { id: rowHov }
-                                TapHandler { onTapped: { themeCtl.setTheme(themeMenuRow.modelData.id); themeMenu.close() } }
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: Theme.spaceSm
-                                    anchors.rightMargin: Theme.spaceSm
-                                    spacing: Theme.spaceSm
-                                    // swatch (system shows a split light/dark)
-                                    Rectangle {
-                                        width: 18; height: 18; radius: 5
-                                        color: themeMenuRow.modelData.id === "system" ? Theme.bg
-                                               : Theme.palettes[themeMenuRow.modelData.id].bg
-                                        border.color: Theme.border; border.width: 1
-                                        Rectangle {
-                                            anchors.centerIn: parent
-                                            width: 9; height: 9; radius: 4.5
-                                            color: themeMenuRow.modelData.id === "system" ? Theme.primary
-                                                   : Theme.palettes[themeMenuRow.modelData.id].primary
-                                        }
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: themeMenuRow.modelData.label
-                                        color: Theme.text
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fsSmall
-                                        font.weight: themeMenuRow.active ? Font.DemiBold : Font.Normal
-                                    }
-                                    Text {
-                                        visible: themeMenuRow.active
-                                        text: "✓"; color: Theme.primaryBright; font.pixelSize: 13; font.bold: true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             Text {
                 text: "v" + appVersion
@@ -306,7 +143,7 @@ ApplicationWindow {
         // --- page stack -----------------------------------------------------
         // Each page sits behind a Loader that activates on first visit and then
         // stays loaded, so page state persists but startup doesn't pay for all
-        // eight pages (GamesPage alone carries six dialogs).
+        // ten pages (GamesPage alone carries six dialogs).
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -324,49 +161,63 @@ ApplicationWindow {
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 1
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: EnvironmentPage {}
+                sourceComponent: ProtonPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 2
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: MangoHudPage {}
+                sourceComponent: EnvironmentPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 3
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: ScopeBuddyPage {}
+                sourceComponent: MangoHudPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 4
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: GamescopeBuilderPage {}
+                sourceComponent: ScopeBuddyPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 5
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: DisplayPage {}
+                sourceComponent: GamescopeBuilderPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 6
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: SystemPage {}
+                sourceComponent: DisplayPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 7
                 onLoaded: Qt.callLater(() => loadedOnce = true)
+                sourceComponent: SystemPage {}
+            }
+            Loader {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                property bool loadedOnce: false
+                active: loadedOnce || window.currentPage === 8
+                onLoaded: Qt.callLater(() => loadedOnce = true)
                 sourceComponent: ControllersPage {}
+            }
+            Loader {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                property bool loadedOnce: false
+                active: loadedOnce || window.currentPage === 9
+                onLoaded: Qt.callLater(() => loadedOnce = true)
+                sourceComponent: SettingsPage {}
             }
         }
     }

@@ -23,7 +23,7 @@ class SavesController(QObject):
     busyChanged = Signal()
 
     _listResult = Signal(str, list, list)  # app_id, saves, backups
-    _actionResult = Signal(str, str)  # app_id, message (L1: gate stale results)
+    _actionResult = Signal(str, str, bool)  # app_id, message, ok (L1: gate stale results)
     _workError = Signal(str)  # unexpected worker exception -> clear busy + status
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -33,6 +33,7 @@ class SavesController(QObject):
         self._saves: list[dict] = []
         self._backups: list[dict] = []
         self._status = ""
+        self._status_ok = True
         self._busy = False
         self._listResult.connect(self._on_list)
         self._actionResult.connect(self._on_action)
@@ -76,6 +77,10 @@ class SavesController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
         return self._busy
@@ -102,7 +107,7 @@ class SavesController(QObject):
         app_id = self._app_id
         start_worker(
             self._backup_work, app_id, paths,
-            on_error=lambda m: self._actionResult.emit(app_id, f"Backup failed: {m}"),
+            on_error=lambda m: self._actionResult.emit(app_id, f"Backup failed: {m}", False),
         )
 
     @Slot(str)
@@ -113,7 +118,7 @@ class SavesController(QObject):
         app_id = self._app_id
         start_worker(
             self._restore_work, app_id, backup_path,
-            on_error=lambda m: self._actionResult.emit(app_id, f"Restore failed: {m}"),
+            on_error=lambda m: self._actionResult.emit(app_id, f"Restore failed: {m}", False),
         )
 
     # --- workers --------------------------------------------------------------
@@ -137,7 +142,7 @@ class SavesController(QObject):
         from ..core.saves import backup_saves
 
         result = backup_saves(app_id, paths)
-        self._actionResult.emit(app_id, "Backup created." if result else "Backup failed.")
+        self._actionResult.emit(app_id, "Backup created." if result else "Backup failed.", result)
 
     def _restore_work(self, app_id: str, backup_path: str) -> None:
         from ..core.saves import restore_backup
@@ -148,9 +153,9 @@ class SavesController(QObject):
         ok = restore_backup(backup_path, str(target))
         if ok:
             open_path(str(target))
-            self._actionResult.emit(app_id, f"Restored to {target} (opened).")
+            self._actionResult.emit(app_id, f"Restored to {target} (opened).", True)
         else:
-            self._actionResult.emit(app_id, "Restore failed.")
+            self._actionResult.emit(app_id, "Restore failed.", False)
 
     def _begin(self, msg: str) -> None:
         self._busy = True
@@ -167,7 +172,7 @@ class SavesController(QObject):
         self.dataChanged.emit()
         self.busyChanged.emit()
 
-    def _on_action(self, app_id: str, msg: str) -> None:
+    def _on_action(self, app_id: str, msg: str, ok: bool) -> None:
         # Always clear busy (a wedged flag blocks all future actions), but
         # only surface status / refresh when the result matches the current
         # game (L1: no stale cross-game status).
@@ -176,6 +181,7 @@ class SavesController(QObject):
         if app_id != self._app_id:
             return
         self._status = msg
+        self._status_ok = ok
         self.statusChanged.emit()
         self.refresh()
 
@@ -184,5 +190,6 @@ class SavesController(QObject):
         # (refreshing would retry the failing worker in a loop).
         self._busy = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.busyChanged.emit()
         self.statusChanged.emit()

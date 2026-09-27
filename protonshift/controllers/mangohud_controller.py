@@ -36,6 +36,7 @@ class MangoHudController(QObject):
         self._dirty = False
         self._error = ""
         self._status = ""
+        self._status_ok = True
         # M4: availability lookup can shell out inside a Flatpak — probed on
         # the load worker, delivered via _availResult.
         self._available = False
@@ -90,6 +91,10 @@ class MangoHudController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot(str, bool)
@@ -139,6 +144,7 @@ class MangoHudController(QObject):
     def save(self) -> None:
         if not self._loaded:
             self._status = "Not saved — config was never loaded."
+            self._status_ok = False
             self.statusChanged.emit()
             return
         from ..core.mangohud import write_mangohud_config
@@ -155,6 +161,7 @@ class MangoHudController(QObject):
                 self.dirtyChanged.emit()
             else:
                 self._status = "Save failed — check permissions."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     # --- internals ------------------------------------------------------------

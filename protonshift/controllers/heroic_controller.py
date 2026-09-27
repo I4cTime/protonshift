@@ -35,6 +35,7 @@ class HeroicController(QObject):
         self._versions: list[dict] = []
         self._loading = False
         self._status = ""
+        self._status_ok = True
         self._loadResult.connect(self._on_loaded)
         self._toggleResult.connect(self._on_toggle)
         self._versionResult.connect(self._on_version)
@@ -73,6 +74,10 @@ class HeroicController(QObject):
     def status(self) -> str:
         return self._status
 
+    @Property(bool, notify=statusChanged)
+    def statusOk(self) -> bool:
+        return self._status_ok
+
     # --- actions --------------------------------------------------------------
 
     @Slot(str, bool)
@@ -101,6 +106,7 @@ class HeroicController(QObject):
 
         ok, msg = open_uri(f"heroic://launch/{self._app_id}")
         self._status = msg or ("Launching via Heroic…" if ok else "Couldn't launch.")
+        self._status_ok = ok
         self.statusChanged.emit()
 
     # --- workers --------------------------------------------------------------
@@ -166,12 +172,14 @@ class HeroicController(QObject):
             self._config[key] = value
             self.configChanged.emit()
         self._status = "Saved." if ok else "Couldn't save toggle."
+        self._status_ok = ok
         self.statusChanged.emit()
 
     def _on_version(self, app_id: str, ok: bool, name: str) -> None:
         if app_id != self._app_id:
             return
         self._status = f"Wine version set to {name}." if ok else "Couldn't set wine version."
+        self._status_ok = ok
         self.statusChanged.emit()
         if ok:
             self._reload()
@@ -179,6 +187,7 @@ class HeroicController(QObject):
     def _on_work_error(self, message: str) -> None:
         self._loading = False
         self._status = f"Unexpected error: {message}"
+        self._status_ok = False
         self.loadingChanged.emit()
         self.statusChanged.emit()
 
