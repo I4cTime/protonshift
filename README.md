@@ -180,11 +180,14 @@ Detects connected controllers, generates an `SDL_GAMECONTROLLERCONFIG`
 mapping string, and includes a live tester — every button and axis in real
 time, plus a rumble test to confirm haptics before you launch a game.
 
-### Theming
+### Appearance
 
-Six built-in palettes, switchable in-app, including a "system" option that
-follows your OS light/dark preference. See
-[ARCHITECTURE.md](ARCHITECTURE.md) for how the design-system tokens work.
+Settings → Appearance: pick a visual style — **Proton Neon** (ambient glow,
+gradient buttons), **Phosphor Console** (near-black, hairline borders),
+**Soft Glass** (calm, rounded) or **Deepslate** (flat, tight radius) — a
+dark/light/system mode, and an accent color from eight presets or any hex
+value. Every style ships with a default accent; the override applies on top.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the design-system tokens work.
 
 ## Development
 

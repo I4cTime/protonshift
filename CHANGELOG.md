@@ -42,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validated entry by entry (types, env var keys, no newline injection) and
   report imported / skipped / invalid counts.
 
+- **Settings page.** Appearance moved out of the header into a Settings tab
+  and was rebuilt around *styles* instead of fixed palettes: Proton Neon,
+  Phosphor Console, Soft Glass and Deepslate, each with default colors, plus
+  a system/dark/light mode and an accent color override (eight presets or any
+  hex). Existing theme choices migrate automatically. The page also hosts
+  the ProtonDB privacy toggle and an About card.
+
 ### Changed
 - Flatpak: the sandbox now has `--share=network` (GE-Proton downloads and
   ProtonDB lookups) and may create `~/.profile` / `~/.xsessionrc` for the
