@@ -49,7 +49,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hex). Existing theme choices migrate automatically. The page also hosts
   the ProtonDB privacy toggle and an About card.
 
+- **Displays: resolution and refresh-rate dropdowns.** Each output gets a
+  Resolution select, a Refresh rate select scoped to that resolution, the
+  current mode as a caption, and an Apply button that only enables when the
+  choice differs from what's active — no more scanning a wall of mode chips.
+
 ### Changed
+- Visual pass across every page: destructive actions (delete override /
+  profile / snippet, preset apply that replaces a whole config) now confirm
+  first; status lines color by a real success flag from each controller
+  instead of sniffing message text; the System page's power profile list
+  scrolls instead of clipping on short windows.
 - Flatpak: the sandbox now has `--share=network` (GE-Proton downloads and
   ProtonDB lookups) and may create `~/.profile` / `~/.xsessionrc` for the
   managed env block. Nothing else talks to the network.
