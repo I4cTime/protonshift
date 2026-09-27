@@ -1,12 +1,17 @@
 """Parity checks between the QML design-token singleton and the Python
-theme controller.
+appearance model.
 
-Pure-text tests — no Qt required:
-  1. Every palette in Theme.qml defines the identical key set (a palette
-     missing a token would silently resolve to black/undefined at runtime).
-  2. The palette ids in Theme.qml match the ids the ThemeController offers
-     in its picker model (`_THEMES`), so neither side can drift when a
-     palette is added or renamed.
+`core/appearance.py` is pure Python (no PySide6 import), so its STYLES
+registry can be imported directly — no Qt needed. Theme.qml itself is parsed
+as text/regex (same approach as before this file's rewrite), since it can't
+be imported without a QML engine.
+
+Checks:
+  1. Every style id in `core/appearance.STYLES` has a matching entry in
+     Theme.qml's `styles` table, and vice versa (neither side can drift when
+     a style is added/renamed).
+  2. Every style entry in Theme.qml defines both a `dark` and a `light`
+     neutral sub-palette, and both hold the identical token key set.
 """
 
 from __future__ import annotations
@@ -14,86 +19,101 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from protonshift.core.appearance import STYLES
+
 REPO = Path(__file__).resolve().parent.parent
 THEME_QML = REPO / "protonshift" / "qml" / "App" / "Theme.qml"
-CONTROLLER = REPO / "protonshift" / "controllers" / "theme_controller.py"
 
-# Matches a palette entry inside the `palettes` map:  "some-id": { ... }
-# Palette bodies are flat (no nested braces), so a non-greedy brace match
-# is sufficient and keeps the test independent of formatting.
-_PALETTE_RE = re.compile(r'"([a-z0-9-]+)"\s*:\s*\{(.*?)\}', re.DOTALL)
+# Matches a style entry inside the `styles` map:  "some-id": { ... }
+# Style bodies (including their nested dark/light sub-objects) are balanced
+# on braces, so a manual brace-counting scan (rather than a single non-greedy
+# regex) is needed to capture the whole entry, nested objects included.
+_STYLE_START_RE = re.compile(r'"([a-z0-9-]+)"\s*:\s*\{')
+# Matches a `dark: { ... }` or `light: { ... }` sub-object's opening brace.
+_SUBPALETTE_START_RE = re.compile(r"\b(dark|light)\s*:\s*\{")
 # Matches a token key at the start of a `key: value` pair within a body.
 _KEY_RE = re.compile(r"(?:^|[,{])\s*([A-Za-z_][A-Za-z0-9_]*)\s*:")
-# Matches the ids declared in theme_controller._THEMES.
-_CONTROLLER_ID_RE = re.compile(r'\{\s*"id"\s*:\s*"([a-z0-9-]+)"')
 
 
-def _palettes_block(qml: str) -> str:
-    start = qml.index("palettes: ({")
-    end = qml.index("})", start)
-    return qml[start:end]
+def _extract_braced_block(text: str, open_brace_index: int) -> str:
+    """Return the `{...}` block starting at `open_brace_index` (inclusive)."""
+    depth = 0
+    for i in range(open_brace_index, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_brace_index : i + 1]
+    raise AssertionError("unbalanced braces while parsing Theme.qml")
 
 
-def _qml_palettes() -> dict[str, set[str]]:
-    block = _palettes_block(THEME_QML.read_text(encoding="utf-8"))
-    palettes: dict[str, set[str]] = {}
-    for pid, body in _PALETTE_RE.findall(block):
-        # strip comments so a commented-out `key:` can't count
-        body = re.sub(r"//[^\n]*", "", body)
-        palettes[pid] = set(_KEY_RE.findall(body))
-    return palettes
+def _styles_block() -> str:
+    qml = THEME_QML.read_text(encoding="utf-8")
+    start = qml.index("readonly property var styles: ({")
+    open_brace = qml.index("{", start)
+    return _extract_braced_block(qml, open_brace)
 
 
-def _controller_ids() -> list[str]:
-    src = CONTROLLER.read_text(encoding="utf-8")
-    # Slice from the opening bracket of the assignment (not the type
-    # annotation's `list[dict]`) to the closing bracket at column 0.
-    start = src.index("[", src.index("=", src.index("_THEMES")))
-    end = src.index("\n]", start)
-    return _CONTROLLER_ID_RE.findall(src[start:end])
+def _qml_styles() -> dict[str, dict[str, set[str]]]:
+    """id -> {"dark": token keys, "light": token keys}."""
+    block = _styles_block()
+    # strip comments so a commented-out entry/key can't count
+    block = re.sub(r"//[^\n]*", "", block)
+    styles: dict[str, dict[str, set[str]]] = {}
+    for m in _STYLE_START_RE.finditer(block):
+        style_id = m.group(1)
+        body = _extract_braced_block(block, m.end() - 1)
+        sub: dict[str, set[str]] = {}
+        for sm in _SUBPALETTE_START_RE.finditer(body):
+            mode = sm.group(1)
+            sub_body = _extract_braced_block(body, sm.end() - 1)
+            sub[mode] = set(_KEY_RE.findall(sub_body))
+        styles[style_id] = sub
+    return styles
 
 
-def test_palettes_share_identical_key_sets() -> None:
-    palettes = _qml_palettes()
-    assert len(palettes) >= 2, "expected multiple palettes in Theme.qml"
-    reference_id = next(iter(palettes))
-    reference = palettes[reference_id]
-    assert reference, "reference palette parsed as empty"
-    for pid, keys in palettes.items():
-        missing = reference - keys
-        extra = keys - reference
+def test_qml_styles_parsed() -> None:
+    styles = _qml_styles()
+    assert len(styles) >= 2, "expected multiple styles in Theme.qml"
+
+
+def test_every_style_has_dark_and_light_subpalettes() -> None:
+    for style_id, sub in _qml_styles().items():
+        assert "dark" in sub, f"style {style_id!r} missing a dark sub-palette"
+        assert "light" in sub, f"style {style_id!r} missing a light sub-palette"
+        assert sub["dark"], f"style {style_id!r} dark sub-palette parsed as empty"
+        assert sub["light"], f"style {style_id!r} light sub-palette parsed as empty"
+
+
+def test_dark_and_light_subpalettes_share_identical_key_sets() -> None:
+    for style_id, sub in _qml_styles().items():
+        missing = sub["dark"] - sub["light"]
+        extra = sub["light"] - sub["dark"]
         assert not missing and not extra, (
-            f"palette {pid!r} diverges from {reference_id!r}: "
-            f"missing={sorted(missing)} extra={sorted(extra)}"
+            f"style {style_id!r} dark/light sub-palettes diverge: "
+            f"missing_from_light={sorted(missing)} extra_in_light={sorted(extra)}"
         )
 
 
-def test_required_tokens_present_in_every_palette() -> None:
+def test_required_tokens_present_in_every_subpalette() -> None:
     required = {
-        # base
-        "dark", "ambient", "bg", "bgDeep", "surface", "surfaceElevated",
-        "border", "borderStrong",
-        "primary", "primaryBright", "primaryDeep", "glow",
-        "text", "muted", "faint",
-        "success", "danger", "gradA", "gradB", "accent", "accentBright",
-        # contract additions
-        "onPrimary", "wordmark", "knob",
+        "bg", "bgDeep", "surface", "surfaceElevated", "border", "borderStrong",
+        "text", "muted", "faint", "success", "danger",
         "warning", "warningSurface", "warningBorder", "dangerSurface",
-        "scrim", "shadow", "shadowOpacity",
+        "scrim", "shadow", "shadowOpacity", "knob",
     }
-    for pid, keys in _qml_palettes().items():
-        missing = required - keys
-        assert not missing, f"palette {pid!r} missing tokens: {sorted(missing)}"
+    for style_id, sub in _qml_styles().items():
+        for mode in ("dark", "light"):
+            missing = required - sub[mode]
+            assert not missing, f"style {style_id!r} {mode} sub-palette missing tokens: {sorted(missing)}"
 
 
-def test_controller_theme_ids_match_qml_palettes() -> None:
-    qml_ids = set(_qml_palettes())
-    controller_ids = _controller_ids()
-    assert controller_ids, "no ids parsed from theme_controller._THEMES"
-    assert len(controller_ids) == len(set(controller_ids)), (
-        f"duplicate ids in _THEMES: {controller_ids}"
-    )
-    assert set(controller_ids) == qml_ids, (
-        f"theme_controller._THEMES {sorted(controller_ids)} != "
-        f"Theme.qml palettes {sorted(qml_ids)}"
+def test_style_ids_match_core_appearance_styles() -> None:
+    qml_ids = set(_qml_styles())
+    core_ids = [s["id"] for s in STYLES]
+    assert core_ids, "no styles found in core/appearance.STYLES"
+    assert len(core_ids) == len(set(core_ids)), f"duplicate ids in STYLES: {core_ids}"
+    assert set(core_ids) == qml_ids, (
+        f"core/appearance.STYLES {sorted(core_ids)} != Theme.qml styles {sorted(qml_ids)}"
     )
