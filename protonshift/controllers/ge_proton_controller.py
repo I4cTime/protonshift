@@ -196,7 +196,9 @@ class GeProtonController(QObject):
             }
             for t in tools
         ]
-        names = {t.name for t in tools}
+        # a release counts as installed by internal name OR version tag, so a
+        # distro package registered as 'Proton-GE' still marks GE-Proton11-7
+        names = {t.name for t in tools} | {t.version for t in tools if t.version}
         error = ""
         releases: list[dict] = []
         objs: dict[str, GeRelease] = {}
