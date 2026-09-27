@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -223,7 +224,7 @@ def get_localconfig_path(steam_root: Path) -> Path | None:
 
 
 def get_compattools_dir(steam_root: Path | None) -> Path | None:
-    """Get compatibility tools directory (Proton-GE, etc.)."""
+    """The user's compatibility tools directory (Proton-GE, etc.) — writable."""
     bases = [Path.home() / ".steam" / "root", Path.home() / ".steam" / "debian-installation"]
     if steam_root:
         bases.insert(0, steam_root)
@@ -232,6 +233,60 @@ def get_compattools_dir(steam_root: Path | None) -> Path | None:
         if compat.exists():
             return compat
     return None
+
+
+# Steam also scans these system-wide locations (distro packages such as Arch's
+# proton-ge-custom-bin install there). Read-only from the app's point of view.
+SYSTEM_COMPAT_DIRS: tuple[Path, ...] = (
+    Path("/usr/share/steam/compatibilitytools.d"),
+    Path("/usr/local/share/steam/compatibilitytools.d"),
+)
+
+
+def get_system_compattools_dirs() -> list[Path]:
+    """Existing system-wide ``compatibilitytools.d`` directories (``$XDG_DATA_DIRS`` too)."""
+    candidates: list[Path] = list(SYSTEM_COMPAT_DIRS)
+    for entry in os.environ.get("XDG_DATA_DIRS", "").split(":"):
+        if entry:
+            candidates.append(Path(entry) / "steam" / "compatibilitytools.d")
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for c in candidates:
+        try:
+            if not c.is_dir():
+                continue
+            key = c.resolve()
+        except OSError:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        found.append(c)
+    return found
+
+
+def read_tool_manifest(tool_dir: Path) -> tuple[str, str]:
+    """``(internal_name, display_name)`` from a tool's ``compatibilitytool.vdf``.
+
+    Steam keys ``CompatToolMapping`` by the *internal* name, which is the
+    directory name for GE tarballs but not for distro packages (Arch installs
+    ``proton-ge-custom/`` registered as ``Proton-GE``). Falls back to the
+    directory name when the manifest is missing or unreadable.
+    """
+    fallback = (tool_dir.name, tool_dir.name)
+    manifest = tool_dir / "compatibilitytool.vdf"
+    try:
+        with open(manifest, encoding="utf-8", errors="replace") as f:
+            data = vdf.load(f)
+        tools = data.get("compatibilitytools", {}).get("compat_tools", {})
+        for internal, info in tools.items():
+            if not isinstance(info, dict):
+                continue
+            display = str(info.get("display_name") or internal)
+            return str(internal), display
+    except (OSError, ValueError, AttributeError, SyntaxError):
+        pass
+    return fallback
 
 
 # Built-in Steam Proton tool IDs. Source of truth is Steam itself; this list is
@@ -249,13 +304,23 @@ _BUILTIN_PROTON: tuple[str, ...] = (
 def get_available_proton_tools(steam_root: Path | None) -> list[str]:
     """List Proton/GE tools: built-in first, then compatibilitytools.d."""
     tools: list[str] = list(_BUILTIN_PROTON)
+    dirs: list[Path] = []
     compat_dir = get_compattools_dir(steam_root)
     if compat_dir and compat_dir.exists():
-        for item in sorted(compat_dir.iterdir()):
+        dirs.append(compat_dir)
+    dirs.extend(get_system_compattools_dirs())
+    for d in dirs:
+        try:
+            items = sorted(d.iterdir())
+        except OSError:
+            continue
+        for item in items:
             if (
                 item.is_dir()
                 and not item.name.startswith(".")
                 and ((item / "proton").exists() or (item / "compatibilitytool.vdf").exists())
             ):
-                tools.append(item.name)
+                internal, _display = read_tool_manifest(item)
+                if internal not in tools:
+                    tools.append(internal)
     return tools

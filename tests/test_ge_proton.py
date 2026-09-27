@@ -51,6 +51,12 @@ def _release_json(tag: str, *, sha: bool = True, draft: bool = False) -> dict:
     }
 
 
+@pytest.fixture(autouse=True)
+def _no_system_dirs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the machine's /usr/share/steam tools out of every existing test."""
+    monkeypatch.setattr(ge_proton, "get_system_compattools_dirs", list)
+
+
 @pytest.fixture
 def compat(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     d = tmp_path / "compatibilitytools.d"
@@ -428,3 +434,92 @@ def test_is_in_use_without_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert is_in_use("GE-Proton9-27", games, tmp_path) == []
     monkeypatch.setattr(ge_proton, "get_steam_root", lambda: None)
     assert is_in_use("GE-Proton9-27", games) == []
+
+
+# --------------------------------------------------------------------------- #
+# system-wide tools (distro packages) + manifest names
+# --------------------------------------------------------------------------- #
+
+_MANIFEST = """"compatibilitytools"
+{
+  "compat_tools"
+  {
+    "Proton-GE"
+    {
+      "install_path" "."
+      "display_name" "Proton-GE (Arch)"
+      "from_oslist"  "windows"
+      "to_oslist"    "linux"
+    }
+  }
+}
+"""
+
+
+def _make_sys_tool(root, dir_name: str, manifest: str | None = None, version: str = "") -> None:
+    d = root / dir_name
+    d.mkdir(parents=True)
+    (d / "proton").write_text("#!/bin/sh\n")
+    (d / "toolmanifest.vdf").write_text('"manifest" { "version" "2" }\n')
+    if manifest is not None:
+        (d / "compatibilitytool.vdf").write_text(manifest)
+    if version:
+        (d / "version").write_text(f"1789520217 {version}\n")
+
+
+def test_system_tools_listed_read_only(tmp_path, monkeypatch):
+    user = tmp_path / "user"
+    user.mkdir()
+    system = tmp_path / "usr-share"
+    _make_sys_tool(user, "GE-Proton9-27", version="GE-Proton9-27")
+    _make_sys_tool(system, "proton-ge-custom", _MANIFEST, version="GE-Proton11-7")
+    monkeypatch.setattr(ge_proton, "get_compattools_dir", lambda *_a: user)
+    monkeypatch.setattr(ge_proton, "get_system_compattools_dirs", lambda: [system])
+
+    tools = ge_proton.list_installed(with_sizes=False)
+    assert [t.name for t in tools] == ["Proton-GE", "GE-Proton9-27"]  # newest version first
+    sys_tool = tools[0]
+    assert sys_tool.location == "system" and not sys_tool.removable
+    assert sys_tool.dir_name == "proton-ge-custom"
+    assert sys_tool.display_name == "Proton-GE (Arch)"
+    assert sys_tool.version == "GE-Proton11-7" and sys_tool.is_ge
+    assert tools[1].location == "user" and tools[1].removable
+
+    with pytest.raises(ge_proton.GeProtonError, match="package manager"):
+        ge_proton.remove_tool("Proton-GE")
+    assert (system / "proton-ge-custom").is_dir()
+
+
+def test_user_copy_shadows_system_copy(tmp_path, monkeypatch):
+    user = tmp_path / "user"
+    system = tmp_path / "sys"
+    _make_sys_tool(user, "GE-Proton11-7", version="GE-Proton11-7")
+    _make_sys_tool(system, "GE-Proton11-7", version="GE-Proton11-7")
+    monkeypatch.setattr(ge_proton, "get_compattools_dir", lambda *_a: user)
+    monkeypatch.setattr(ge_proton, "get_system_compattools_dirs", lambda: [system])
+    tools = ge_proton.list_installed(with_sizes=False)
+    assert len(tools) == 1 and tools[0].location == "user"
+
+
+def test_available_tools_use_internal_names(tmp_path, monkeypatch):
+    from protonshift.core import steam
+
+    user = tmp_path / "user"
+    system = tmp_path / "sys"
+    _make_sys_tool(user, "GE-Proton9-27")
+    _make_sys_tool(system, "proton-ge-custom", _MANIFEST)
+    monkeypatch.setattr(steam, "get_compattools_dir", lambda *_a: user)
+    monkeypatch.setattr(steam, "get_system_compattools_dirs", lambda: [system])
+    tools = steam.get_available_proton_tools(None)
+    assert "GE-Proton9-27" in tools and "Proton-GE" in tools
+    assert "proton-ge-custom" not in tools
+
+
+def test_read_tool_manifest_fallback(tmp_path):
+    from protonshift.core.steam import read_tool_manifest
+
+    d = tmp_path / "MyTool"
+    d.mkdir()
+    assert read_tool_manifest(d) == ("MyTool", "MyTool")
+    (d / "compatibilitytool.vdf").write_text("not vdf at all {{{")
+    assert read_tool_manifest(d) == ("MyTool", "MyTool")

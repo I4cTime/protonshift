@@ -184,10 +184,13 @@ class GeProtonController(QObject):
         installed = [
             {
                 "name": t.name,
+                "displayName": t.display_name or t.name,
                 "path": str(t.path),
                 "sizeLabel": human_size(t.size_bytes),
                 "isGe": t.is_ge,
-                "version": _version_label(t.name),
+                "location": t.location,
+                "removable": t.removable,
+                "version": _version_label(t.version or t.name),
                 "inUse": usage.get(t.name, []),
                 "inUseCount": len(usage.get(t.name, [])),
             }

@@ -30,7 +30,12 @@ from pathlib import Path
 
 from .compat_tool import get_config_vdf_path, read_compat_tool_mapping
 from .paths import PathValidationError, validate_within
-from .steam import get_compattools_dir, get_steam_root
+from .steam import (
+    get_compattools_dir,
+    get_steam_root,
+    get_system_compattools_dirs,
+    read_tool_manifest,
+)
 
 GITHUB_API = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases"
 USER_AGENT = "ProtonShift/1.2"
@@ -59,10 +64,15 @@ class GeRelease:
 
 @dataclass(frozen=True)
 class InstalledTool:
-    name: str
+    name: str            # Steam's internal name (CompatToolMapping key)
     path: Path
     size_bytes: int
     is_ge: bool
+    display_name: str = ""
+    dir_name: str = ""
+    location: str = "user"   # "user" (compatibilitytools.d) or "system" (distro package)
+    removable: bool = True
+    version: str = ""        # from the tool's ``version`` file, e.g. "GE-Proton11-7"
 
 
 # --------------------------------------------------------------------------- #
@@ -225,28 +235,64 @@ def install_dir() -> Path:
     return root / "compatibilitytools.d"
 
 
-def list_installed(with_sizes: bool = True) -> list[InstalledTool]:
-    """Proton tools under ``compatibilitytools.d``, newest version first."""
-    compat = compattools_dir()
-    if compat is None or not compat.is_dir():
-        return []
-    tools: list[InstalledTool] = []
+def _read_version_file(tool_dir: Path) -> str:
+    """GE tarballs ship ``version`` as ``<epoch> GE-Proton11-7``; return the tag."""
     try:
-        children = list(compat.iterdir())
+        text = (tool_dir / "version").read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return ""
+    parts = text.split()
+    return parts[-1] if parts else ""
+
+
+def _scan_dir(directory: Path, location: str, with_sizes: bool) -> list[InstalledTool]:
+    try:
+        children = list(directory.iterdir())
     except OSError:
         return []
+    tools: list[InstalledTool] = []
     for child in children:
         if not _is_tool_dir(child):
             continue
+        internal, display = read_tool_manifest(child)
+        version = _read_version_file(child)
         tools.append(
             InstalledTool(
-                name=child.name,
+                name=internal,
                 path=child,
                 size_bytes=_tree_size(child) if with_sizes else 0,
-                is_ge=is_ge_name(child.name),
+                is_ge=is_ge_name(internal) or is_ge_name(child.name) or is_ge_name(version),
+                display_name=display,
+                dir_name=child.name,
+                location=location,
+                removable=location == "user",
+                version=version,
             )
         )
-    tools.sort(key=lambda t: (parse_installed_version(t.name), t.name.lower()), reverse=True)
+    return tools
+
+
+def list_installed(with_sizes: bool = True) -> list[InstalledTool]:
+    """Proton tools Steam can see: the user's ``compatibilitytools.d`` plus the
+    system-wide directories distro packages install into. Newest version first.
+    """
+    tools: list[InstalledTool] = []
+    seen: set[str] = set()
+    compat = compattools_dir()
+    dirs: list[tuple[Path, str]] = []
+    if compat is not None and compat.is_dir():
+        dirs.append((compat, "user"))
+    dirs.extend((d, "system") for d in get_system_compattools_dirs())
+    for directory, location in dirs:
+        for tool in _scan_dir(directory, location, with_sizes):
+            if tool.name in seen:
+                continue  # user copy shadows a system one, like Steam does
+            seen.add(tool.name)
+            tools.append(tool)
+    tools.sort(
+        key=lambda t: (parse_installed_version(t.version or t.name), t.name.lower()),
+        reverse=True,
+    )
     return tools
 
 
@@ -368,10 +414,13 @@ def remove_tool(name: str) -> None:
         raise GeProtonError("compatibilitytools.d doesn't exist")
     if not name or "/" in name or "\x00" in name or name in (".", ".."):
         raise GeProtonError("Invalid tool name")
-    installed = {t.name for t in list_installed(with_sizes=False)}
-    if name not in installed:
+    installed = {t.name: t for t in list_installed(with_sizes=False)}
+    tool = installed.get(name)
+    if tool is None:
         raise GeProtonError(f"{name} isn't an installed Proton tool")
-    candidate = compat / name
+    if not tool.removable:
+        raise GeProtonError(f"{name} was installed by your package manager — remove it there")
+    candidate = compat / tool.dir_name
     try:
         resolved = validate_within(compat, candidate)
     except PathValidationError as exc:

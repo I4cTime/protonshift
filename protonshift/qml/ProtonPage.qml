@@ -123,7 +123,7 @@ ColumnLayout {
                                 RowLayout {
                                     spacing: Theme.spaceXs
                                     Text {
-                                        text: toolRow.modelData.name
+                                        text: toolRow.modelData.displayName || toolRow.modelData.name
                                         elide: Text.ElideRight
                                         color: Theme.text
                                         font.family: Theme.fontFamily
@@ -148,10 +148,34 @@ ColumnLayout {
                                             font.weight: Font.Bold
                                         }
                                     }
+                                    // distro package (e.g. Arch proton-ge-custom-bin):
+                                    // Steam sees it, but only pacman/apt can remove it
+                                    Rectangle {
+                                        visible: toolRow.modelData.location === "system"
+                                        implicitWidth: sysTag.implicitWidth + 12
+                                        implicitHeight: 18
+                                        radius: 9
+                                        color: Theme.surfaceElevated
+                                        border.color: Theme.borderStrong
+                                        border.width: 1
+                                        Text {
+                                            id: sysTag
+                                            anchors.centerIn: parent
+                                            text: "system"
+                                            color: Theme.muted
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 10
+                                            font.weight: Font.Bold
+                                        }
+                                    }
                                 }
                                 Text {
                                     text: (toolRow.modelData.version ? "v" + toolRow.modelData.version + " · " : "")
                                           + toolRow.modelData.sizeLabel
+                                          + (toolRow.modelData.location === "system"
+                                             ? " · " + toolRow.modelData.path : "")
+                                    elide: Text.ElideMiddle
+                                    Layout.fillWidth: true
                                     color: Theme.faint
                                     font.family: Theme.monoFamily
                                     font.pixelSize: Theme.fsCaption
@@ -169,6 +193,7 @@ ColumnLayout {
                             PsButton {
                                 text: "Remove"; primary: false; danger: true
                                 implicitHeight: 32
+                                visible: toolRow.modelData.removable
                                 enabled: !geProton.busy
                                 onClicked: {
                                     removeDialog.toolName = toolRow.modelData.name
