@@ -26,6 +26,9 @@ finish-args:
   # --device=input needs flatpak >= 1.16
   - --require-version=1.16.0
   - --share=ipc
+  # GE-Proton downloads (GitHub releases) and ProtonDB rating lookups.
+  # Both are user-initiated / opt-out; nothing else talks to the network.
+  - --share=network
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri

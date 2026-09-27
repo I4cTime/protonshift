@@ -22,6 +22,9 @@ command: protonshift
 
 finish-args:
   - --share=ipc
+  # GE-Proton downloads (GitHub releases) and ProtonDB rating lookups.
+  # Both are user-initiated / opt-out; nothing else talks to the network.
+  - --share=network
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
