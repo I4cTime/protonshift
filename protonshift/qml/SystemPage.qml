@@ -201,8 +201,7 @@ ColumnLayout {
     // --- system info -------------------------------------------------------
     PsCard {
         Layout.fillWidth: true
-        Layout.preferredHeight: infoGrid.implicitHeight + privacyRow.implicitHeight
-                                + 3 * Theme.space + 2 * Theme.spaceLg + 25
+        Layout.preferredHeight: infoGrid.implicitHeight + Theme.space + 2 * Theme.spaceLg
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.spaceLg
@@ -244,19 +243,6 @@ ColumnLayout {
                         }
                     }
                 }
-            }
-
-            // Privacy: the one network feature with per-user data. Lives here
-            // rather than in its own card so the GPU row keeps its height on
-            // short windows (the page doesn't scroll).
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
-            PsSwitchRow {
-                id: privacyRow
-                Layout.fillWidth: true
-                text: "Look up ProtonDB ratings"
-                subtitle: "Sends only the Steam App ID to protondb.com when you select a game"
-                checked: protondb.enabled
-                onToggled: protondb.setEnabled(value)
             }
         }
     }

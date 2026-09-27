@@ -2,179 +2,214 @@ pragma Singleton
 import QtQuick
 
 // The ProtonShift design system. One source of truth for the look — every Ps*
-// component reads its colors from here. Colors are palette-driven: set
-// `themeName` to one of the ids in `palettes` and every token re-resolves, so
-// the whole app restyles from one property. Geometry/type are theme-independent.
+// component reads its colors from here. The look is split three ways:
+//   - `style`  — a visual STYLE id (shape + neutral personality: radius,
+//                 shadow/ambient weight, gradient buttons y/n, hairline
+//                 borders y/n, plus a default accent per resolved mode).
+//   - `dark`   — resolved dark/light mode (system/dark/light, resolved by
+//                 ThemeController).
+//   - `accent` — the single hue driving the whole primary/gradient/glow
+//                 family, either a style's default or a user override.
+// All three are bound in from ThemeController via Binding elements in
+// main.qml, so the whole app restyles from those three properties.
 //
-// Contrast contract (WCAG): text / muted / faint / warning / danger / success
-// hold >= 4.5:1 on `surface`; `onPrimary` holds >= 4.5:1 on both gradient
-// stops (gradA, gradB); `wordmark` holds >= 3:1 (large text) on `bg`.
-// If you change a color here, re-verify those pairs.
+// Contrast contract (WCAG): text >= 7:1 and muted >= 4.5:1 on `bg` in dark
+// styles (proportionally relaxed in light styles, where text-on-white holds
+// far more headroom); `onPrimary` holds >= 4.5:1 on `accent`. If you add or
+// edit a style's neutrals, re-verify those pairs. `wordmark`/`accentBright`
+// ride on the user-chosen accent, so their contrast is best-effort, not
+// guaranteed, once a user picks an unusual custom accent.
 QtObject {
     id: theme
 
-    // Active palette id. Driven from ThemeController (which resolves "system" to
-    // a concrete palette based on the OS color scheme). Default keeps the
-    // brand look until the controller binds in.
-    property string themeName: "proton-neon"
+    // --- inputs (bound from ThemeController in main.qml) -------------------
+    property string style: "neon"
+    property bool dark: true
+    property color accent: "#22c3e6"
 
-    readonly property var palettes: ({
-        // ---- Dark: Proton Neon (brand — sampled from the ProtonShift logo:
-        // electric-cyan hex/circuits, magenta "Shift", blue-charcoal base) ----
-        "proton-neon": {
-            dark: true, ambient: 1.0,
-            bg: "#0c1118", bgDeep: "#070b11", surface: "#121a26", surfaceElevated: "#1a2638",
-            border: "#243450", borderStrong: "#31476b",
-            primary: "#22c3e6", primaryBright: "#5bf6fe", primaryDeep: "#0891b2", glow: "#22d3ee",
-            text: "#eef6fb", muted: "#93a9c1", faint: "#7e91a8",
-            success: "#34d399", danger: "#f87171",
-            gradA: "#18b8da", gradB: "#d94aec",
-            accent: "#de3eb8", accentBright: "#ff50f0",
-            onPrimary: "#06202b", wordmark: "#ff50f0", knob: "#ffffff",
-            warning: "#fbbf24", warningSurface: "#2a1f12", warningBorder: "#7c5a1e",
-            dangerSurface: "#2a1216",
-            scrim: "#cc070b11", shadow: "#000000", shadowOpacity: 0.35
+    // Per-style shape tokens + neutral (accent-independent) sub-palettes for
+    // each resolved mode. Adding a style? Add its id here AND to
+    // `core/appearance.py`'s STYLES — `tests/test_theme_parity.py` checks both.
+    readonly property var styles: ({
+        // ---- Proton Neon (brand): ambient glow, gradient buttons ----------
+        "neon": {
+            radiusSm: 8, radius: 14, radiusLg: 20,
+            ambient: 1.0, gradientButtons: true, hairline: false,
+            dark: {
+                bg: "#0c1118", bgDeep: "#070b11", surface: "#121a26", surfaceElevated: "#1a2638",
+                border: "#243450", borderStrong: "#31476b",
+                text: "#eef6fb", muted: "#93a9c1", faint: "#7e91a8",
+                success: "#34d399", danger: "#f87171",
+                warning: "#fbbf24", warningSurface: "#2a1f12", warningBorder: "#7c5a1e",
+                dangerSurface: "#2a1216",
+                scrim: "#cc070b11", shadow: "#000000", shadowOpacity: 0.35,
+                knob: "#ffffff"
+            },
+            light: {
+                bg: "#f6fbfd", bgDeep: "#e8f3f8", surface: "#ffffff", surfaceElevated: "#eef7fa",
+                border: "#d7e7ee", borderStrong: "#b9d4e0",
+                text: "#0f1c24", muted: "#4e6674", faint: "#5d7484",
+                success: "#047857", danger: "#b91c1c",
+                warning: "#b45309", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
+                dangerSurface: "#fdeaea",
+                scrim: "#66101820", shadow: "#1a2638", shadowOpacity: 0.16,
+                knob: "#ffffff"
+            }
         },
-        // ---- Dark: Violet Night (original look) ----
-        "violet-night": {
-            dark: true, ambient: 1.0,
-            bg: "#0d0b14", bgDeep: "#08060e", surface: "#17131f", surfaceElevated: "#211a33",
-            border: "#2c2442", borderStrong: "#3a2f57",
-            primary: "#8b5cf6", primaryBright: "#a78bfa", primaryDeep: "#6d28d9", glow: "#7c3aed",
-            text: "#f4f2fa", muted: "#9d94b8", faint: "#8c84a6",
-            success: "#34d399", danger: "#f87171",
-            gradA: "#7c3aed", gradB: "#6d28d9",
-            accent: "#8b5cf6", accentBright: "#a78bfa",
-            onPrimary: "#ffffff", wordmark: "#a78bfa", knob: "#ffffff",
-            warning: "#fbbf24", warningSurface: "#2a1f12", warningBorder: "#7c5a1e",
-            dangerSurface: "#2a1216",
-            scrim: "#cc08060e", shadow: "#000000", shadowOpacity: 0.35
+        // ---- Phosphor Console: near-black, hairline borders, no shadows ----
+        "console": {
+            radiusSm: 4, radius: 6, radiusLg: 10,
+            ambient: 0.0, gradientButtons: false, hairline: true,
+            dark: {
+                bg: "#0b0c0e", bgDeep: "#060708", surface: "#111316", surfaceElevated: "#17191d",
+                border: "#24262b", borderStrong: "#34373d",
+                text: "#f2f3f5", muted: "#9aa0a8", faint: "#7d838b",
+                success: "#34d399", danger: "#f87171",
+                warning: "#ffb224", warningSurface: "#241d0f", warningBorder: "#6b4a12",
+                dangerSurface: "#2a1216",
+                scrim: "#cc060708", shadow: "#000000", shadowOpacity: 0.0,
+                knob: "#ffffff"
+            },
+            light: {
+                bg: "#f7f7f8", bgDeep: "#ececee", surface: "#ffffff", surfaceElevated: "#f2f2f4",
+                border: "#dcdde0", borderStrong: "#c7c9ce",
+                text: "#101113", muted: "#565a60", faint: "#64686e",
+                success: "#047857", danger: "#b91c1c",
+                warning: "#b45309", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
+                dangerSurface: "#fdeaea",
+                scrim: "#66101113", shadow: "#101113", shadowOpacity: 0.0,
+                knob: "#ffffff"
+            }
         },
-        // ---- Dark: Deep Sea (teal accent, slate base) ----
-        "deep-sea": {
-            dark: true, ambient: 1.0,
-            bg: "#0a1013", bgDeep: "#050b0d", surface: "#111c20", surfaceElevated: "#19282e",
-            border: "#22343b", borderStrong: "#2d4650",
-            primary: "#2dd4bf", primaryBright: "#5eead4", primaryDeep: "#0d9488", glow: "#14b8a6",
-            text: "#ecf7f6", muted: "#8ba7ab", faint: "#7995a0",
-            success: "#34d399", danger: "#fb7185",
-            gradA: "#5eead4", gradB: "#0d9488",
-            accent: "#2dd4bf", accentBright: "#5eead4",
-            onPrimary: "#04201d", wordmark: "#5eead4", knob: "#ffffff",
-            warning: "#fbbf24", warningSurface: "#2a1f12", warningBorder: "#7c5a1e",
-            dangerSurface: "#2a1216",
-            scrim: "#cc050b0d", shadow: "#000000", shadowOpacity: 0.35
+        // ---- Soft Glass: calm, rounded, native-grade -----------------------
+        "soft": {
+            radiusSm: 14, radius: 20, radiusLg: 28,
+            ambient: 0.35, gradientButtons: false, hairline: false,
+            dark: {
+                bg: "#171310", bgDeep: "#100d0a", surface: "#201a15", surfaceElevated: "#2a2119",
+                border: "#3a2f24", borderStrong: "#4d3e2e",
+                text: "#f7f0e8", muted: "#b8a693", faint: "#a3927f",
+                success: "#34d399", danger: "#f87171",
+                warning: "#fbbf24", warningSurface: "#2a1f12", warningBorder: "#7c5a1e",
+                dangerSurface: "#2a1216",
+                scrim: "#cc100d0a", shadow: "#000000", shadowOpacity: 0.18,
+                knob: "#ffffff"
+            },
+            light: {
+                bg: "#fbf7f2", bgDeep: "#f1e9dd", surface: "#ffffff", surfaceElevated: "#f7f1e7",
+                border: "#e9ddcc", borderStrong: "#d9c8ad",
+                text: "#241c14", muted: "#6d6050", faint: "#7a6c56",
+                success: "#047857", danger: "#b91c1c",
+                warning: "#92400e", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
+                dangerSurface: "#fdeaea",
+                scrim: "#66241c14", shadow: "#3d2f1d", shadowOpacity: 0.18,
+                knob: "#ffffff"
+            }
         },
-        // ---- Light: Proton Day (brand cyan/magenta on airy blue-white) ----
-        "proton-day": {
-            dark: false, ambient: 0.42,
-            bg: "#f6fbfd", bgDeep: "#e8f3f8", surface: "#ffffff", surfaceElevated: "#eef7fa",
-            border: "#d7e7ee", borderStrong: "#b9d4e0",
-            primary: "#0891b2", primaryBright: "#0e7490", primaryDeep: "#0e7490", glow: "#22d3ee",
-            text: "#0f1c24", muted: "#4e6674", faint: "#5d7484",
-            success: "#047857", danger: "#b91c1c",
-            gradA: "#0e7490", gradB: "#a21caf",
-            accent: "#be2fa4", accentBright: "#de3eb8",
-            onPrimary: "#ffffff", wordmark: "#de3eb8", knob: "#ffffff",
-            warning: "#b45309", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
-            dangerSurface: "#fdeaea",
-            scrim: "#66101820", shadow: "#1a2638", shadowOpacity: 0.16
-        },
-        // ---- Light: Violet Day (violet accent on lavender-white) ----
-        "violet-day": {
-            dark: false, ambient: 0.42,
-            bg: "#faf8ff", bgDeep: "#efeafa", surface: "#ffffff", surfaceElevated: "#f4f0fc",
-            border: "#e4ddf2", borderStrong: "#cfc3ea",
-            primary: "#7c3aed", primaryBright: "#7c3aed", primaryDeep: "#6d28d9", glow: "#a78bfa",
-            text: "#1c1626", muted: "#5b5470", faint: "#6b628c",
-            success: "#047857", danger: "#b91c1c",
-            gradA: "#7c3aed", gradB: "#6d28d9",
-            accent: "#7c3aed", accentBright: "#8b5cf6",
-            onPrimary: "#ffffff", wordmark: "#8b5cf6", knob: "#ffffff",
-            warning: "#b45309", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
-            dangerSurface: "#fdeaea",
-            scrim: "#661c1626", shadow: "#241a3d", shadowOpacity: 0.16
-        },
-        // ---- Light: Sandstone (warm neutral, amber accent) ----
-        "sandstone": {
-            dark: false, ambient: 0.42,
-            bg: "#fbf8f3", bgDeep: "#f2ece1", surface: "#ffffff", surfaceElevated: "#f7f1e7",
-            border: "#e8ddcc", borderStrong: "#d8c8ad",
-            primary: "#d97706", primaryBright: "#92400e", primaryDeep: "#b45309", glow: "#fbbf24",
-            text: "#261f18", muted: "#6b5f4e", faint: "#77694f",
-            success: "#047857", danger: "#b91c1c",
-            gradA: "#f59e0b", gradB: "#d97706",
-            accent: "#d97706", accentBright: "#b45309",
-            onPrimary: "#2b1503", wordmark: "#b45309", knob: "#ffffff",
-            warning: "#92400e", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
-            dangerSurface: "#fdeaea",
-            scrim: "#66261f18", shadow: "#3d2f1d", shadowOpacity: 0.16
+        // ---- Deepslate: flat, tight radius, emerald signal -----------------
+        "slate": {
+            radiusSm: 2, radius: 4, radiusLg: 6,
+            ambient: 0.0, gradientButtons: false, hairline: false,
+            dark: {
+                bg: "#0f1214", bgDeep: "#0a0c0d", surface: "#171b1e", surfaceElevated: "#1e2226",
+                border: "#2b3136", borderStrong: "#3a4147",
+                text: "#e9edef", muted: "#8b969c", faint: "#78848a",
+                success: "#34d399", danger: "#f87171",
+                warning: "#fbbf24", warningSurface: "#2a1f12", warningBorder: "#7c5a1e",
+                dangerSurface: "#2a1216",
+                scrim: "#cc0a0c0d", shadow: "#000000", shadowOpacity: 0.25,
+                knob: "#ffffff"
+            },
+            light: {
+                bg: "#f5f7f7", bgDeep: "#e7ebec", surface: "#ffffff", surfaceElevated: "#eef1f2",
+                border: "#d7dee0", borderStrong: "#bcc6c9",
+                text: "#101416", muted: "#4d5a5f", faint: "#5c6a6f",
+                success: "#047857", danger: "#b91c1c",
+                warning: "#b45309", warningSurface: "#fef3e2", warningBorder: "#f0d9b0",
+                dangerSurface: "#fdeaea",
+                scrim: "#66101416", shadow: "#101416", shadowOpacity: 0.25,
+                knob: "#ffffff"
+            }
         }
     })
 
-    // Selected palette, falling back to the default if an unknown id is set.
-    readonly property var _p: palettes[themeName] !== undefined ? palettes[themeName]
-                                                                : palettes["proton-neon"]
+    // Selected style, falling back to the default if an unknown id is set.
+    readonly property var _s: styles[style] !== undefined ? styles[style] : styles["neon"]
+    // Selected neutral sub-palette for the resolved mode.
+    readonly property var _n: dark ? _s.dark : _s.light
 
-    readonly property bool isDark: _p.dark
-    // Ambient glow-blob strength multiplier — dimmed on light themes.
-    readonly property real ambientStrength: _p.ambient
+    readonly property bool isDark: dark
+    // Ambient glow-blob strength multiplier — a per-style constant (some
+    // styles are deliberately flat/shadowless regardless of mode).
+    readonly property real ambientStrength: _s.ambient
 
-    // --- palette (resolved) ---------------------------------------------------
-    readonly property color bg: _p.bg
-    readonly property color bgDeep: _p.bgDeep
-    readonly property color surface: _p.surface
-    readonly property color surfaceElevated: _p.surfaceElevated
-    readonly property color border: _p.border
-    readonly property color borderStrong: _p.borderStrong
+    // --- palette (resolved neutrals) -------------------------------------------
+    readonly property color bg: _n.bg
+    readonly property color bgDeep: _n.bgDeep
+    readonly property color surface: _n.surface
+    readonly property color surfaceElevated: _n.surfaceElevated
+    readonly property color border: _n.border
+    readonly property color borderStrong: _n.borderStrong
 
-    readonly property color primary: _p.primary
-    readonly property color primaryBright: _p.primaryBright
-    readonly property color primaryDeep: _p.primaryDeep
-    readonly property color glow: _p.glow
+    readonly property color text: _n.text
+    readonly property color muted: _n.muted
+    readonly property color faint: _n.faint
 
-    readonly property color text: _p.text
-    readonly property color muted: _p.muted
-    readonly property color faint: _p.faint
+    readonly property color success: _n.success
+    readonly property color danger: _n.danger
 
-    readonly property color success: _p.success
-    readonly property color danger: _p.danger
-
-    readonly property color gradA: _p.gradA
-    readonly property color gradB: _p.gradB
-
-    // Secondary brand hue (the logo's magenta "Shift"); falls back to the
-    // palette's primary family on non-brand palettes.
-    readonly property color accent: _p.accent
-    readonly property color accentBright: _p.accentBright
-
-    // Text/glyph color for content sitting ON the primary gradient (gradA→gradB):
-    // primary buttons, active pills. >= 4.5:1 on both stops in every palette.
-    readonly property color onPrimary: _p.onPrimary
-    // The "Shift" half of the wordmark. accentBright everywhere except palettes
-    // where accentBright can't hold 3:1 on bg (sandstone).
-    readonly property color wordmark: _p.wordmark
-    // Slider handle / switch knob fill (consumers pair it with a border token).
-    readonly property color knob: _p.knob
-
-    // --- state ------------------------------------------------------------
-    // warning* replaces the hardcoded amber banner hexes; dangerSurface replaces
-    // the hardcoded maroon fills. warning/danger are text-grade on surface.
-    readonly property color warning: _p.warning
-    readonly property color warningSurface: _p.warningSurface
-    readonly property color warningBorder: _p.warningBorder
-    readonly property color dangerSurface: _p.dangerSurface
+    readonly property color warning: _n.warning
+    readonly property color warningSurface: _n.warningSurface
+    readonly property color warningBorder: _n.warningBorder
+    readonly property color dangerSurface: _n.dangerSurface
     // 14% tints for "ok" pills and success-tinted rows (replaces inline Qt.rgba).
     readonly property color successTint: Qt.rgba(success.r, success.g, success.b, 0.14)
     readonly property color dangerTint: Qt.rgba(danger.r, danger.g, danger.b, 0.14)
 
+    readonly property color scrim: _n.scrim
+    readonly property color shadow: _n.shadow
+    readonly property real shadowOpacity: _n.shadowOpacity
+    readonly property color knob: _n.knob
+
+    // --- accent-derived family ---------------------------------------------
+    // Relative luminance (WCAG) of a QML color, 0..1. Used to flip onPrimary
+    // between a dark and a light glyph so it holds contrast on any accent.
+    function _lum(c) {
+        function chan(v) {
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * chan(c.r) + 0.7152 * chan(c.g) + 0.0722 * chan(c.b)
+    }
+
+    readonly property color primary: accent
+    readonly property color primaryBright: Qt.lighter(accent, 1.25)
+    readonly property color primaryDeep: Qt.darker(accent, 1.35)
+    readonly property color glow: accent
+
+    readonly property color gradA: accent
+    // Gradient-button styles shift the second stop +40° around the hue wheel;
+    // flat styles just repeat the accent so no visible gradient is drawn.
+    readonly property color gradB: _s.gradientButtons
+        ? Qt.hsla((accent.hslHue + 0.11) % 1, accent.hslSaturation, accent.hslLightness, 1)
+        : accent
+
+    // Secondary brand hue — collapsed onto the single user accent in this
+    // model (no separate secondary hue to configure).
+    readonly property color accentBright: primaryBright
+
+    // Text/glyph color for content sitting ON the primary gradient (gradA→gradB)
+    // or a solid `accent` fill: primary buttons, active pills.
+    readonly property color onPrimary: _lum(accent) > 0.5 ? "#0b1117" : "#ffffff"
+    // The "Shift" half of the wordmark — rides the accent family.
+    readonly property color wordmark: primaryBright
+
     // --- ProtonDB tiers (theme-independent) ---------------------------------
     // Badge fills sampled from ProtonDB's own tier palette so a rating reads
-    // the same here as on protondb.com in every palette. Each holds >= 4.5:1
+    // the same here as on protondb.com in every style. Each holds >= 4.5:1
     // against `tierInk`, the fixed dark glyph color drawn on top of them
     // (bronze is the tightest at ~5.0:1). Use as pill fill + tierInk text —
     // never as text on `surface`, where gold/silver can't hold contrast on
-    // the light palettes.
+    // light styles.
     readonly property color tierPlatinum: "#b4c7dc"
     readonly property color tierGold: "#cfb53b"
     readonly property color tierSilver: "#c0c0c0"
@@ -183,17 +218,12 @@ QtObject {
     readonly property color tierPending: "#9aa8b5"
     readonly property color tierInk: "#0b1117"
 
-    // --- elevation / overlay ----------------------------------------------
-    // Modal backdrop (PsDialog Overlay.modal) and card drop-shadow color+opacity.
-    readonly property color scrim: _p.scrim
-    readonly property color shadow: _p.shadow
-    readonly property real shadowOpacity: _p.shadowOpacity
+    // --- geometry (per-style) -----------------------------------------------
+    readonly property int radiusSm: _s.radiusSm
+    readonly property int radius: _s.radius
+    readonly property int radiusLg: _s.radiusLg
 
     // --- geometry (theme-independent) -----------------------------------------
-    readonly property int radiusSm: 8
-    readonly property int radius: 14
-    readonly property int radiusLg: 20
-
     readonly property int spaceXs: 6
     readonly property int spaceSm: 10
     readonly property int space: 16
