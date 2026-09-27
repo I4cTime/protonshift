@@ -25,6 +25,9 @@ Item {
     Item {
         id: blobs
         anchors.fill: parent
+        // Flat styles (ambientStrength == 0) skip the glow blobs entirely —
+        // no point paying for the blur layer/animations when opacity is 0.
+        visible: Theme.ambientStrength > 0
 
         // Blobs animate a 0..1 progress and bind x/y to it, so positions
         // track the CURRENT size — animating x/y directly snapshots

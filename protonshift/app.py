@@ -23,12 +23,14 @@ from .controllers import (
     GamesController,
     GamescopeController,
     GameToolsController,
+    GeProtonController,
     HeroicController,
     LaunchOptionsController,
     MangoHudController,
     PerAppScopeBuddyController,
     PerGameMangoHudController,
     ProfilesController,
+    ProtonDbController,
     ProtontricksController,
     SavesController,
     ScopeBuddyController,
@@ -74,11 +76,15 @@ def main() -> int:
     heroic = HeroicController()
     gamepad = GamepadController()
     theme = ThemeController()
+    ge_proton = GeProtonController()
+    # installed/removed builds should show up in the per-game Proton picker
+    ge_proton.toolsChanged.connect(launch.reloadProton)
     ctx = engine.rootContext()
     ctx.setContextProperty("gamescope", gamescope)
     ctx.setContextProperty("library", library)
     ctx.setContextProperty("env", env)
     ctx.setContextProperty("launch", launch)
+    ctx.setContextProperty("protondb", ProtonDbController(parent=app))  # app-owned: outlives the engine
     ctx.setContextProperty("mangohud", mangohud)
     ctx.setContextProperty("scopebuddy", scopebuddy)
     ctx.setContextProperty("system", system)
@@ -94,6 +100,7 @@ def main() -> int:
     ctx.setContextProperty("heroic", heroic)
     ctx.setContextProperty("gamepad", gamepad)
     ctx.setContextProperty("themeCtl", theme)
+    ctx.setContextProperty("geProton", ge_proton)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

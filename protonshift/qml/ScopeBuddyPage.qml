@@ -257,9 +257,7 @@ RowLayout {
                 Item { Layout.fillWidth: true }
                 Text {
                     text: scopebuddy.status
-                    color: (scopebuddy.status.indexOf("failed") >= 0
-                            || scopebuddy.status.indexOf("Not saved") >= 0)
-                           ? Theme.danger : Theme.success
+                    color: scopebuddy.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -469,15 +467,54 @@ RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton { text: "+ Add row"; primary: false; enabled: scbEnvvars.loaded; onClicked: scbEnvvars.model.addRow() }
-                PsButton { text: "Delete snippet"; primary: false; danger: true; visible: scbEnvvars.exists; onClicked: scbEnvvars.deleteSnippet() }
+                PsButton {
+                    text: "Delete snippet"; primary: false; danger: true
+                    visible: scbEnvvars.exists
+                    onClicked: deleteSnippetConfirm.open()
+                }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: scbEnvvars.status
-                    color: scbEnvvars.status.indexOf("failed") >= 0 || scbEnvvars.status.indexOf("Couldn't") >= 0 ? Theme.danger : Theme.success
+                    color: scbEnvvars.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
                 Text { visible: scbEnvvars.dirty; text: "● unsaved"; color: Theme.primaryBright; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption }
                 PsButton { text: "Save"; enabled: scbEnvvars.loaded && scbEnvvars.dirty; onClicked: scbEnvvars.save() }
+            }
+        }
+    }
+
+    // Deleting a snippet removes envvars/<name>.conf outright — confirm first.
+    PsDialog {
+        id: deleteSnippetConfirm
+        title: "Delete snippet?"
+        width: 380
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "“" + scbEnvvars.name + "” will be permanently removed."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false
+                    onClicked: deleteSnippetConfirm.close()
+                }
+                PsButton {
+                    text: "Delete"; primary: false; danger: true
+                    onClicked: {
+                        scbEnvvars.deleteSnippet()
+                        deleteSnippetConfirm.close()
+                    }
+                }
             }
         }
     }

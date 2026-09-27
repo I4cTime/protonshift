@@ -39,7 +39,7 @@ keep in sync.
 
 ## Branches and commits
 
-- Base your work on **`develop`**; `main` tracks releases.
+- Base your work on **`main`** — it is the only long-lived branch; releases are tagged from it. Open a feature branch, then a PR.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat:`, `fix:`, `chore:`, with optional scope — e.g. `fix(qml): …`),
   matching the existing history and the Dependabot config.

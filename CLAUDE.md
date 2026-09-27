@@ -68,7 +68,10 @@ is conventions and constraints only.
   result signal updates state and clears loading on the GUI thread; a
   private error signal clears loading on failure so an exception can't wedge
   the UI in a loading state.
-- Adding a palette to `Theme.qml`? Add the matching id to
-  `controllers/theme_controller.py`'s `_THEMES` and keep the token keys
-  identical to the existing palettes — `tests/test_theme_parity.py` checks
-  both.
+- Appearance = a visual *style* (neutrals + shape) × dark/light × an accent
+  color. Styles live in two places that must agree: the registry in
+  `core/appearance.py` (`STYLES`, defaults, migration) and the `styles`
+  table in `qml/App/Theme.qml` (dark + light neutral palettes with identical
+  keys). Every color-family token (primary/glow/gradients/onPrimary) is
+  derived from the accent in `Theme.qml` — never add a per-style copy of
+  them. `tests/test_theme_parity.py` checks the two registries agree.

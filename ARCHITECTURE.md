@@ -162,9 +162,9 @@ CI (`.github/workflows/ci.yml`) runs `ruff check`, `pyside6-qmllint` over
 
 ## Release flow
 
-1. Commit to `develop`; CI runs lint + qmllint + tests on every push and PR
-   into `develop`/`main`.
-2. Open a PR from `develop` into `main`.
+1. Work on a feature branch; CI runs lint + qmllint + tests on every push
+   and on PRs into `main` (the only long-lived branch).
+2. Open a PR into `main`; merge once checks are green.
 3. Tag the merge commit `vX.Y.Z` and publish a GitHub Release from that tag.
 4. Publishing the release triggers `.github/workflows/build-release.yml`,
    which builds the Flatpak bundle (via the local, network-enabled manifest —

@@ -106,8 +106,7 @@ RowLayout {
                 visible: gamepad.status.length > 0
                 text: gamepad.status
                 wrapMode: Text.WordWrap
-                color: (gamepad.status.indexOf("Couldn't") >= 0 || gamepad.status.indexOf("not supported") >= 0
-                        || gamepad.status.indexOf("No force") >= 0) ? Theme.danger : Theme.success
+                color: gamepad.statusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
             }
         }

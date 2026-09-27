@@ -24,12 +24,70 @@ RowLayout {
                 PsSectionHeader {
                     Layout.fillWidth: true
                     text: "Environment Variables"
-                    subtitle: "~/.config/environment.d/70-protonshift.conf · log out/in to apply"
+                    subtitle: env.targetPath + " · log out/in to apply"
                 }
                 BusyIndicator {
                     running: env.loading
                     visible: env.loading
                     implicitWidth: 22; implicitHeight: 22
+                }
+            }
+
+            // #47: where the variables go. environment.d only reaches desktops
+            // started by systemd's user manager; ~/.xsessionrc and ~/.profile
+            // cover the classic display-manager sessions (Cinnamon/XFCE/MATE…).
+            RowLayout {
+                id: targetRow
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+
+                // id list + id→label map derived once from the controller's table
+                property var targetIds: env.targetNames.map(function (t) { return t.id })
+                property var targetLabels: {
+                    var m = {}
+                    for (var i = 0; i < env.targetNames.length; i++)
+                        m[env.targetNames[i].id] = env.targetNames[i].label
+                    return m
+                }
+                // reads env.target, so bindings on it re-evaluate on a switch
+                function currentTarget() {
+                    for (var i = 0; i < env.targetNames.length; i++)
+                        if (env.targetNames[i].id === env.target)
+                            return env.targetNames[i]
+                    return null
+                }
+
+                Text {
+                    text: "Where variables go"
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                    font.weight: Font.DemiBold
+                }
+                PsSelect {
+                    id: targetSelect
+                    Layout.preferredWidth: 220
+                    enabled: !env.loading
+                    model: targetRow.targetIds
+                    displayMap: targetRow.targetLabels
+                    onChosen: env.setTarget(value)
+                    function syncCurrent() {
+                        currentIndex = targetRow.targetIds.indexOf(env.target)
+                    }
+                    Component.onCompleted: syncCurrent()
+                    Connections {
+                        target: env
+                        function onTargetChanged() { targetSelect.syncCurrent() }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    property var cur: targetRow.currentTarget()
+                    text: cur ? cur.path + " · read by " + cur.readBy : ""
+                    elide: Text.ElideRight
+                    color: Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
                 }
             }
 
@@ -54,9 +112,10 @@ RowLayout {
                 }
             }
 
-            // #47: environment.d only reaches desktops started by systemd's user
-            // manager. On Cinnamon/XFCE/MATE/startx the file is written but never
-            // read — say so instead of letting "Saved" imply it works.
+            // #47: the selected target isn't what this desktop reads (e.g.
+            // environment.d on Cinnamon/XFCE/MATE/startx, which systemd didn't
+            // start). Say so, and offer the one-click switch, instead of letting
+            // "Saved" imply it works.
             Rectangle {
                 Layout.fillWidth: true
                 visible: env.sessionWarning.length > 0
@@ -64,16 +123,27 @@ RowLayout {
                 color: Theme.warningSurface
                 border.color: Theme.warningBorder
                 border.width: 1
-                implicitHeight: warnLbl.implicitHeight + 2 * Theme.spaceSm
-                Text {
-                    id: warnLbl
+                implicitHeight: warnRow.implicitHeight + 2 * Theme.spaceSm
+                RowLayout {
+                    id: warnRow
                     anchors.fill: parent
                     anchors.margins: Theme.spaceSm
-                    wrapMode: Text.WordWrap
-                    color: Theme.warning
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fsCaption
-                    text: env.sessionWarning
+                    spacing: Theme.spaceSm
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.warning
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                        text: env.sessionWarning
+                    }
+                    PsButton {
+                        text: "Use recommended"
+                        primary: false
+                        visible: env.recommendedTarget.length > 0 && env.recommendedTarget !== env.target
+                        enabled: !env.loading
+                        onClicked: env.setTarget(env.recommendedTarget)
+                    }
                 }
             }
 
@@ -193,8 +263,7 @@ RowLayout {
                     text: env.status
                     elide: Text.ElideRight
                     horizontalAlignment: Text.AlignRight
-                    color: env.status.indexOf("Not saved") === 0 || env.status.indexOf("failed") >= 0
-                           ? Theme.danger : Theme.success
+                    color: env.statusOk ? Theme.success : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
@@ -205,12 +274,30 @@ RowLayout {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
                 }
+                // #47 escape hatch: the same rows as `KEY=value %command%`, for
+                // a game's Steam launch options when no session file works.
+                PsButton {
+                    text: "Copy as Steam launch options"
+                    primary: false
+                    enabled: env.loaded && env.launchPrefix.length > 0
+                    onClicked: env.copyLaunchPrefix()
+                }
                 PsButton {
                     text: "Save"
                     // enabled only once a load succeeded and there are edits (#21)
                     enabled: env.loaded && env.dirty
                     onClicked: env.save()
                 }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: !env.loadError.length
+                text: "Copy as launch options: paste into a game's launch options if nothing else works."
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignRight
+                color: Theme.faint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
             }
         }
     }
