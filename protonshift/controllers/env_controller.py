@@ -1,4 +1,4 @@
-"""QObject bridge for the environment.d editor.
+"""QObject bridge for the environment variables editor.
 
 Two data-loss bugs from the old React page are fixed here by construction:
 
@@ -9,9 +9,17 @@ Two data-loss bugs from the old React page are fixed here by construction:
 
 The rows live in a QAbstractListModel so editing one cell updates just that row
 (no full-list remount, so no focus loss — the old ScbKvEditor bug).
+
+1.2.0 (#47): the rows can be saved to one of several *targets* — the
+environment.d conf, a managed block in ``~/.profile`` or in ``~/.xsessionrc`` —
+because environment.d never reaches a desktop that systemd didn't start. The
+chosen target persists in ``~/.config/protonshift/settings.json`` (``envTarget``).
 """
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 from PySide6.QtCore import (
     Property,
@@ -23,9 +31,43 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+from PySide6.QtGui import QGuiApplication
 
+from ..core import env_targets
 from ..core.env_vars import ENV_PRESETS, _valid_key
+from ..core.fsutil import atomic_write_text
 from ._worker import start_worker
+
+_SETTINGS = Path.home() / ".config" / "protonshift" / "settings.json"
+_SETTINGS_KEY = "envTarget"
+
+
+def _load_target_choice() -> str:
+    """The persisted target id, tolerant of a missing/garbled settings file."""
+    try:
+        data = json.loads(_SETTINGS.read_text(encoding="utf-8"))
+        choice = data.get(_SETTINGS_KEY) if isinstance(data, dict) else None
+    except (OSError, ValueError, TypeError):
+        return env_targets.ENV_D
+    return choice if choice in env_targets.ENV_TARGETS else env_targets.ENV_D
+
+
+def _save_target_choice(target: str) -> None:
+    try:
+        existing = {}
+        if _SETTINGS.exists():
+            try:
+                existing = json.loads(_SETTINGS.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                existing = {}
+        if not isinstance(existing, dict):
+            existing = {}
+        existing[_SETTINGS_KEY] = target
+        # atomic replace, same contract as theme_controller — a crash mid-write
+        # can't corrupt settings.json.
+        atomic_write_text(_SETTINGS, json.dumps(existing, indent=2))
+    except OSError:
+        pass
 
 
 class EnvVarsModel(QAbstractListModel):
@@ -129,9 +171,11 @@ class EnvController(QObject):
     loadedChanged = Signal()
     dirtyChanged = Signal()
     statusChanged = Signal()
+    targetChanged = Signal()
+    launchPrefixChanged = Signal()
 
-    # worker -> GUI thread: (ok, error_message, rows, session_warning)
-    _loadResult = Signal(bool, str, list, str)
+    # worker -> GUI thread: (target, ok, error_message, rows, session_warning, recommended)
+    _loadResult = Signal(str, bool, str, list, str, str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -144,6 +188,12 @@ class EnvController(QObject):
         self._load_error = ""
         self._session_warning = ""
         self._status = ""
+        self._target = _load_target_choice()
+        self._recommended = env_targets.ENV_D
+        # last session probe, cached so a target switch can re-derive the
+        # banner without shelling out again
+        self._support = ""
+        self._desktop = ""
         self._presets = list(ENV_PRESETS.keys())
         self._loadResult.connect(self._on_loaded)
         self.reload()
@@ -180,8 +230,70 @@ class EnvController(QObject):
 
     @Property(str, notify=loadedChanged)
     def sessionWarning(self) -> str:
-        """Non-empty when environment.d can't reach this desktop session (#47)."""
+        """Non-empty when the selected target isn't what this desktop reads (#47)."""
         return self._session_warning
+
+    # --- targets (#47) --------------------------------------------------------
+
+    @Property("QVariantList", constant=True)
+    def targetNames(self) -> list:
+        """``[{id, label, description, path, readBy}]`` in picker order."""
+        return [
+            {
+                "id": t.id,
+                "label": t.label,
+                "description": t.description,
+                "path": env_targets.display_path(t.path),
+                "readBy": t.read_by,
+            }
+            for t in env_targets.targets()
+        ]
+
+    def _get_target(self) -> str:
+        return self._target
+
+    @Slot(str)
+    def setTarget(self, target: str) -> None:
+        """Switch where variables are saved; reloads the rows from that target."""
+        if target not in env_targets.ENV_TARGETS or target == self._target:
+            return
+        self._target = target
+        _save_target_choice(target)
+        self.targetChanged.emit()
+        # Re-derive the banner from the cached probe right away; the reload
+        # will refresh it again from a fresh probe.
+        self._session_warning = env_targets.target_warning(
+            self._support, self._desktop, self._target, self._recommended
+        )
+        self.loadedChanged.emit()
+        self.reload()
+
+    target = Property(str, _get_target, setTarget, notify=targetChanged)
+
+    @Property(str, notify=loadedChanged)
+    def recommendedTarget(self) -> str:
+        return self._recommended
+
+    @Property(str, notify=targetChanged)
+    def targetPath(self) -> str:
+        return env_targets.display_path(env_targets.target_path(self._target))
+
+    @Property(str, notify=launchPrefixChanged)
+    def launchPrefix(self) -> str:
+        """The current rows as ``KEY=value … %command%`` for Steam launch options."""
+        return env_targets.as_launch_prefix(self._model.to_dict())
+
+    @Slot()
+    def copyLaunchPrefix(self) -> None:
+        prefix = self.launchPrefix
+        if not prefix:
+            self._status = "Nothing to copy — add a variable first."
+        else:
+            clipboard = QGuiApplication.clipboard()
+            if clipboard is not None:
+                clipboard.setText(prefix)
+            self._status = "Launch options copied — paste into a game's Properties → Launch Options."
+        self.statusChanged.emit()
 
     # --- actions --------------------------------------------------------------
 
@@ -191,9 +303,11 @@ class EnvController(QObject):
             return
         self._loading = True
         self.loadingChanged.emit()
+        target = self._target
         start_worker(
             self._load_work,
-            on_error=lambda m: self._loadResult.emit(False, m, [], ""),
+            target,
+            on_error=lambda m: self._loadResult.emit(target, False, m, [], "", ""),
         )
 
     @Slot(str)
@@ -220,17 +334,15 @@ class EnvController(QObject):
             )
             self.statusChanged.emit()
             return
-        from ..core.env_vars import write_gaming_env
-
         try:
-            ok = write_gaming_env(cfg)
+            ok = env_targets.write_target(self._target, cfg)
         except Exception as exc:  # noqa: BLE001 — a raising core writer must not kill the slot
             ok = False
             self._status = f"Save failed: {type(exc).__name__}: {exc}"
         else:
             if ok:
                 self._dirty = False
-                self._status = "Saved to 70-protonshift.conf"
+                self._status = f"Saved to {self.targetPath}"
                 self.dirtyChanged.emit()
             else:
                 self._status = "Save failed — check permissions."
@@ -245,28 +357,44 @@ class EnvController(QObject):
         if self._status:
             self._status = ""
             self.statusChanged.emit()
+        self.launchPrefixChanged.emit()
 
     def _on_invalid_key(self, key: str) -> None:
         self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
         self.statusChanged.emit()
 
-    def _load_work(self) -> None:
-        from ..core.env_vars import get_gaming_conf_path, read_conf
-        from ..core.session import current_desktop, env_d_warning, session_env_support
+    def _load_work(self, target: str) -> None:
+        from ..core.session import UNKNOWN, current_desktop, session_env_support
 
         # #47: the session probe is advisory — it must never break the load.
         try:
-            warning = env_d_warning(session_env_support(), current_desktop())
+            support = session_env_support()
+            desktop = current_desktop()
         except Exception:  # noqa: BLE001 — the probe shells out; any surprise just means "no banner"
-            warning = ""
+            support, desktop = UNKNOWN, ""
+        # Plain strings written once per load; read on the GUI thread only
+        # after this load's result has been delivered.
+        self._support, self._desktop = support, desktop
+        recommended = env_targets.recommended_target(support, desktop)
+        warning = env_targets.target_warning(support, desktop, target, recommended)
         try:
-            data = read_conf(get_gaming_conf_path())  # {} for a missing file is legit
-            self._loadResult.emit(True, "", sorted(data.items()), warning)
+            data = env_targets.read_target(target)  # {} for a missing file/block is legit
+            self._loadResult.emit(target, True, "", sorted(data.items()), warning, recommended)
         except OSError as exc:
-            self._loadResult.emit(False, str(exc), [], warning)
+            self._loadResult.emit(target, False, str(exc), [], warning, recommended)
 
-    def _on_loaded(self, ok: bool, error: str, rows: list, session_warning: str) -> None:
+    def _on_loaded(
+        self, target: str, ok: bool, error: str, rows: list, session_warning: str, recommended: str
+    ) -> None:
+        self._loading = False
+        if target != self._target:
+            # The target was switched while this load ran: these rows belong
+            # to the old target — drop them and load the current one instead.
+            self.loadingChanged.emit()
+            self.reload()
+            return
         self._session_warning = session_warning
+        self._recommended = recommended or env_targets.ENV_D
         if ok:
             self._model.reset_rows(rows)
             self._loaded = True
@@ -276,8 +404,8 @@ class EnvController(QObject):
         else:
             self._loaded = False
             self._load_error = error
-        self._loading = False
         self._status = ""
         self.loadingChanged.emit()
         self.loadedChanged.emit()
         self.statusChanged.emit()
+        self.launchPrefixChanged.emit()

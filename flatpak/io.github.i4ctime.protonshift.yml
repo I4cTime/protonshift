@@ -39,6 +39,10 @@ finish-args:
   - --filesystem=~/.config/scopebuddy:create
   - --filesystem=~/.config/MangoHud:create
   - --filesystem=~/.config/environment.d:create
+  # env-var targets for desktops systemd does not start (#47): managed block
+  # in the login profile / X session rc
+  - --filesystem=~/.profile:create
+  - --filesystem=~/.xsessionrc:create
   # default target dir for save-backup restores
   - --filesystem=~/ProtonShift Restores:create
   - --filesystem=~/.steam
