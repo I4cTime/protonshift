@@ -3,7 +3,8 @@ updates:
   - package-ecosystem: pip
     directory: "/"
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 9 * * mon#1,mon#2"
     open-pull-requests-limit: 10
     labels: ["dependencies", "security"]
     commit-message:
@@ -12,7 +13,8 @@ updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 9 * * mon#1,mon#2"
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(ci)"
