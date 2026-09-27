@@ -570,6 +570,170 @@ RowLayout {
 
             } // ===== end Steam-only (Proton + launch options + presets) =====
 
+            // ===== ProtonDB community rating (Steam-only; opt-in network lookup) =====
+            ColumnLayout {
+                id: protondbSection
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                visible: detailCard.isSteam
+
+                // Only Steam ids are ProtonDB ids — Heroic/Lutris games bind 0,
+                // which clears the controller and fires no request.
+                Binding {
+                    target: protondb
+                    property: "appid"
+                    value: detailCard.isSteam ? (parseInt(library.selectedAppId, 10) || 0) : 0
+                }
+                // The controller hands over a Theme token *name*; resolve it here.
+                function tierColor(key) {
+                    var c = Theme[key]
+                    return c !== undefined ? c : Theme.tierPending
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spaceSm
+                    PsSectionHeader {
+                        Layout.fillWidth: true
+                        text: "ProtonDB"
+                        subtitle: "Community compatibility reports · protondb.com"
+                    }
+                    BusyIndicator {
+                        running: protondb.loading
+                        visible: protondb.loading
+                        implicitWidth: 20; implicitHeight: 20
+                    }
+                    PsButton {
+                        text: "\u21bb"
+                        primary: false
+                        visible: protondb.enabled
+                        enabled: !protondb.loading
+                        implicitWidth: 40
+                        implicitHeight: 32
+                        Accessible.name: "Refresh ProtonDB rating"
+                        onClicked: protondb.refresh()
+                    }
+                }
+
+                // privacy opt-in — shown while lookups are switched off
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !protondb.enabled
+                    spacing: Theme.spaceSm
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Lookups are off. Enabling sends this game's Steam app id to protondb.com."
+                        wrapMode: Text.WordWrap
+                        color: Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                    PsButton {
+                        text: "Enable lookups"
+                        primary: false
+                        onClicked: protondb.setEnabled(true)
+                    }
+                }
+
+                // tier badge + report count
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: protondb.enabled && protondb.loaded
+                    spacing: Theme.spaceSm
+                    Rectangle {
+                        implicitWidth: tierLbl.implicitWidth + 20
+                        implicitHeight: 26
+                        radius: 13
+                        color: protondbSection.tierColor(protondb.tierColorKey)
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: "ProtonDB tier: " + protondb.tierLabel
+                        Text {
+                            id: tierLbl
+                            anchors.centerIn: parent
+                            text: protondb.tierLabel
+                            color: Theme.tierInk
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fsCaption
+                            font.weight: Font.Bold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 0.6
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: protondb.total === 0
+                              ? "No reports yet"
+                              : protondb.total + (protondb.total === 1 ? " report" : " reports")
+                                + (protondb.confidence.length > 0 ? " \u00b7 " + protondb.confidence + " confidence" : "")
+                        elide: Text.ElideRight
+                        color: Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                }
+
+                // trending tier — only when it differs from the overall one
+                RowLayout {
+                    visible: protondb.enabled && protondb.loaded && protondb.trendingLabel.length > 0
+                    spacing: Theme.spaceXs
+                    Text {
+                        text: "Trending"
+                        color: Theme.faint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                    Rectangle {
+                        implicitWidth: trendLbl.implicitWidth + 14
+                        implicitHeight: 20
+                        radius: 10
+                        color: protondbSection.tierColor(protondb.trendingColorKey)
+                        Text {
+                            id: trendLbl
+                            anchors.centerIn: parent
+                            text: protondb.trendingLabel
+                            color: Theme.tierInk
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                            font.weight: Font.Bold
+                            font.capitalization: Font.AllUppercase
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: protondb.enabled && protondb.error.length > 0
+                    text: protondb.error + (protondb.loaded ? " \u2014 showing the cached rating" : "")
+                    wrapMode: Text.WordWrap
+                    color: Theme.danger
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: protondb.enabled
+                    spacing: Theme.spaceSm
+                    PsButton {
+                        text: "Open on ProtonDB"
+                        primary: false
+                        enabled: protondb.pageUrl.length > 0
+                        onClicked: protondb.openPage()
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: protondb.fetchedLabel.length > 0
+                        text: protondb.fetchedLabel
+                        elide: Text.ElideRight
+                        color: Theme.faint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                }
+            } // ===== end ProtonDB =====
+
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             // --- prefix + shader cache maintenance ---

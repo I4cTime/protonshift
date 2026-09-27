@@ -246,4 +246,26 @@ ColumnLayout {
             }
         }
     }
+
+    // --- privacy -----------------------------------------------------------
+    // The one network feature. Explained inline: the only data that leaves the
+    // machine is a Steam app id, and only when a game is selected.
+    PsCard {
+        Layout.fillWidth: true
+        Layout.preferredHeight: privacyCol.implicitHeight + 2 * Theme.spaceLg
+        ColumnLayout {
+            id: privacyCol
+            anchors.fill: parent
+            anchors.margins: Theme.spaceLg
+            spacing: Theme.space
+            PsSectionHeader { Layout.fillWidth: true; text: "Privacy" }
+            PsSwitchRow {
+                Layout.fillWidth: true
+                text: "Look up ProtonDB ratings"
+                subtitle: "Sends the Steam app id to protondb.com when you select a game"
+                checked: protondb.enabled
+                onToggled: protondb.setEnabled(value)
+            }
+        }
+    }
 }
