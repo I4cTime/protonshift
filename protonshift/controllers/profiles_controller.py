@@ -7,9 +7,21 @@ several config files / tools, so they run on worker threads.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
 from ._worker import start_worker
+
+
+def _local_path(url: QUrl):
+    """QML FileDialog hands back a file:// QUrl; None when it isn't local."""
+    from pathlib import Path
+
+    if not isinstance(url, QUrl) or url.isEmpty():
+        return None
+    local = url.toLocalFile() if url.isLocalFile() else url.toString()
+    if not local:
+        return None
+    return Path(local).expanduser()
 
 
 class ProfilesController(QObject):
@@ -83,6 +95,27 @@ class ProfilesController(QObject):
             on_error=lambda m: self._actionResult.emit(f"Apply failed: {m}"),
         )
 
+    @Slot(QUrl)
+    def exportAll(self, dest: QUrl) -> None:
+        """Write every saved profile to a bundle file picked in the UI."""
+        self._export(list(self._profiles), dest)
+
+    @Slot(str, QUrl)
+    def exportOne(self, name: str, dest: QUrl) -> None:
+        self._export([name], dest)
+
+    @Slot(QUrl, bool)
+    def importFrom(self, src: QUrl, overwrite: bool) -> None:
+        """Import profiles from a bundle file; existing names are kept unless ``overwrite``."""
+        path = _local_path(src)
+        if self._busy or path is None:
+            return
+        self._begin("Importing profiles…")
+        start_worker(
+            self._import_work, path, overwrite,
+            on_error=lambda m: self._actionResult.emit(f"Import failed: {m}"),
+        )
+
     @Slot(str)
     def deleteProfile(self, name: str) -> None:
         from ..core.profiles_storage import delete_profile
@@ -92,7 +125,36 @@ class ProfilesController(QObject):
         self.statusChanged.emit()
         self.refresh()
 
+    def _export(self, names: list[str], dest: QUrl) -> None:
+        path = _local_path(dest)
+        if self._busy or path is None or not names:
+            return
+        if path.suffix.lower() != ".json":
+            path = path.with_suffix(".json")
+        self._begin("Exporting…")
+        start_worker(
+            self._export_work, names, path,
+            on_error=lambda m: self._actionResult.emit(f"Export failed: {m}"),
+        )
+
     # --- workers --------------------------------------------------------------
+
+    def _export_work(self, names: list[str], path) -> None:
+        from ..core.profiles_storage import export_profiles
+
+        n = export_profiles(names, path)
+        noun = "profile" if n == 1 else "profiles"
+        self._actionResult.emit(f"Exported {n} {noun} to {path.name}.")
+
+    def _import_work(self, path, overwrite: bool) -> None:
+        from ..core.profiles_storage import BundleError, import_profiles
+
+        try:
+            result = import_profiles(path, overwrite=overwrite)
+        except BundleError as exc:
+            self._actionResult.emit(f"Couldn't import: {exc}")
+            return
+        self._actionResult.emit(result.summary)
 
     def _list_work(self) -> None:
         from ..core.profiles_storage import list_profiles

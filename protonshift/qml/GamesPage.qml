@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import App
 
 // Second slice: Steam library discovery -> QML list model -> master/detail.
@@ -1412,6 +1413,36 @@ RowLayout {
                 }
             }
 
+            // Export / import: profiles travel as one JSON bundle so a whole
+            // setup can move between machines (or be shared).
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    text: "Profiles are stored as JSON — export a bundle to back them up or move them to another PC."
+                    wrapMode: Text.WordWrap
+                    color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Import…"; primary: false
+                    enabled: !profiles.busy
+                    onClicked: importDialog.open()
+                }
+                PsButton {
+                    text: "Export all…"; primary: false
+                    enabled: profiles.profiles.length > 0 && !profiles.busy
+                    onClicked: { exportDialog.profileName = ""; exportDialog.open() }
+                }
+            }
+            PsSwitchRow {
+                id: importOverwrite
+                text: "Replace same-named profiles when importing"
+                subtitle: "Off: existing profiles are kept and the import reports what it skipped."
+                checked: false
+                onToggled: function(v) { checked = v }
+            }
+
             Text {
                 Layout.fillWidth: true
                 visible: profiles.profiles.length === 0
@@ -1439,6 +1470,11 @@ RowLayout {
                             color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
                         }
                         PsButton { text: "Apply"; primary: false; enabled: !profiles.busy; onClicked: profiles.apply(modelData) }
+                        PsButton {
+                            text: "Export"; primary: false; enabled: !profiles.busy
+                            implicitWidth: 80
+                            onClicked: { exportDialog.profileName = modelData; exportDialog.open() }
+                        }
                         PsButton { text: "Delete"; primary: false; danger: true; enabled: !profiles.busy; onClicked: profiles.deleteProfile(modelData) }
                     }
                 }
@@ -1457,6 +1493,29 @@ RowLayout {
         }
     }
 
+    // Native pickers (xdg portal under Flatpak). One export dialog serves both
+    // "export all" (profileName === "") and a single row's Export button.
+    FileDialog {
+        id: exportDialog
+        property string profileName: ""
+        title: profileName.length > 0 ? "Export profile “" + profileName + "”" : "Export all profiles"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["ProtonShift profiles (*.json)"]
+        defaultSuffix: "json"
+        currentFile: "file:///" + (profileName.length > 0
+            ? profileName.replace(/[^A-Za-z0-9._-]+/g, "_")
+            : "protonshift-profiles") + ".json"
+        onAccepted: profileName.length > 0
+            ? profiles.exportOne(profileName, selectedFile)
+            : profiles.exportAll(selectedFile)
+    }
+    FileDialog {
+        id: importDialog
+        title: "Import profiles"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["ProtonShift profiles (*.json)", "All files (*)"]
+        onAccepted: profiles.importFrom(selectedFile, importOverwrite.checked)
+    }
     // ============================ SAVE BACKUPS DIALOG ======================
     PsDialog {
         id: savesDialog
