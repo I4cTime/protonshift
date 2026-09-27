@@ -168,6 +168,21 @@ QtObject {
     readonly property color successTint: Qt.rgba(success.r, success.g, success.b, 0.14)
     readonly property color dangerTint: Qt.rgba(danger.r, danger.g, danger.b, 0.14)
 
+    // --- ProtonDB tiers (theme-independent) ---------------------------------
+    // Badge fills sampled from ProtonDB's own tier palette so a rating reads
+    // the same here as on protondb.com in every palette. Each holds >= 4.5:1
+    // against `tierInk`, the fixed dark glyph color drawn on top of them
+    // (bronze is the tightest at ~5.0:1). Use as pill fill + tierInk text —
+    // never as text on `surface`, where gold/silver can't hold contrast on
+    // the light palettes.
+    readonly property color tierPlatinum: "#b4c7dc"
+    readonly property color tierGold: "#cfb53b"
+    readonly property color tierSilver: "#c0c0c0"
+    readonly property color tierBronze: "#cd7f32"
+    readonly property color tierBorked: "#f87171"
+    readonly property color tierPending: "#9aa8b5"
+    readonly property color tierInk: "#0b1117"
+
     // --- elevation / overlay ----------------------------------------------
     // Modal backdrop (PsDialog Overlay.modal) and card drop-shadow color+opacity.
     readonly property color scrim: _p.scrim

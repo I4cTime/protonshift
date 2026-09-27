@@ -30,6 +30,7 @@ from .controllers import (
     PerAppScopeBuddyController,
     PerGameMangoHudController,
     ProfilesController,
+    ProtonDbController,
     ProtontricksController,
     SavesController,
     ScopeBuddyController,
@@ -83,6 +84,7 @@ def main() -> int:
     ctx.setContextProperty("library", library)
     ctx.setContextProperty("env", env)
     ctx.setContextProperty("launch", launch)
+    ctx.setContextProperty("protondb", ProtonDbController(parent=app))  # app-owned: outlives the engine
     ctx.setContextProperty("mangohud", mangohud)
     ctx.setContextProperty("scopebuddy", scopebuddy)
     ctx.setContextProperty("system", system)
