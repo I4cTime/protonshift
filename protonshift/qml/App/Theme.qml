@@ -181,6 +181,17 @@ QtObject {
         return 0.2126 * chan(c.r) + 0.7152 * chan(c.g) + 0.0722 * chan(c.b)
     }
 
+    // Public: the glyph color to draw ON any fill — dark ink on light fills,
+    // light ink on dark ones. Use it whenever text sits on a colored surface
+    // (badges, chips, custom swatches) instead of picking a fixed color.
+    function inkOn(bg) {
+        return _lum(bg) > 0.45 ? "#0b1117" : "#ffffff"
+    }
+    // A softer companion for captions on the same fill.
+    function inkMutedOn(bg) {
+        return _lum(bg) > 0.45 ? Qt.rgba(0.04, 0.07, 0.09, 0.72) : Qt.rgba(1, 1, 1, 0.75)
+    }
+
     readonly property color primary: accent
     readonly property color primaryBright: Qt.lighter(accent, 1.25)
     readonly property color primaryDeep: Qt.darker(accent, 1.35)
@@ -199,7 +210,7 @@ QtObject {
 
     // Text/glyph color for content sitting ON the primary gradient (gradA→gradB)
     // or a solid `accent` fill: primary buttons, active pills.
-    readonly property color onPrimary: _lum(accent) > 0.5 ? "#0b1117" : "#ffffff"
+    readonly property color onPrimary: inkOn(accent)
     // The "Shift" half of the wordmark — rides the accent family.
     readonly property color wordmark: primaryBright
 
@@ -216,6 +227,7 @@ QtObject {
     readonly property color tierBronze: "#cd7f32"
     readonly property color tierBorked: "#f87171"
     readonly property color tierPending: "#9aa8b5"
+    // Kept for callers that already sized against it; prefer Theme.inkOn(fill).
     readonly property color tierInk: "#0b1117"
 
     // --- geometry (per-style) -----------------------------------------------

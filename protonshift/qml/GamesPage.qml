@@ -652,7 +652,7 @@ RowLayout {
                             id: tierLbl
                             anchors.centerIn: parent
                             text: protondb.tierLabel
-                            color: Theme.tierInk
+                            color: Theme.inkOn(parent.color)
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fsCaption
                             font.weight: Font.Bold
@@ -692,7 +692,7 @@ RowLayout {
                             id: trendLbl
                             anchors.centerIn: parent
                             text: protondb.trendingLabel
-                            color: Theme.tierInk
+                            color: Theme.inkOn(parent.color)
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
                             font.weight: Font.Bold

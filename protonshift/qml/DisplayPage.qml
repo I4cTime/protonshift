@@ -10,6 +10,7 @@ ColumnLayout {
 
     function backendLabel(b) {
         if (b === "xrandr") return "X11 · xrandr"
+        if (b === "hyprctl") return "Hyprland · hyprctl"
         if (b === "wlr-randr") return "Wayland · wlr-randr"
         if (b === "kscreen-doctor") return "KDE Wayland · kscreen-doctor"
         return "no display tool"

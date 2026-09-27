@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Resolution select, a Refresh rate select scoped to that resolution, the
   current mode as a caption, and an Apply button that only enables when the
   choice differs from what's active — no more scanning a wall of mode chips.
+  Hyprland sessions get a native backend (`hyprctl monitors` / `hyprctl
+  keyword monitor`), so every mode the panel offers is listed even without
+  wlr-randr installed — the XWayland fallback only ever showed one.
+- Theme: `Theme.inkOn(fill)` picks dark or light text for any colored
+  surface from its luminance; primary buttons and the ProtonDB tier badges
+  use it, so custom accents stay readable.
 
 ### Changed
 - Visual pass across every page: destructive actions (delete override /

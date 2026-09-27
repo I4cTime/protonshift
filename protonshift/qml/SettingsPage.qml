@@ -69,11 +69,20 @@ ColumnLayout {
                                                                                 : styleItem.styleDef.light
                                     readonly property bool selected: themeCtl.style === styleItem.modelData.id
                                     spacing: Theme.spaceXs
+                                    // Every card is the same size regardless of tagline length or
+                                    // the selected border, so the row reads as a grid.
+                                    Layout.alignment: Qt.AlignTop
+                                    Layout.preferredWidth: 150
+                                    Layout.preferredHeight: 92 + Theme.spaceXs + 20 + Theme.spaceXs + 2 * 15
+                                    Layout.minimumHeight: Layout.preferredHeight
+                                    Layout.maximumHeight: Layout.preferredHeight
 
                                     Rectangle {
                                         id: preview
-                                        implicitWidth: 150
-                                        implicitHeight: 92
+                                        Layout.preferredWidth: 150
+                                        Layout.preferredHeight: 92
+                                        Layout.minimumHeight: 92
+                                        Layout.maximumHeight: 92
                                         radius: styleItem.styleDef.radiusLg
                                         color: styleItem.neutrals.bg
                                         border.width: styleItem.selected ? 2 : 1
@@ -108,7 +117,10 @@ ColumnLayout {
                                         TapHandler { onTapped: themeCtl.setStyle(styleItem.modelData.id) }
                                     }
                                     Text {
-                                        Layout.preferredWidth: preview.width
+                                        Layout.preferredWidth: 150
+                                        Layout.preferredHeight: 20
+                                        verticalAlignment: Text.AlignVCenter
+                                        elide: Text.ElideRight
                                         text: styleItem.modelData.label
                                         color: styleItem.selected ? Theme.text : Theme.muted
                                         font.family: Theme.fontFamily
@@ -116,9 +128,15 @@ ColumnLayout {
                                         font.weight: styleItem.selected ? Font.DemiBold : Font.Normal
                                     }
                                     Text {
-                                        Layout.preferredWidth: preview.width
+                                        Layout.preferredWidth: 150
+                                        Layout.preferredHeight: 2 * 15
+                                        Layout.fillHeight: false
                                         text: styleItem.modelData.tagline
                                         wrapMode: Text.WordWrap
+                                        maximumLineCount: 2
+                                        elide: Text.ElideRight
+                                        lineHeight: 15
+                                        lineHeightMode: Text.FixedHeight
                                         color: Theme.faint
                                         font.family: Theme.fontFamily
                                         font.pixelSize: Theme.fsCaption
