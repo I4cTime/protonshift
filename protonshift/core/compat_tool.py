@@ -78,6 +78,23 @@ def read_compat_tool(config_path: Path, app_id: str) -> tuple[bool, str]:
     return True, entry or ""
 
 
+def read_compat_tool_mapping(config_path: Path) -> dict[str, str]:
+    """Every ``app_id -> tool_name`` entry. Empty when the file is missing/unparseable."""
+    try:
+        data = _load_vdf_strict(config_path)
+    except VdfParseError:
+        return {}
+    mapping = _mapping_node(data)
+    if not mapping:
+        return {}
+    out: dict[str, str] = {}
+    for app_id, entry in mapping.items():
+        name = entry.get("name", "") if isinstance(entry, dict) else entry
+        if isinstance(name, str) and name:
+            out[str(app_id)] = name
+    return out
+
+
 def set_compat_tool(config_path: Path, app_id: str, tool_name: str) -> bool:
     """Set (or clear, with ``""``) the Proton tool for a game. Fail-closed.
 
