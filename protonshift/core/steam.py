@@ -11,6 +11,8 @@ from pathlib import Path
 
 import vdf
 
+from .host import in_flatpak
+
 STEAM_ROOTS = [
     Path.home() / ".steam" / "root",
     Path.home() / ".steam" / "steam",
@@ -260,10 +262,28 @@ SYSTEM_COMPAT_DIRS: tuple[Path, ...] = (
     Path("/usr/local/share/steam/compatibilitytools.d"),
 )
 
+# Inside a Flatpak, `/usr` is the runtime's, not the host's. With the
+# `--filesystem=host-os:ro` permission the host's `/usr` is mounted here, which
+# is the only way to see builds a distro package installed (for example Arch's
+# proton-ge-custom-bin in /usr/share/steam/compatibilitytools.d).
+FLATPAK_HOST_ROOT = Path("/run/host")
+
+
+def host_display_path(path: Path | str) -> str:
+    """A path as the user knows it: without the sandbox's `/run/host` prefix."""
+    text = str(path)
+    prefix = str(FLATPAK_HOST_ROOT)
+    if text == prefix or text.startswith(prefix + "/"):
+        return text[len(prefix):] or "/"
+    return text
+
 
 def get_system_compattools_dirs() -> list[Path]:
     """Existing system-wide ``compatibilitytools.d`` directories (``$XDG_DATA_DIRS`` too)."""
     candidates: list[Path] = list(SYSTEM_COMPAT_DIRS)
+    if in_flatpak():
+        # the host's copies of the same directories (see FLATPAK_HOST_ROOT)
+        candidates += [FLATPAK_HOST_ROOT / d.relative_to("/") for d in SYSTEM_COMPAT_DIRS]
     for entry in os.environ.get("XDG_DATA_DIRS", "").split(":"):
         if entry:
             candidates.append(Path(entry) / "steam" / "compatibilitytools.d")

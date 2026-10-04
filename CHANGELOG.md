@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-04
+
+### Fixed
+- **Flatpak: system-wide Proton builds were invisible.** A build installed by
+  a distro package (for example Arch's `proton-ge-custom-bin` in
+  `/usr/share/steam/compatibilitytools.d`) showed up neither on the Proton
+  builds page nor in the per-game Proton picker, because the sandbox has its
+  own `/usr`. The Flatpak now gets a read-only view of the host's `/usr` and
+  looks there. Native installs were not affected.
+
 ## [1.3.0] - 2026-10-04
 
 ### Added
