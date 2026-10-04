@@ -16,6 +16,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 
 from . import __version__
 from .controllers import (
+    AboutController,
     DisplayController,
     EnvController,
     FixesController,
@@ -35,6 +36,7 @@ from .controllers import (
     SavesController,
     ScopeBuddyController,
     ScopeBuddyEnvvarsController,
+    SoundController,
     SystemController,
     ThemeController,
 )
@@ -77,6 +79,8 @@ def main() -> int:
     gamepad = GamepadController()
     theme = ThemeController()
     ge_proton = GeProtonController()
+    sounds = SoundController()
+    about = AboutController()
     # installed/removed builds should show up in the per-game Proton picker
     ge_proton.toolsChanged.connect(launch.reloadProton)
     ctx = engine.rootContext()
@@ -101,6 +105,8 @@ def main() -> int:
     ctx.setContextProperty("gamepad", gamepad)
     ctx.setContextProperty("themeCtl", theme)
     ctx.setContextProperty("geProton", ge_proton)
+    ctx.setContextProperty("sounds", sounds)
+    ctx.setContextProperty("about", about)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))

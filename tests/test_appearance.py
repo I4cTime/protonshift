@@ -15,6 +15,7 @@ from protonshift.core.appearance import (
     migrate_legacy,
     normalize,
     parse_accent,
+    readable_on_light,
 )
 
 
@@ -146,3 +147,25 @@ def test_normalize_tolerates_malformed_appearance_block() -> None:
 
 def test_normalize_tolerates_non_dict_settings() -> None:
     assert normalize({}) == normalize({"garbage": True})
+
+
+# --- readable_on_light --------------------------------------------------------
+
+
+def _contrast_on_white(hex_color: str) -> float:
+    def chan(v: float) -> float:
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return 1.05 / (0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b) + 0.05)
+
+
+@pytest.mark.parametrize("preset", [p["hex"] for p in ACCENT_PRESETS] + ["#ffffff", "#ffff00"])
+def test_readable_on_light_reaches_contrast(preset: str) -> None:
+    assert _contrast_on_white(readable_on_light(preset)) >= 4.5
+
+
+def test_readable_on_light_keeps_dark_colors_and_bad_input() -> None:
+    assert readable_on_light("#15803d") == "#15803d"  # already readable: untouched
+    assert readable_on_light("#000") == "#000000"
+    assert readable_on_light("not-a-color") == "not-a-color"

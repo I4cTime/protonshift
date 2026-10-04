@@ -15,6 +15,7 @@ the resolved values to QML, which reads them via ``Theme.qml``'s `style`,
 
 from __future__ import annotations
 
+import colorsys
 import re
 
 MODES: tuple[str, ...] = ("system", "dark", "light")
@@ -27,7 +28,7 @@ STYLES: list[dict[str, str]] = [
     {
         "id": "neon",
         "label": "Proton Neon",
-        "tagline": "Ambient glow, gradient buttons — the ProtonShift look.",
+        "tagline": "Ambient glow, gradient buttons. The ProtonShift look.",
         "default_accent_dark": "#22c3e6",
         "default_accent_light": "#0891b2",
     },
@@ -92,6 +93,46 @@ def parse_accent(text: str | None) -> str | None:
     if m6:
         return f"#{m6.group(1)}".lower()
     return None
+
+
+def _luminance(hex_color: str) -> float:
+    """WCAG relative luminance (0..1) of a normalized `#rrggbb` color."""
+
+    def chan(v: float) -> float:
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b)
+
+
+# Contrast an accent must hold against a white surface in light mode, where it
+# is drawn as text and icons (WCAG AA for normal text).
+LIGHT_MIN_CONTRAST = 4.5
+
+
+def readable_on_light(hex_color: str) -> str:
+    """Darken an accent until it reads on a light surface; hue is kept.
+
+    A bright pick (cyan, amber) that glows on a dark style washes out as text
+    on white. In light mode the user's override is shown through this, while
+    the stored choice stays as picked for dark mode. Colors that already hold
+    the contrast come back unchanged.
+    """
+    color = parse_accent(hex_color)
+    if color is None:
+        return hex_color
+    if 1.05 / (_luminance(color) + 0.05) >= LIGHT_MIN_CONTRAST:
+        return color
+    r, g, b = (int(color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    hue, light, sat = colorsys.rgb_to_hls(r, g, b)
+    while light > 0:
+        light = max(0.0, light - 0.01)
+        candidate = "#{:02x}{:02x}{:02x}".format(
+            *(round(c * 255) for c in colorsys.hls_to_rgb(hue, light, sat))
+        )
+        if 1.05 / (_luminance(candidate) + 0.05) >= LIGHT_MIN_CONTRAST:
+            return candidate
+    return "#000000"
 
 
 # Legacy `theme` choice (a palette id, or "system") -> new (style, mode, accent).

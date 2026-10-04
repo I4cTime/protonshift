@@ -116,9 +116,16 @@ class ThemeController(QObject):
     @Property(str, notify=resolvedChanged)
     def resolvedAccent(self) -> str:
         if self._accent:
-            return self._accent
+            # A bright override is shown darker in light mode so text and
+            # icons in it stay readable; the stored pick is left untouched.
+            return self._accent if self.resolvedDark else appearance_core.readable_on_light(self._accent)
         entry = self._style_dict(self._style)
         return entry["default_accent_dark"] if self.resolvedDark else entry["default_accent_light"]
+
+    @Property(bool, notify=resolvedChanged)
+    def accentAdjusted(self) -> bool:
+        """True when light mode is showing the override darker than picked."""
+        return bool(self._accent) and self.resolvedAccent != self._accent
 
     @Property("QVariantList", notify=resolvedChanged)
     def styles(self) -> list:

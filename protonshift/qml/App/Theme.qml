@@ -193,7 +193,9 @@ QtObject {
     }
 
     readonly property color primary: accent
-    readonly property color primaryBright: Qt.lighter(accent, 1.25)
+    // The accent as TEXT/icon color: brighter than the fill on dark surfaces,
+    // a touch darker on light ones (a lighter tint of it washes out on white).
+    readonly property color primaryBright: dark ? Qt.lighter(accent, 1.25) : Qt.darker(accent, 1.12)
     readonly property color primaryDeep: Qt.darker(accent, 1.35)
     readonly property color glow: accent
 

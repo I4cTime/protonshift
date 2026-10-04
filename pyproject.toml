@@ -24,7 +24,7 @@ build-backend = "setuptools.build_meta"
 include = ["protonshift*"]
 
 [tool.setuptools.package-data]
-protonshift = ["qml/**/*.qml", "qml/**/qmldir", "qml/assets/*.png", "core/data/*.json"]
+protonshift = ["qml/**/*.qml", "qml/**/qmldir", "qml/assets/*.png", "qml/assets/sounds/*/*.wav", "core/data/*.json"]
 
 [tool.ruff]
 line-length = 110

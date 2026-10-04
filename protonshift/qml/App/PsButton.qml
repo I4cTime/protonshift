@@ -10,6 +10,8 @@ Button {
     property bool primary: true
     // destructive style: red text + border on the ghost variant
     property bool danger: false
+    // interface sound played on click ("" for none)
+    property string sound: "click"
 
     implicitHeight: 40
     implicitWidth: Math.max(96, contentItem.implicitWidth + 2 * Theme.space)
@@ -24,6 +26,8 @@ Button {
     // Button already provides Accessible.Button role + Space/Enter activation
     // and is tab-focusable (StrongFocus); we only add an explicit name.
     Accessible.name: control.text
+
+    onClicked: if (control.sound.length > 0) sounds.play(control.sound)
 
     contentItem: Text {
         text: control.text

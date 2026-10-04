@@ -27,6 +27,8 @@ finish-args:
   - --share=network
   - --socket=wayland
   - --socket=fallback-x11
+  # Interface sounds (Settings -> Sounds); playback only.
+  - --socket=pulseaudio
   - --device=dri
   # game controllers (gamepad tester + rumble ioctls). The narrow `input`
   # device class needs flatpak >= 1.16, which CI's apt flatpak-builder

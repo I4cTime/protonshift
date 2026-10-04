@@ -21,7 +21,10 @@ ComboBox {
     font.pixelSize: Theme.fsSmall
     Accessible.name: control.labelFor(control.currentText)
 
-    onActivated: control.chosen(control.currentText)
+    onActivated: {
+        control.chosen(control.currentText)
+        sounds.play("click")
+    }
 
     // focus-visible: same treatment as the open-popup state
     background: Rectangle {

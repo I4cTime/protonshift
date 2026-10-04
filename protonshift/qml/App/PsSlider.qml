@@ -11,6 +11,8 @@ ColumnLayout {
     property real to: 20
     property real value: 5
     property real stepSize: 1
+    // unit shown after the value readout, e.g. "%"
+    property string suffix: ""
     signal moved(real value)
 
     // Decimals implied by stepSize: 1 → 0 (renders exactly as before),
@@ -22,6 +24,7 @@ ColumnLayout {
     }
 
     spacing: 4
+    opacity: enabled ? 1.0 : 0.5
 
     RowLayout {
         Layout.fillWidth: true
@@ -34,7 +37,7 @@ ColumnLayout {
             font.weight: Font.DemiBold
         }
         Text {
-            text: slider.value.toFixed(root._decimals)
+            text: slider.value.toFixed(root._decimals) + root.suffix
             color: Theme.primaryBright
             font.family: Theme.monoFamily
             font.pixelSize: Theme.fsSmall
@@ -50,7 +53,10 @@ ColumnLayout {
         to: root.to
         value: root.value
         stepSize: root.stepSize
-        onMoved: root.moved(value)
+        onMoved: {
+            root.moved(value)
+            sounds.play("slider")
+        }
 
         background: Rectangle {
             x: slider.leftPadding
