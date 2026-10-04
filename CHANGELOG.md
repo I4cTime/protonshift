@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Launch check** (Library, Per-game tools). Lists the usual reasons a game
+  won't start and what to do about each: launch options with no `%command%`
+  or two of them, wrapper tools that aren't installed, a Proton build that
+  was removed, a missing anti-cheat runtime, a missing install folder, and
+  ProtonDB's Borked/Bronze rating as context. Works for Steam games and
+  Non-Steam shortcuts.
+- **Proton log viewer** (Library, Per-game tools). Shows the end of the
+  game's `steam-<appid>.log`, can filter to lines that look like problems,
+  turns `PROTON_LOG=1` on, and copies or opens the file.
+- **More of your library.** Heroic's Amazon and sideloaded games, Steam's
+  Non-Steam shortcuts (with their Proton prefix and Proton version), and
+  Lutris runner and store details. Native Linux games are marked and no
+  longer get prefix controls.
+- **Sounds** (Settings). Interface sounds with an on/off switch, volume and
+  three sets (Pulse, Glass, Terminal), plus success and error chimes for
+  saves, installs and deletes. On by default.
+- **About** (Settings). Version and platform, a manual "Check for updates",
+  the app's folders with copy and open, and links to the site, changelog,
+  issues and source.
+- **Gamescope: add to a game.** The builder's command can be added to the
+  launch options of the game selected in Library.
+- **Displays: keep or go back.** After a mode change a 15 second dialog
+  returns to the previous mode unless you keep the new one.
+- Keyboard access to chips, remove buttons, preset rows, power profiles,
+  Winetricks rows and the game list (Up/Down).
+
+### Changed
+- Navigation is grouped (Games, Tools, All games, This PC) and Settings
+  moved to the header. "Proton" is now "Proton builds".
+- Appearance settings follow the Mode, Style, Accent override order, gain a
+  custom color picker, and show a bright accent darker in light mode so it
+  stays readable.
+- The Library detail has a Launch button by the title, labels that match
+  the game's source, and a confirm dialog before a prefix is deleted.
+- Proton builds, Steam Linux Runtimes and redistributables are no longer
+  listed as games.
+- Hyphens replace em dashes in all app text.
+
+### Fixed
+- Launch-option presets and known fixes were appended to the line, so on a
+  line without `%command%` they became game arguments and did nothing. They
+  are now placed around `%command%`, and a gamescope line replaces an
+  existing one instead of nesting.
+- The gamescope builder's command lacked `%command%`.
+- Displays: Apply and Refresh did nothing, and Hyprland with a Lua config
+  refused the mode change while reporting success.
+- Switching games silently dropped unsaved launch options; it now asks.
+- The "Proton Log" preset pointed at the wrong log location.
+
 ## [1.2.0] — 2026-09-27
 
 ### Added
