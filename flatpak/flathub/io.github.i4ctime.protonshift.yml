@@ -34,6 +34,10 @@ finish-args:
   # Interface sounds (Settings, Sounds); playback only.
   - --socket=pulseaudio
   - --device=dri
+  # Read-only view of the host's /usr (at /run/host/usr), to list Proton
+  # builds a distro package installed system-wide, e.g.
+  # /usr/share/steam/compatibilitytools.d/proton-ge-custom.
+  - --filesystem=host-os:ro
   # game controllers (gamepad tester)
   - --device=input
   # ProtonShift writes only the specific config dirs below. Steam/Heroic in

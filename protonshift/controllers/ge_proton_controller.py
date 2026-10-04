@@ -30,6 +30,7 @@ from ..core.ge_proton import (
     remove_tool,
     tool_usage,
 )
+from ..core.steam import host_display_path
 from ._worker import start_worker
 
 
@@ -185,7 +186,7 @@ class GeProtonController(QObject):
             {
                 "name": t.name,
                 "displayName": t.display_name or t.name,
-                "path": str(t.path),
+                "path": host_display_path(t.path),
                 "sizeLabel": human_size(t.size_bytes),
                 "isGe": t.is_ge,
                 "location": t.location,

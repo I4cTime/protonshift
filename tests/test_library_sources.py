@@ -179,3 +179,36 @@ def test_read_shortcuts_missing_or_corrupt(tmp_path: Path) -> None:
     bad = tmp_path / "bad.vdf"
     bad.write_bytes(b"\x00\x01garbage")
     assert read_shortcuts(bad, tmp_path) == []
+
+
+# --- system Proton builds seen from inside a Flatpak --------------------------------
+
+
+def test_system_compat_dirs_in_flatpak_use_the_host_mount(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from protonshift.core import steam
+
+    host = tmp_path / "run-host"
+    tools = host / "usr" / "share" / "steam" / "compatibilitytools.d"
+    (tools / "proton-ge-custom").mkdir(parents=True)
+    monkeypatch.setattr(steam, "FLATPAK_HOST_ROOT", host)
+    monkeypatch.setattr(steam, "SYSTEM_COMPAT_DIRS", (Path("/usr/share/steam/compatibilitytools.d"),))
+    monkeypatch.setenv("XDG_DATA_DIRS", "")
+
+    # outside a sandbox the host mount is not consulted
+    monkeypatch.setattr(steam, "in_flatpak", lambda: False)
+    assert tools not in steam.get_system_compattools_dirs()
+
+    monkeypatch.setattr(steam, "in_flatpak", lambda: True)
+    assert tools in steam.get_system_compattools_dirs()
+    # shown to the user as the path they know, without the sandbox prefix
+    assert steam.host_display_path(tools / "proton-ge-custom") == (
+        "/usr/share/steam/compatibilitytools.d/proton-ge-custom"
+    )
+
+
+def test_host_display_path_leaves_other_paths_alone() -> None:
+    from protonshift.core.steam import host_display_path
+
+    assert host_display_path("/home/u/.steam/root/compatibilitytools.d/GE") == "/home/u/.steam/root/compatibilitytools.d/GE"
+    assert host_display_path("/run/hostile/x") == "/run/hostile/x"
+    assert host_display_path("/run/host") == "/"
