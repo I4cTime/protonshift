@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -90,6 +91,21 @@ def _find_libraryfolders(steam_root: Path) -> list[Path]:
     return paths
 
 
+# Steam installs its own runtimes as ordinary apps with an appmanifest. They
+# are not games: nothing to launch, no prefix, no launch options.
+_TOOL_NAME_RE = re.compile(
+    r"^(Proton( |-)(\d|Experimental|Hotfix|EasyAntiCheat|BattlEye|Next)"
+    r"|Steam Linux Runtime"
+    r"|Steamworks Common Redistributables)",
+    re.IGNORECASE,
+)
+
+
+def is_steam_tool(name: str) -> bool:
+    """True for Proton builds, Steam Linux Runtimes and redistributables."""
+    return bool(_TOOL_NAME_RE.match(name.strip()))
+
+
 def _parse_acf(path: Path) -> dict | None:
     """Parse appmanifest_*.acf file."""
     try:
@@ -138,7 +154,7 @@ def discover_games() -> tuple[Path | None, list[SteamGame]]:
     games: list[SteamGame] = []
     seen_appids: set[str] = set()
 
-    # Exclude Steamworks Common Redistributable and similar non-games
+    # Steamworks Common Redistributables: a tool with no telling name pattern
     TOOL_APPIDS = {"228980"}
 
     for lib in libraries:
@@ -162,6 +178,8 @@ def discover_games() -> tuple[Path | None, list[SteamGame]]:
             if not isinstance(state, dict):
                 continue
             name = state.get("name", f"App {app_id}")
+            if is_steam_tool(str(name)):
+                continue
             install_dir = state.get("installdir", "")
             try:
                 last_played = int(state.get("LastPlayed", 0))
@@ -224,7 +242,7 @@ def get_localconfig_path(steam_root: Path) -> Path | None:
 
 
 def get_compattools_dir(steam_root: Path | None) -> Path | None:
-    """The user's compatibility tools directory (Proton-GE, etc.) — writable."""
+    """The user's compatibility tools directory (Proton-GE, etc.) - writable."""
     bases = [Path.home() / ".steam" / "root", Path.home() / ".steam" / "debian-installation"]
     if steam_root:
         bases.insert(0, steam_root)
