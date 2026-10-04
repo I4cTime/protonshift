@@ -279,7 +279,8 @@ RowLayout {
                     text: "Save"
                     // enabled only once a load succeeded and there are edits (#21)
                     enabled: env.loaded && env.dirty
-                    onClicked: env.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { env.save(); sounds.result(env.statusOk) }
                 }
             }
             Text {

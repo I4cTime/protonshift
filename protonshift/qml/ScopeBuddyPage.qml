@@ -252,7 +252,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: scopebuddy.loaded && scopebuddy.dirty
-                    onClicked: scopebuddy.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { scopebuddy.save(); sounds.result(scopebuddy.statusOk) }
                 }
             }
         }
@@ -430,7 +431,10 @@ RowLayout {
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
                 Text { visible: scbEnvvars.dirty; text: "● unsaved"; color: Theme.primaryBright; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption }
-                PsButton { text: "Save"; enabled: scbEnvvars.loaded && scbEnvvars.dirty; onClicked: scbEnvvars.save() }
+                PsButton {
+                    text: "Save"; enabled: scbEnvvars.loaded && scbEnvvars.dirty; sound: ""
+                    onClicked: { scbEnvvars.save(); sounds.result(scbEnvvars.statusOk) }
+                }
             }
         }
     }

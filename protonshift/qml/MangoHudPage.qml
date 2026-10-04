@@ -207,7 +207,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: mangohud.loaded && mangohud.dirty
-                    onClicked: mangohud.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { mangohud.save(); sounds.result(mangohud.statusOk) }
                 }
             }
         }

@@ -29,6 +29,8 @@ _SETTINGS = Path.home() / ".config" / "protonshift" / "settings.json"
 
 class SoundController(QObject):
     changed = Signal()  # enabled / volume / soundSet
+    # chime() may be called from a worker thread; this hops to the GUI thread
+    _chime = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -45,6 +47,7 @@ class SoundController(QObject):
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(300)
         self._save_timer.timeout.connect(self._save)
+        self._chime.connect(self.result)
         if self.available and self._enabled:
             self._preload(self._set)
 
@@ -130,6 +133,16 @@ class SoundController(QObject):
                 return
             self._last_played[sound_type] = now
         self._play_from(self._set, sound_type)
+
+    def chime(self, ok: bool) -> None:
+        """Thread-safe ``result``: controllers finish their work on worker
+        threads, and a QSoundEffect must only be touched on the GUI thread."""
+        self._chime.emit(ok)
+
+    @Slot(bool)
+    def result(self, ok: bool) -> None:
+        """The chime for an action's outcome: a save, an install, a delete."""
+        self.play("success" if ok else "error")
 
     @Slot(str)
     def preview(self, set_id: str) -> None:
