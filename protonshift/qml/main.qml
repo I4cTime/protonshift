@@ -26,7 +26,8 @@ ApplicationWindow {
     GlowBackground { anchors.fill: parent }
 
     property int currentPage: 0
-    readonly property var pages: ["Library", "Proton", "Environment", "MangoHud", "ScopeBuddy", "Gamescope", "Displays", "System", "Controllers", "Settings"]
+    onCurrentPageChanged: sounds.play("click")
+    readonly property var pages: ["Library", "Proton builds", "Environment", "MangoHud", "Gamescope", "ScopeBuddy", "Displays", "System", "Controllers", "Settings"]
 
     ColumnLayout {
         anchors.fill: parent
@@ -182,14 +183,14 @@ ApplicationWindow {
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 4
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: ScopeBuddyPage {}
+                sourceComponent: GamescopeBuilderPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 property bool loadedOnce: false
                 active: loadedOnce || window.currentPage === 5
                 onLoaded: Qt.callLater(() => loadedOnce = true)
-                sourceComponent: GamescopeBuilderPage {}
+                sourceComponent: ScopeBuddyPage {}
             }
             Loader {
                 Layout.fillWidth: true; Layout.fillHeight: true

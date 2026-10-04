@@ -79,8 +79,8 @@ ColumnLayout {
                             spacing: Theme.spaceSm
                             Repeater {
                                 model: [
-                                    { l: "Driver", v: modelData.driver || "—" },
-                                    { l: "VRAM", v: modelData.vramMb >= 0 ? (modelData.vramMb + " MB") : "—" }
+                                    { l: "Driver", v: modelData.driver || "-" },
+                                    { l: "VRAM", v: modelData.vramMb >= 0 ? (modelData.vramMb + " MB") : "-" }
                                 ]
                                 delegate: Rectangle {
                                     id: chipItem
@@ -169,11 +169,21 @@ ColumnLayout {
                         radius: Theme.radiusSm
                         property bool active: system.currentProfile === modelData
                         color: active ? Theme.surfaceElevated : (pw.hovered ? Theme.surface : Theme.bgDeep)
-                        border.color: active ? Theme.primary : Theme.border
-                        border.width: active ? 2 : 1
+                        border.color: activeFocus ? Theme.accentBright : (active ? Theme.primary : Theme.border)
+                        border.width: (active || activeFocus) ? 2 : 1
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: pw }
-                        TapHandler { onTapped: system.setPowerProfile(profileRow.modelData) }
+                        TapHandler { onTapped: profileRow.choose() }
+                        function choose() {
+                            if (profileRow.active) return
+                            sounds.play("toggle_on")
+                            system.setPowerProfile(profileRow.modelData)
+                        }
+                        activeFocusOnTab: true
+                        Keys.onSpacePressed: profileRow.choose()
+                        Keys.onReturnPressed: profileRow.choose()
+                        Keys.onEnterPressed: profileRow.choose()
+                        Accessible.onPressAction: profileRow.choose()
                         Accessible.role: Accessible.Button
                         Accessible.name: profileRow.modelData.charAt(0).toUpperCase() + profileRow.modelData.slice(1) + (profileRow.active ? " (active)" : "")
                         RowLayout {
@@ -225,12 +235,12 @@ ColumnLayout {
                 rowSpacing: Theme.space
                 Repeater {
                     model: [
-                        { l: "Distro", v: system.systemInfo.distro || "—" },
-                        { l: "Kernel", v: system.systemInfo.kernel || "—" },
-                        { l: "CPU", v: system.systemInfo.cpu || "—" },
-                        { l: "Session", v: system.systemInfo.sessionType || "—" },
-                        { l: "Desktop", v: system.systemInfo.desktop || "—" },
-                        { l: "Arch", v: system.systemInfo.arch || "—" }
+                        { l: "Distro", v: system.systemInfo.distro || "-" },
+                        { l: "Kernel", v: system.systemInfo.kernel || "-" },
+                        { l: "CPU", v: system.systemInfo.cpu || "-" },
+                        { l: "Session", v: system.systemInfo.sessionType || "-" },
+                        { l: "Desktop", v: system.systemInfo.desktop || "-" },
+                        { l: "Arch", v: system.systemInfo.arch || "-" }
                     ]
                     delegate: ColumnLayout {
                         required property var modelData

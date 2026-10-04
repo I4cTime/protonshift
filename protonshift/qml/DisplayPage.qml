@@ -8,6 +8,12 @@ ColumnLayout {
     id: page
     spacing: Theme.spaceLg
 
+    // The `display` controller under another name. Inside a Button, a bare
+    // `display` is the button's own `display` property (icon/text layout), so
+    // `display.applyMode(...)` there fails with "not a function". Handlers on
+    // buttons must go through this.
+    readonly property var displayCtl: display
+
     function backendLabel(b) {
         if (b === "xrandr") return "X11 · xrandr"
         if (b === "hyprctl") return "Hyprland · hyprctl"
@@ -26,6 +32,88 @@ ColumnLayout {
         return s + " Hz"
     }
 
+    // The mode to go back to if a change isn't confirmed: {output, width,
+    // height, refresh, label}. Set when Apply is pressed, cleared on Keep.
+    property var pendingRevert: null
+    // true while the revert itself is being applied (it must not ask again)
+    property bool reverting: false
+
+    function revertMode() {
+        var p = page.pendingRevert
+        if (!p) return
+        page.reverting = true
+        keepDialog.close()
+        page.displayCtl.applyMode(p.output, p.width, p.height, p.refresh)
+    }
+
+    Connections {
+        target: display
+        function onModeApplied(output) {
+            if (page.reverting) {
+                page.reverting = false
+                page.pendingRevert = null
+            } else if (page.pendingRevert && page.pendingRevert.output === output) {
+                keepDialog.open()
+            }
+        }
+    }
+
+    // A new mode can leave the screen black or unreadable. Unless it is
+    // confirmed, the previous mode comes back on its own.
+    PsDialog {
+        id: keepDialog
+        property int secondsLeft: 15
+        title: "Keep this display mode?"
+        width: 440
+        closePolicy: Popup.CloseOnEscape
+        onOpened: {
+            secondsLeft = 15
+            sounds.play("notification")
+        }
+        // closed without an answer (Escape, the close button): go back
+        onClosed: if (page.pendingRevert && !page.reverting) page.revertMode()
+        Timer {
+            interval: 1000
+            repeat: true
+            running: keepDialog.opened
+            onTriggered: {
+                keepDialog.secondsLeft -= 1
+                if (keepDialog.secondsLeft <= 0)
+                    page.revertMode()
+            }
+        }
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Going back to " + (page.pendingRevert ? page.pendingRevert.label : "the previous mode")
+                      + " in " + keepDialog.secondsLeft + (keepDialog.secondsLeft === 1 ? " second" : " seconds")
+                      + " unless you keep the new one."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Go back"; primary: false; sound: "back"
+                    onClicked: page.revertMode()
+                }
+                PsButton {
+                    text: "Keep this mode"
+                    onClicked: {
+                        page.pendingRevert = null
+                        keepDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
     RowLayout {
         Layout.fillWidth: true
         PsSectionHeader {
@@ -40,7 +128,7 @@ ColumnLayout {
         }
         PsButton {
             text: "Refresh"; primary: false
-            onClicked: display.refresh()
+            onClicked: page.displayCtl.refresh()
         }
     }
 
@@ -274,8 +362,19 @@ ColumnLayout {
                                              && outCol.selectedKey !== outCard.modelData.currentKey
                                     Accessible.name: "Apply mode to " + outCard.modelData.name
                                     onClicked: {
+                                        // remember the mode to return to if this one isn't kept
+                                        var cur = outCard.modelData.currentKey.split("@")
+                                        var curRes = cur[0].split("x")
+                                        page.reverting = false
+                                        page.pendingRevert = cur.length > 1 ? {
+                                            output: outCard.modelData.name,
+                                            width: parseInt(curRes[0], 10),
+                                            height: parseInt(curRes[1], 10),
+                                            refresh: parseFloat(cur[1]),
+                                            label: cur[0] + " @ " + page.formatRefresh(parseFloat(cur[1]))
+                                        } : null
                                         var parts = outCol.selectedRes.split("x")
-                                        display.applyMode(outCard.modelData.name,
+                                        page.displayCtl.applyMode(outCard.modelData.name,
                                                           parseInt(parts[0], 10),
                                                           parseInt(parts[1], 10),
                                                           parseFloat(outCol.selectedRefresh))

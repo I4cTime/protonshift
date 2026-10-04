@@ -58,9 +58,18 @@ class GamescopeController(QObject):
     # --- computed / read-only -------------------------------------------------
 
     @Property(str, notify=changed)
-    def command(self) -> str:
-        """The shell-safe launch prefix, rebuilt on every edit."""
+    def prefix(self) -> str:
+        """The shell-safe launch prefix (ends in ``--``), rebuilt on every edit."""
         return build_gamescope_cmd(self._opts) or "gamescope --"
+
+    @Property(str, notify=changed)
+    def command(self) -> str:
+        """The full Steam launch-options line: the prefix plus ``%command%``.
+
+        Without ``%command%`` Steam would hand the whole line to the game as
+        arguments instead of running the game inside gamescope.
+        """
+        return f"{self.prefix} %command%"
 
     @Property(bool, notify=availabilityChanged)
     def gamescopeAvailable(self) -> bool:

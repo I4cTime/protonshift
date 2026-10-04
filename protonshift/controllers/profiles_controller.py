@@ -187,14 +187,14 @@ class ProfilesController(QObject):
                 ok, launch_opts = read_launch_options(lc, app_id)
                 if not ok:
                     self._actionResult.emit(
-                        "Couldn't capture — localconfig.vdf unreadable; profile not saved.",
+                        "Couldn't capture - localconfig.vdf unreadable; profile not saved.",
                         False,
                     )
                     return
             ok, compat = read_compat_tool(get_config_vdf_path(root), app_id)
             if not ok:
                 self._actionResult.emit(
-                    "Couldn't capture — config.vdf unreadable; profile not saved.",
+                    "Couldn't capture - config.vdf unreadable; profile not saved.",
                     False,
                 )
                 return
@@ -244,7 +244,7 @@ class ProfilesController(QObject):
             ok, _ = set_power_profile(prof.power_profile)
             if ok:
                 applied.append("power profile")
-        msg = ("Applied " + ", ".join(applied) + " — quit Steam first.") if applied \
+        msg = ("Applied " + ", ".join(applied) + " - quit Steam first.") if applied \
             else "Nothing applied (check permissions / Steam running)."
         self._actionResult.emit(msg, bool(applied))
 

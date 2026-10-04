@@ -159,7 +159,7 @@ class PerGameMangoHudController(QObject):
                 self.dirtyChanged.emit()
                 self.existsChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 

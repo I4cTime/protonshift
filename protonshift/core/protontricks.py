@@ -30,8 +30,8 @@ from .tool_check import find_tool
 # (verb, human label). Not exhaustive — the GUI covers the long tail.
 COMMON_VERBS: tuple[tuple[str, str], ...] = (
     ("corefonts", "MS core fonts"),
-    ("vcrun2022", "Visual C++ 2015–2022"),
-    ("vcrun2019", "Visual C++ 2015–2019"),
+    ("vcrun2022", "Visual C++ 2015-2022"),
+    ("vcrun2019", "Visual C++ 2015-2019"),
     ("dotnet48", ".NET Framework 4.8"),
     ("dotnetdesktop6", ".NET Desktop Runtime 6"),
     ("dxvk", "DXVK (DirectX→Vulkan)"),

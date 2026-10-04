@@ -150,7 +150,7 @@ class ProtontricksController(QObject):
         # Keep only the tail — winetricks logs are enormous.
         lines = output.splitlines()
         self._output = "\n".join(lines[-40:])
-        self._status = "Done." if ok else "Install failed — see log below."
+        self._status = "Done." if ok else "Install failed - see log below."
         self._status_ok = ok
         self.runningChanged.emit()
         self.outputChanged.emit()

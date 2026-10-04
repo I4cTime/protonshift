@@ -19,9 +19,11 @@ class DisplayController(QObject):
     backendChanged = Signal()
     loadingChanged = Signal()
     statusChanged = Signal()
+    # A mode change succeeded: the UI asks "keep it?" and reverts otherwise.
+    modeApplied = Signal(str)  # output name
 
     _listResult = Signal(str, list)  # backend, outputs
-    _applyResult = Signal(bool, str)  # ok, message
+    _applyResult = Signal(bool, str, str)  # ok, message, output
     _workError = Signal(str)  # unexpected worker exception -> clear + status
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -72,7 +74,7 @@ class DisplayController(QObject):
     def applyMode(self, output: str, width: int, height: int, refresh: float) -> None:
         start_worker(
             self._apply_work, output, width, height, refresh,
-            on_error=lambda m: self._applyResult.emit(False, f"Apply failed: {m}"),
+            on_error=lambda m: self._applyResult.emit(False, f"Apply failed: {m}", output),
         )
 
     # --- workers --------------------------------------------------------------
@@ -105,7 +107,7 @@ class DisplayController(QObject):
 
     def _apply_work(self, output: str, width: int, height: int, refresh: float) -> None:
         ok, msg = set_mode(output, width, height, refresh)
-        self._applyResult.emit(ok, msg)
+        self._applyResult.emit(ok, msg, output)
 
     def _on_list(self, backend: str, outputs: list) -> None:
         self._backend = backend
@@ -115,10 +117,12 @@ class DisplayController(QObject):
         self.outputsChanged.emit()
         self.loadingChanged.emit()
 
-    def _on_apply(self, ok: bool, msg: str) -> None:
+    def _on_apply(self, ok: bool, msg: str, output: str) -> None:
         self._status = msg
         self._status_ok = ok
         self.statusChanged.emit()
+        if ok:
+            self.modeApplied.emit(output)
         # Re-read so the highlighted current mode reflects what actually stuck.
         self.refresh()
 

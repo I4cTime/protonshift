@@ -120,7 +120,7 @@ class ScopeBuddyController(QObject):
         if not key:
             return
         if not _valid_key(key):
-            self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -147,7 +147,7 @@ class ScopeBuddyController(QObject):
     @Slot()
     def save(self) -> None:
         if not self._loaded:
-            self._status = "Not saved — config was never loaded."
+            self._status = "Not saved - config was never loaded."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -156,7 +156,7 @@ class ScopeBuddyController(QObject):
         # valid shell identifiers — surface it here, before any write attempt.
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
-            self._status = f"Not saved — key “{bad}” is invalid."
+            self._status = f"Not saved - key “{bad}” is invalid."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -173,7 +173,7 @@ class ScopeBuddyController(QObject):
                 self._status = "Saved to scb.conf"
                 self.dirtyChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 
@@ -188,7 +188,7 @@ class ScopeBuddyController(QObject):
             self.statusChanged.emit()
 
     def _on_invalid_key(self, key: str) -> None:
-        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
         self._status_ok = False
         self.statusChanged.emit()
 

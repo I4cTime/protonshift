@@ -108,7 +108,7 @@ RowLayout {
                     color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
-                    text: "Couldn't read the config — not showing an editor so a save can't overwrite it.\n" + env.loadError
+                    text: "Couldn't read the config - not showing an editor so a save can't overwrite it.\n" + env.loadError
                 }
             }
 
@@ -217,18 +217,11 @@ RowLayout {
                         Component.onCompleted: text = row.value
                         onEdited: env.model.setValue(row.index, newText)
                     }
-                    Rectangle {
-                        width: 28; height: 28; radius: Theme.radiusSm
-                        color: rm.hovered ? Theme.dangerSurface : "transparent"
-                        border.width: 1
-                        border.color: rm.hovered ? Theme.danger : Theme.border
-                        Text {
-                            anchors.centerIn: parent; text: "✕"
-                            color: rm.hovered ? Theme.danger : Theme.muted
-                            font.pixelSize: 12
-                        }
-                        HoverHandler { id: rm }
-                        TapHandler { onTapped: env.model.removeRow(index) }
+                    PsIconButton {
+                        glyph: "✕"
+                        danger: true
+                        label: "Remove " + (row.key.length > 0 ? row.key : "this variable")
+                        onClicked: env.model.removeRow(row.index)
                     }
                 }
 
@@ -238,7 +231,7 @@ RowLayout {
                     visible: list.count === 0 && !env.loading
                     Text {
                         anchors.centerIn: parent
-                        text: "No variables yet — add one or apply a preset."
+                        text: "No variables yet - add one or apply a preset."
                         color: Theme.faint
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fsSmall
@@ -331,36 +324,14 @@ RowLayout {
 
                     Repeater {
                         model: env.presetNames
-                        delegate: Rectangle {
+                        delegate: PsRowButton {
                             required property string modelData
                             Layout.fillWidth: true
-                            implicitHeight: 40
-                            radius: Theme.radiusSm
-                            color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                            border.color: ph.hovered ? Theme.borderStrong : Theme.border
-                            border.width: 1
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            HoverHandler { id: ph }
-                            TapHandler { onTapped: if (env.loaded) env.applyPreset(modelData) }
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: Theme.spaceSm
-                                anchors.rightMargin: Theme.spaceSm
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData
-                                    elide: Text.ElideRight
-                                    color: Theme.text
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fsSmall
-                                    font.weight: Font.Medium
-                                }
-                                Text {
-                                    text: "+"
-                                    color: Theme.primaryBright
-                                    font.pixelSize: 16; font.bold: true
-                                }
-                            }
+                            text: modelData
+                            trailing: "+"
+                            enabled: env.loaded
+                            Accessible.name: "Add preset " + modelData
+                            onClicked: env.applyPreset(modelData)
                         }
                     }
                 }

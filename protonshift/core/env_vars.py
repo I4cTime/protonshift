@@ -115,7 +115,7 @@ def write_gaming_env(vars_dict: dict[str, str]) -> bool:
     return write_conf(
         get_gaming_conf_path(),
         vars_dict,
-        header="ProtonShift — global env vars for Steam/Proton.\nLogout and login for session-wide effect.",
+        header="ProtonShift - global env vars for Steam/Proton.\nLogout and login for session-wide effect.",
     )
 
 

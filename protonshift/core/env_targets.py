@@ -39,7 +39,7 @@ ENV_TARGETS = (ENV_D, PROFILE, XSESSIONRC)
 PROFILE_PATH = Path.home() / ".profile"
 XSESSIONRC_PATH = Path.home() / ".xsessionrc"
 
-BLOCK_BEGIN = "# >>> protonshift env (managed — do not edit inside) >>>"
+BLOCK_BEGIN = "# >>> protonshift env (managed - do not edit inside) >>>"
 BLOCK_END = "# <<< protonshift env <<<"
 
 # Characters that need no quoting in a Steam launch-options prefix.
@@ -69,7 +69,7 @@ def targets() -> list[EnvTarget]:
             ENV_D,
             "environment.d (systemd)",
             _env_d_path(),
-            "systemd user sessions — GNOME, KDE Plasma, sway/Hyprland under uwsm",
+            "systemd user sessions - GNOME, KDE Plasma, sway/Hyprland under uwsm",
             "A .conf file the systemd user manager reads at login. Desktops it doesn't "
             "start (Cinnamon on LightDM, XFCE, MATE, startx) never see it.",
         ),
@@ -264,7 +264,7 @@ def target_warning(support: str, desktop: str, selected: str, recommended: str) 
     else:  # SYSTEMD session but a shell-file target selected
         why = f"{who} is started by systemd and may not source {display_path(sel.path)}"
     return (
-        f"{why}. This desktop reads {display_path(rec.path)} ({rec.read_by}) — "
+        f"{why}. This desktop reads {display_path(rec.path)} ({rec.read_by}) - "
         f"variables saved to {display_path(sel.path)} may never reach your games. "
         f"Switch the target to {rec.label} to fix this."
     )

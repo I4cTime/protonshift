@@ -114,7 +114,7 @@ class ScopeBuddyEnvvarsController(QObject):
         self._loaded = True
         self._exists = False
         self._dirty = False
-        self._status = f"New snippet “{name}” — add keys and save."
+        self._status = f"New snippet “{name}” - add keys and save."
         self.nameChanged.emit()
         self.loadedChanged.emit()
         self.existsChanged.emit()
@@ -127,7 +127,7 @@ class ScopeBuddyEnvvarsController(QObject):
         if not key:
             return
         if not _valid_key(key):
-            self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -141,7 +141,7 @@ class ScopeBuddyEnvvarsController(QObject):
         cfg = self._model.to_dict()
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
-            self._status = f"Not saved — key “{bad}” is invalid."
+            self._status = f"Not saved - key “{bad}” is invalid."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -161,7 +161,7 @@ class ScopeBuddyEnvvarsController(QObject):
                 self.existsChanged.emit()
                 self.refresh()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 
@@ -198,7 +198,7 @@ class ScopeBuddyEnvvarsController(QObject):
             self.statusChanged.emit()
 
     def _on_invalid_key(self, key: str) -> None:
-        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
         self._status_ok = False
         self.statusChanged.emit()
 

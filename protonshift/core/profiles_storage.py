@@ -180,7 +180,7 @@ def read_bundle(src: Path) -> list[ApplicationProfile]:
     if not isinstance(data, dict) or data.get("format") != BUNDLE_FORMAT:
         raise BundleError("Not a ProtonShift profile bundle.")
     if not isinstance(data.get("version"), int) or data["version"] > BUNDLE_VERSION:
-        raise BundleError("Bundle was made by a newer ProtonShift — update to import it.")
+        raise BundleError("Bundle was made by a newer ProtonShift - update to import it.")
     entries = data.get("profiles")
     if not isinstance(entries, list):
         raise BundleError("Bundle has no profiles.")

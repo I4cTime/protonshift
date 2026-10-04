@@ -1,4 +1,4 @@
-"""Shared filesystem helpers — directory sizing, human-readable sizes, atomic writes."""
+"""Shared filesystem helpers - directory sizing, human-readable sizes, atomic writes."""
 
 from __future__ import annotations
 

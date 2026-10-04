@@ -67,15 +67,71 @@ def test_set_mode_hyprctl_keeps_position_and_scale(monkeypatch: pytest.MonkeyPat
 
     class _R:
         returncode = 0
-        stdout = json.dumps(_MONITORS)
         stderr = ""
+
+        def __init__(self, stdout: str) -> None:
+            self.stdout = stdout
 
     def fake_run(argv, **_kw):
         calls.append(list(argv))
-        return _R()
+        # `hyprctl monitors -j` lists the outputs; a successful keyword prints "ok"
+        return _R(json.dumps(_MONITORS) if argv[1] == "monitors" else "ok")
 
     monkeypatch.setattr(display, "detect_backend", lambda: "hyprctl")
     monkeypatch.setattr(display, "host_run", fake_run)
     ok, msg = display.set_mode("eDP-1", 2560, 1600, 165.0)
     assert ok, msg
     assert calls[-1] == ["hyprctl", "keyword", "monitor", "eDP-1,2560x1600@165,0x0,1.25"]
+
+
+# --- Lua-config Hyprland: the mode is set through `hyprctl eval` ---------------
+
+
+def test_hypr_monitor_lua() -> None:
+    from protonshift.core.display import hypr_monitor_lua
+
+    assert hypr_monitor_lua("eDP-1", "2560x1600@165", "0x0", "1.25") == (
+        'hl.monitor({ output = "eDP-1", mode = "2560x1600@165", position = "0x0", scale = 1.25 })'
+    )
+    assert hypr_monitor_lua("HDMI-A-1", "3440x1440@59.94", "-3440x0", "1") is not None
+    assert hypr_monitor_lua("DP-1", "1920x1080", "auto", "1") is not None
+
+
+def test_hypr_monitor_lua_refuses_unsafe_input() -> None:
+    from protonshift.core.display import hypr_monitor_lua
+
+    assert hypr_monitor_lua('eDP-1" }) os.execute("x', "1920x1080@60", "0x0", "1") is None
+    assert hypr_monitor_lua("eDP-1", "1920x1080@60; evil", "0x0", "1") is None
+    assert hypr_monitor_lua("eDP-1", "1920x1080@60", "0x0", "1) evil(") is None
+
+
+def test_hypr_set_mode_falls_back_to_eval(monkeypatch) -> None:
+    import subprocess
+
+    from protonshift.core import display
+
+    calls: list[list[str]] = []
+
+    def fake_run(argv, **_kwargs):
+        calls.append(argv)
+        out = "ok" if argv[1] == "eval" else "keyword can't work with non-legacy parsers. Use eval."
+        return subprocess.CompletedProcess(argv, 0, stdout=out, stderr="")
+
+    monkeypatch.setattr(display, "host_run", fake_run)
+    ok, _ = display._hypr_set_mode("eDP-1", "2560x1600@165", "0x0", "1.25", "done")
+    assert ok
+    assert [c[1] for c in calls] == ["keyword", "eval"]
+
+
+def test_hypr_set_mode_reports_a_refusal(monkeypatch) -> None:
+    import subprocess
+
+    from protonshift.core import display
+
+    monkeypatch.setattr(
+        display, "host_run",
+        lambda argv, **_k: subprocess.CompletedProcess(argv, 0, stdout="invalid mode", stderr=""),
+    )
+    ok, message = display._hypr_set_mode("eDP-1", "2560x1600@999", "0x0", "1", "done")
+    assert not ok
+    assert "invalid mode" in message

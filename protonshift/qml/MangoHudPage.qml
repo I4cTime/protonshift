@@ -87,7 +87,7 @@ RowLayout {
                     color: Theme.warning
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
-                    text: "MangoHud isn't installed — you can still edit the config for later."
+                    text: "MangoHud isn't installed - you can still edit the config for later."
                 }
             }
 
@@ -108,7 +108,7 @@ RowLayout {
                     color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
-                    text: "Couldn't read MangoHud.conf — editing disabled so nothing gets overwritten.\n" + mangohud.loadError
+                    text: "Couldn't read MangoHud.conf - editing disabled so nothing gets overwritten.\n" + mangohud.loadError
                 }
             }
 
@@ -231,37 +231,16 @@ RowLayout {
 
             Repeater {
                 model: mangohud.presetNames
-                delegate: Rectangle {
+                delegate: PsRowButton {
                     required property string modelData
                     Layout.fillWidth: true
                     implicitHeight: 38
-                    radius: Theme.radiusSm
-                    color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                    border.color: ph.hovered ? Theme.borderStrong : Theme.border
-                    border.width: 1
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    HoverHandler { id: ph }
-                    TapHandler {
-                        onTapped: if (mangohud.loaded) {
-                            presetConfirmDialog.pendingPreset = modelData
-                            presetConfirmDialog.open()
-                        }
-                    }
-                    Accessible.role: Accessible.Button
+                    text: modelData
+                    enabled: mangohud.loaded
                     Accessible.name: "Apply preset " + modelData
-                    Accessible.onPressAction: if (mangohud.loaded) {
+                    onClicked: {
                         presetConfirmDialog.pendingPreset = modelData
                         presetConfirmDialog.open()
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.spaceSm
-                        text: modelData
-                        color: Theme.text
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fsSmall
-                        font.weight: Font.Medium
                     }
                 }
             }

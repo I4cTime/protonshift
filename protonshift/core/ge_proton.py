@@ -89,7 +89,7 @@ def _network_error(exc: Exception) -> GeProtonError:
         if exc.code == 403 and exc.headers.get("X-RateLimit-Remaining") == "0":
             return GeProtonError("GitHub rate limit reached, try again in an hour")
         if exc.code == 404:
-            return GeProtonError("GitHub returned 404 — the release asset is gone")
+            return GeProtonError("GitHub returned 404 - the release asset is gone")
         return GeProtonError(f"GitHub returned HTTP {exc.code}")
     if isinstance(exc, urllib.error.URLError):
         return GeProtonError(f"Couldn't reach GitHub: {exc.reason}")
@@ -375,7 +375,7 @@ def download_and_install(
         if release.sha512_url:
             expected = _read_expected_sha512(release.sha512_url)
             if expected and expected != digest.hexdigest():
-                raise GeProtonError(f"Checksum mismatch for {release.tag} — download discarded")
+                raise GeProtonError(f"Checksum mismatch for {release.tag} - download discarded")
 
         extract_dir = Path(tempfile.mkdtemp(prefix=".ge-extract-", dir=str(target_dir)))
         try:
@@ -419,7 +419,7 @@ def remove_tool(name: str) -> None:
     if tool is None:
         raise GeProtonError(f"{name} isn't an installed Proton tool")
     if not tool.removable:
-        raise GeProtonError(f"{name} was installed by your package manager — remove it there")
+        raise GeProtonError(f"{name} was installed by your package manager - remove it there")
     candidate = compat / tool.dir_name
     try:
         resolved = validate_within(compat, candidate)

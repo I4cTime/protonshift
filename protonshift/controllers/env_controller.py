@@ -145,7 +145,7 @@ class EnvVarsModel(QAbstractListModel):
         self.endResetModel()
 
     def merge(self, items: dict[str, str]) -> None:
-        """Update existing keys, append new ones — used by preset apply."""
+        """Update existing keys, append new ones - used by preset apply."""
         index_by_key = {k: i for i, (k, _) in enumerate(self._rows)}
         for k, v in items.items():
             if k in index_by_key:
@@ -292,13 +292,13 @@ class EnvController(QObject):
     def copyLaunchPrefix(self) -> None:
         prefix = self.launchPrefix
         if not prefix:
-            self._status = "Nothing to copy — add a variable first."
+            self._status = "Nothing to copy - add a variable first."
             self._status_ok = False
         else:
             clipboard = QGuiApplication.clipboard()
             if clipboard is not None:
                 clipboard.setText(prefix)
-            self._status = "Launch options copied — paste into a game's Properties → Launch Options."
+            self._status = "Launch options copied - paste into a game's Properties → Launch Options."
             self._status_ok = True
         self.statusChanged.emit()
 
@@ -327,7 +327,7 @@ class EnvController(QObject):
     def save(self) -> None:
         # #21 fix: never write over a config we failed to (or never) read.
         if not self._loaded:
-            self._status = "Not saved — config was never loaded."
+            self._status = "Not saved - config was never loaded."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -337,7 +337,7 @@ class EnvController(QObject):
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
             self._status = (
-                f"Not saved — key “{bad}” is invalid "
+                f"Not saved - key “{bad}” is invalid "
                 "(letters, digits, underscore; can't start with a digit)."
             )
             self._status_ok = False
@@ -354,7 +354,7 @@ class EnvController(QObject):
                 self._status = f"Saved to {self.targetPath}"
                 self.dirtyChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 
@@ -370,7 +370,7 @@ class EnvController(QObject):
         self.launchPrefixChanged.emit()
 
     def _on_invalid_key(self, key: str) -> None:
-        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
         self._status_ok = False
         self.statusChanged.emit()
 

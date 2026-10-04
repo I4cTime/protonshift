@@ -143,7 +143,7 @@ class MangoHudController(QObject):
     @Slot()
     def save(self) -> None:
         if not self._loaded:
-            self._status = "Not saved — config was never loaded."
+            self._status = "Not saved - config was never loaded."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -160,7 +160,7 @@ class MangoHudController(QObject):
                 self._status = "Saved to MangoHud.conf"
                 self.dirtyChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 
