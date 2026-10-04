@@ -2,7 +2,7 @@
 
 QML calls ``model.removeRow(i)``. QAbstractItemModel already exposes that
 name as an invokable C++ convenience, so a same-named Python slot is never
-reached from QML — the call lands on the built-in, which delegates to the
+reached from QML - the call lands on the built-in, which delegates to the
 virtual ``removeRows()``. The fix overrides ``removeRows``; this test drives
 the call through a real QML engine (not Python) so the dispatch path that
 broke is the one being tested. Runs headless via QT_QPA_PLATFORM=offscreen

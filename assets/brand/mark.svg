@@ -1,6 +1,6 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!-- ProtonShift mark ("broken ring" sigil). Canonical source:
-       components/ui/BrandMark.tsx — keep geometry and hexes in sync.
+       components/ui/BrandMark.tsx - keep geometry and hexes in sync.
        Brand hexes: #6d28d9 / #8b5cf6 / #d946ef (see app/globals.css). -->
   <defs>
     <linearGradient id="pg" gradientUnits="userSpaceOnUse" x1="72" y1="256" x2="440" y2="256">

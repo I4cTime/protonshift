@@ -2,7 +2,7 @@
 
 Bind ``appId`` to the selected game; the controller loads that game's
 LaunchOptions from ``localconfig.vdf`` on a worker thread and saves them back
-fail-closed (the underlying core refuses to overwrite an unparseable file —
+fail-closed (the underlying core refuses to overwrite an unparseable file -
 review #20). A late load result for a game the user already navigated away from
 is discarded, so switching games can't strand the editor on stale text
 (review #8, the old app's cross-game bleed).
@@ -304,7 +304,7 @@ class LaunchOptionsController(QObject):
 
     def _on_loaded(self, app_id: str, ok: bool, value: str) -> None:
         if app_id != self._app_id:
-            return  # user switched games mid-load — discard the stale result
+            return  # user switched games mid-load - discard the stale result
         self._loading = False
         if ok:
             self._loaded = True

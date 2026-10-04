@@ -1,7 +1,7 @@
 """Configuration profiles: a named snapshot of launch options, compat tool,
 gaming env vars, and power profile that can be re-applied later.
 
-Ported from the original ProtonShift core. Storage only — capturing and
+Ported from the original ProtonShift core. Storage only - capturing and
 applying the live values is the controller's job (it reads/writes the other
 domain modules).
 """

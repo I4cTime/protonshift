@@ -295,7 +295,7 @@ ApplicationWindow {
         }
     }
 
-    // branded startup overlay — covers the UI briefly, then dissolves.
+    // branded startup overlay - covers the UI briefly, then dissolves.
     // Last child, so it sits above everything (header, tabs, pages); unloaded
     // for good once the intro finishes so its MultiEffect layers don't linger.
     Loader {

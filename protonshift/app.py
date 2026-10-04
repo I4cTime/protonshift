@@ -1,7 +1,7 @@
 """Application entry point.
 
 Boots a QML engine, registers the controllers as context properties, and loads
-the root window. This is the whole shell — compare with the old Electron
+the root window. This is the whole shell - compare with the old Electron
 ``main.ts`` + ``preload.ts`` + FastAPI launch dance.
 """
 

@@ -5,7 +5,7 @@ Persists ``{style, mode, accent}`` under the ``appearance`` key in
 concrete dark/light choice from the OS color scheme, updating live when the
 desktop flips between light and dark. A legacy ``theme`` key (six fixed
 palette ids, or "system") is still read for migration on first load, but is
-never written back — new saves only ever write ``appearance``.
+never written back - new saves only ever write ``appearance``.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class ThemeController(QObject):
             "accent": self._accent or None,
         }
         try:
-            # L8: atomic replace (same contract as every other config write) —
+            # L8: atomic replace (same contract as every other config write) -
             # a crash mid-write can't corrupt settings.json.
             atomic_write_text(_SETTINGS, json.dumps(existing, indent=2))
         except OSError:

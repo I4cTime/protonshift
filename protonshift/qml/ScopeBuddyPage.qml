@@ -439,7 +439,7 @@ RowLayout {
         }
     }
 
-    // Deleting a snippet removes envvars/<name>.conf outright — confirm first.
+    // Deleting a snippet removes envvars/<name>.conf outright - confirm first.
     PsDialog {
         id: deleteSnippetConfirm
         title: "Delete snippet?"

@@ -1,14 +1,14 @@
 pragma Singleton
 import QtQuick
 
-// The ProtonShift design system. One source of truth for the look — every Ps*
+// The ProtonShift design system. One source of truth for the look - every Ps*
 // component reads its colors from here. The look is split three ways:
-//   - `style`  — a visual STYLE id (shape + neutral personality: radius,
+//   - `style`  - a visual STYLE id (shape + neutral personality: radius,
 //                 shadow/ambient weight, gradient buttons y/n, hairline
 //                 borders y/n, plus a default accent per resolved mode).
-//   - `dark`   — resolved dark/light mode (system/dark/light, resolved by
+//   - `dark`   - resolved dark/light mode (system/dark/light, resolved by
 //                 ThemeController).
-//   - `accent` — the single hue driving the whole primary/gradient/glow
+//   - `accent` - the single hue driving the whole primary/gradient/glow
 //                 family, either a style's default or a user override.
 // All three are bound in from ThemeController via Binding elements in
 // main.qml, so the whole app restyles from those three properties.
@@ -29,7 +29,7 @@ QtObject {
 
     // Per-style shape tokens + neutral (accent-independent) sub-palettes for
     // each resolved mode. Adding a style? Add its id here AND to
-    // `core/appearance.py`'s STYLES — `tests/test_theme_parity.py` checks both.
+    // `core/appearance.py`'s STYLES - `tests/test_theme_parity.py` checks both.
     readonly property var styles: ({
         // ---- Proton Neon (brand): ambient glow, gradient buttons ----------
         "neon": {
@@ -139,7 +139,7 @@ QtObject {
     readonly property var _n: dark ? _s.dark : _s.light
 
     readonly property bool isDark: dark
-    // Ambient glow-blob strength multiplier — a per-style constant (some
+    // Ambient glow-blob strength multiplier - a per-style constant (some
     // styles are deliberately flat/shadowless regardless of mode).
     readonly property real ambientStrength: _s.ambient
 
@@ -181,7 +181,7 @@ QtObject {
         return 0.2126 * chan(c.r) + 0.7152 * chan(c.g) + 0.0722 * chan(c.b)
     }
 
-    // Public: the glyph color to draw ON any fill — dark ink on light fills,
+    // Public: the glyph color to draw ON any fill - dark ink on light fills,
     // light ink on dark ones. Use it whenever text sits on a colored surface
     // (badges, chips, custom swatches) instead of picking a fixed color.
     function inkOn(bg) {
@@ -206,21 +206,21 @@ QtObject {
         ? Qt.hsla((accent.hslHue + 0.11) % 1, accent.hslSaturation, accent.hslLightness, 1)
         : accent
 
-    // Secondary brand hue — collapsed onto the single user accent in this
+    // Secondary brand hue - collapsed onto the single user accent in this
     // model (no separate secondary hue to configure).
     readonly property color accentBright: primaryBright
 
     // Text/glyph color for content sitting ON the primary gradient (gradA→gradB)
     // or a solid `accent` fill: primary buttons, active pills.
     readonly property color onPrimary: inkOn(accent)
-    // The "Shift" half of the wordmark — rides the accent family.
+    // The "Shift" half of the wordmark - rides the accent family.
     readonly property color wordmark: primaryBright
 
     // --- ProtonDB tiers (theme-independent) ---------------------------------
     // Badge fills sampled from ProtonDB's own tier palette so a rating reads
     // the same here as on protondb.com in every style. Each holds >= 4.5:1
     // against `tierInk`, the fixed dark glyph color drawn on top of them
-    // (bronze is the tightest at ~5.0:1). Use as pill fill + tierInk text —
+    // (bronze is the tightest at ~5.0:1). Use as pill fill + tierInk text -
     // never as text on `surface`, where gold/silver can't hold contrast on
     // light styles.
     readonly property color tierPlatinum: "#b4c7dc"
@@ -246,7 +246,7 @@ QtObject {
 
     // --- type -----------------------------------------------------------------
     // QML font.family takes a SINGLE family name (CSS-style fallback lists are
-    // matched as one literal — nonexistent — family). Use `fontFamily` with
+    // matched as one literal - nonexistent - family). Use `fontFamily` with
     // font.family, or the *Families lists with font.families (Qt 6.2+) to get
     // real fallback.
     readonly property string fontFamily: "Inter"

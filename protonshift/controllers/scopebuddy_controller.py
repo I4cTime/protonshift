@@ -6,8 +6,8 @@ contract as the other editors: read error distinguished from empty, save
 refuses unless a load succeeded.
 
 Availability probing (binary lookup, version read, SCB_AUTO_* capability
-detection) shells out — inside a Flatpak that can mean multi-second
-``flatpak-spawn`` round-trips — so it runs on the load worker, not in
+detection) shells out - inside a Flatpak that can mean multi-second
+``flatpak-spawn`` round-trips - so it runs on the load worker, not in
 ``__init__`` (review M4). The formerly-constant properties now notify via
 ``infoChanged`` so QML picks the values up when the probe lands.
 """
@@ -153,7 +153,7 @@ class ScopeBuddyController(QObject):
             return
         cfg = self._model.to_dict()
         # Pre-validate: the core writer raises ValueError on keys that aren't
-        # valid shell identifiers — surface it here, before any write attempt.
+        # valid shell identifiers - surface it here, before any write attempt.
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
             self._status = f"Not saved - key “{bad}” is invalid."
@@ -200,7 +200,7 @@ class ScopeBuddyController(QObject):
             scopebuddy_available_info,
         )
 
-        # Availability + capability probes (may shell out) — worker thread only.
+        # Availability + capability probes (may shell out) - worker thread only.
         info = scopebuddy_available_info()
         caps = detect_auto_capabilities()
         self._infoResult.emit(

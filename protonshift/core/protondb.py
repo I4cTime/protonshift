@@ -29,10 +29,10 @@ from .fsutil import atomic_write_text
 
 PROTONDB_SUMMARY_URL = "https://www.protondb.com/api/v1/reports/summaries/{appid}.json"
 PROTONDB_PAGE_URL = "https://www.protondb.com/app/{appid}"
-USER_AGENT = "ProtonShift/1.2"
+USER_AGENT = "ProtonShift/1.3"
 CACHE_DIR = Path("~/.cache/protonshift/protondb").expanduser()
 CACHE_TTL = 24 * 3600
-# Refuse absurd payloads — the real summary is ~150 bytes.
+# Refuse absurd payloads - the real summary is ~150 bytes.
 _MAX_BODY = 64 * 1024
 
 # ProtonDB's tiers, best to worst. Anything else normalises to "pending".
@@ -47,7 +47,7 @@ _TIER_LABELS = {
     "pending": "Pending",
 }
 
-# Theme.qml token *names* (not colors) — the page resolves them against the
+# Theme.qml token *names* (not colors) - the page resolves them against the
 # singleton so core/ never holds a hex value.
 _TIER_COLOR_KEYS = {
     "platinum": "tierPlatinum",
@@ -117,7 +117,7 @@ def age_label(fetched_at: float, now: float | None = None) -> str:
 
 
 def _check_appid(appid: object) -> int:
-    """App ids come from appmanifest filenames — coerce to a positive int so a
+    """App ids come from appmanifest filenames - coerce to a positive int so a
     cache path can only ever be ``<digits>.json`` under CACHE_DIR."""
     try:
         value = int(str(appid).strip())

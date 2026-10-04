@@ -243,7 +243,7 @@ def _event_node_for_js(js_path: str) -> str | None:
 #   __u16 direction;                               offset  4
 #   struct ff_trigger { __u16 button, interval; }  offset  6
 #   struct ff_replay  { __u16 length, delay;    }  offset 10
-#   <2 pad bytes — the union below embeds a pointer (ff_periodic_effect
+#   <2 pad bytes - the union below embeds a pointer (ff_periodic_effect
 #    .custom_data), so the union is 8-aligned>
 #   union u { ... struct ff_rumble_effect {
 #       __u16 strong_magnitude, weak_magnitude; } ... }  offset 16
@@ -251,11 +251,11 @@ def _event_node_for_js(js_path: str) -> str | None:
 # sizeof(struct ff_effect) == 48. The previous implementation packed the id
 # as `-1 & 0xFFFF` into a signed 'h' (always raised struct.error), omitted the
 # 2 pad bytes (magnitudes landed at offset 14), and wrote a 16-byte play event
-# where the kernel expects 24 — all three fixed here, layout pinned by tests.
+# where the kernel expects 24 - all three fixed here, layout pinned by tests.
 _FF_EFFECT_SIZE = 48
 _FF_RUMBLE = 0x50
 _EV_FF = 0x15
-# _IOW('E', 0x80, struct ff_effect) — direction 0x40000000 | size<<16 | 'E'<<8 | nr
+# _IOW('E', 0x80, struct ff_effect) - direction 0x40000000 | size<<16 | 'E'<<8 | nr
 _EVIOCSFF = 0x40000000 | (_FF_EFFECT_SIZE << 16) | (ord("E") << 8) | 0x80
 
 # struct input_event on 64-bit: struct timeval { long tv_sec, tv_usec; } (16)

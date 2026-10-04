@@ -2,14 +2,14 @@
 
 Lifted from the old backend with two config-safety fixes:
 
-* #M1 — ``parse_scb_conf`` now inverts ``write_scb_conf``'s ``shlex.quote`` by
+* #M1 - ``parse_scb_conf`` now inverts ``write_scb_conf``'s ``shlex.quote`` by
   always ``shlex.split``-ing the value, instead of a naive outer-quote strip
   that returned raw bash-escaped garbage for values containing quotes.
-* #M2 — ``write_scb_conf`` merges into the existing file line-by-line: comments,
+* #M2 - ``write_scb_conf`` merges into the existing file line-by-line: comments,
   blank lines, bash logic (``if/then/export …``), and unmanaged assignments are
   preserved verbatim. Only ``SCB_*`` keys the editor manages are updated,
   inserted, or (when removed in the UI) dropped. ``scb.conf`` is a sourced bash
-  script — the old rewrite-from-dict destroyed everything but plain assignments.
+  script - the old rewrite-from-dict destroyed everything but plain assignments.
 
 Scope of the first slice: the global scb.conf. Per-app / envvars helpers are
 kept for later slices; the same parse/write fixes cover them.
@@ -76,7 +76,7 @@ def _strip_inline_comment_unquoted(value: str) -> str:
     return value.rstrip()
 
 
-# Valid bash identifier — the only shape of key we ever read or write. These
+# Valid bash identifier - the only shape of key we ever read or write. These
 # .conf files are *sourced by bash* on every game launch, so an arbitrary key
 # string would be persistent command injection.
 _KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -102,7 +102,7 @@ def _format_line(key: str, value: str) -> str:
 def _block_delta(line: str) -> int:
     """Rough bash block nesting change for a line (then/do open, fi/done close).
 
-    Not a real parser — just enough to avoid touching assignments *inside* a
+    Not a real parser - just enough to avoid touching assignments *inside* a
     control structure, so removing a managed key can't leave an empty
     ``then``/``do`` block (invalid bash).
     """
@@ -149,7 +149,7 @@ def write_scb_conf(path: Path, cfg: dict[str, str]) -> bool:
     """Merge ``cfg`` into ``path``, preserving comments and bash logic (#M2).
 
     Every key in ``cfg`` must be a valid bash identifier; anything else raises
-    ``ValueError`` before a byte is written — scb.conf is bash-sourced at game
+    ``ValueError`` before a byte is written - scb.conf is bash-sourced at game
     launch, so an unvalidated key would be persistent command injection.
     """
     for key in cfg:
@@ -172,14 +172,14 @@ def write_scb_conf(path: Path, cfg: dict[str, str]) -> bool:
         key = _assignment_key(raw)
         top_level = depth == 0
         if key is None or not top_level:
-            out.append(raw)  # comment / blank / bash logic / inside-block — keep
+            out.append(raw)  # comment / blank / bash logic / inside-block - keep
         elif key in cfg:
             out.append(_format_line(key, cfg[key]))  # managed update
             written.add(key)
         elif key.startswith("SCB_"):
-            pass  # a top-level managed key the UI removed — drop it
+            pass  # a top-level managed key the UI removed - drop it
         else:
-            out.append(raw)  # unmanaged assignment — leave alone
+            out.append(raw)  # unmanaged assignment - leave alone
         depth = max(0, depth + _block_delta(raw))
 
     for key, value in cfg.items():

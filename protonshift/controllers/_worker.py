@@ -7,7 +7,7 @@ wedging the controller's ``loading``/``busy`` flag (review M5).
 
 ``start_worker`` wraps the body: on any exception the ``on_error`` callback
 receives a short ``"ExceptionType: message"`` string. ``on_error`` runs on the
-worker thread, so it must be thread-safe — in practice, pass the ``emit`` of a
+worker thread, so it must be thread-safe - in practice, pass the ``emit`` of a
 queued result/error signal and mutate GUI-read state only in the connected
 handler on the GUI thread.
 
@@ -30,7 +30,7 @@ def start_worker(
     def _run() -> None:
         try:
             target(*args)
-        except Exception as exc:  # noqa: BLE001 — the guard exists to stop thread death wedging the UI
+        except Exception as exc:  # noqa: BLE001 - the guard exists to stop thread death wedging the UI
             if on_error is not None:
                 on_error(f"{type(exc).__name__}: {exc}")
 

@@ -1,4 +1,4 @@
-"""QObject controllers — the bridge layer between the Python core and QML.
+"""QObject controllers - the bridge layer between the Python core and QML.
 
 Each controller wraps one slice of the domain core and exposes it to QML as
 ``Property``/``Signal``/``Slot`` members. This replaces the old FastAPI routes:

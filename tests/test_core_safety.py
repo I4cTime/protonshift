@@ -24,7 +24,7 @@ from protonshift.core.steam import get_userdata_dir
 from protonshift.core.vdf_config import read_launch_options, set_launch_options
 
 # --------------------------------------------------------------------------- #
-# 1 — shader cache: app_id validation + containment
+# 1 - shader cache: app_id validation + containment
 # --------------------------------------------------------------------------- #
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_shader_cache_rejects_symlink_escape(steam_root: Path, tmp_path: Path) -
 
 
 # --------------------------------------------------------------------------- #
-# 2 — ScopeBuddy: key injection rejected, valid round-trip
+# 2 - ScopeBuddy: key injection rejected, valid round-trip
 # --------------------------------------------------------------------------- #
 
 @pytest.mark.parametrize(
@@ -109,7 +109,7 @@ def test_write_scb_conf_preserves_comments_and_bash(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 3 — non-UTF-8 bytes must not raise
+# 3 - non-UTF-8 bytes must not raise
 # --------------------------------------------------------------------------- #
 
 def test_parse_scb_conf_bad_bytes(tmp_path: Path) -> None:
@@ -136,7 +136,7 @@ def test_read_mangohud_config_bad_bytes(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 4 — Heroic config: fail closed on corrupt JSON, guard non-dict slots
+# 4 - Heroic config: fail closed on corrupt JSON, guard non-dict slots
 # --------------------------------------------------------------------------- #
 
 @pytest.fixture
@@ -181,7 +181,7 @@ def test_heroic_read_non_dict_app_slot(heroic_dir: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 5 — user fixes: fail closed on corrupt JSON
+# 5 - user fixes: fail closed on corrupt JSON
 # --------------------------------------------------------------------------- #
 
 def test_add_user_fix_refuses_corrupt_file(
@@ -203,7 +203,7 @@ def test_add_user_fix_appends(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
 
 # --------------------------------------------------------------------------- #
-# 6 — VDF: "Apps" merged into "apps", not dropped
+# 6 - VDF: "Apps" merged into "apps", not dropped
 # --------------------------------------------------------------------------- #
 
 def test_vdf_both_casings_merged(tmp_path: Path) -> None:
@@ -237,7 +237,7 @@ def test_vdf_both_casings_merged(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 7 — userdata dir: deterministic multi-account pick
+# 7 - userdata dir: deterministic multi-account pick
 # --------------------------------------------------------------------------- #
 
 def test_get_userdata_dir_prefers_recent_localconfig(tmp_path: Path) -> None:
@@ -263,7 +263,7 @@ def test_get_userdata_dir_fallback_highest_id(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 8 — backup filename uniqueness
+# 8 - backup filename uniqueness
 # --------------------------------------------------------------------------- #
 
 class _FrozenDatetime:

@@ -8,7 +8,7 @@ talk-name); outside a sandbox this is a transparent pass-through.
 ``host_run`` deliberately does NOT swallow ``FileNotFoundError``: outside a
 sandbox a missing tool raises it (callers catch it as before); inside a sandbox
 ``flatpak-spawn`` itself exists, so a missing *host* tool surfaces as a non-zero
-return code instead — which existing ``returncode == 0`` checks already handle.
+return code instead - which existing ``returncode == 0`` checks already handle.
 """
 
 from __future__ import annotations

@@ -669,7 +669,7 @@ RowLayout {
                 spacing: Theme.spaceSm
                 visible: detailCard.isSteam
 
-                // Only Steam ids are ProtonDB ids — Heroic/Lutris games bind 0,
+                // Only Steam ids are ProtonDB ids - Heroic/Lutris games bind 0,
                 // which clears the controller and fires no request.
                 Binding {
                     target: protondb
@@ -709,7 +709,7 @@ RowLayout {
                     }
                 }
 
-                // privacy opt-in — shown while lookups are switched off
+                // privacy opt-in - shown while lookups are switched off
                 RowLayout {
                     Layout.fillWidth: true
                     visible: !protondb.enabled
@@ -766,7 +766,7 @@ RowLayout {
                     }
                 }
 
-                // trending tier — only when it differs from the overall one
+                // trending tier - only when it differs from the overall one
                 RowLayout {
                     visible: protondb.enabled && protondb.loaded && protondb.trendingLabel.length > 0
                     spacing: Theme.spaceXs
@@ -1765,7 +1765,7 @@ RowLayout {
         }
     }
 
-    // Deleting a profile removes its saved snapshot outright — confirm first.
+    // Deleting a profile removes its saved snapshot outright - confirm first.
     PsDialog {
         id: deleteProfileConfirm
         property string pendingName: ""
@@ -2339,7 +2339,7 @@ RowLayout {
     }
 
     // Shared confirm for the per-game ScopeBuddy / MangoHud override delete
-    // buttons above — both just call deleteOverride() on whichever controller
+    // buttons above - both just call deleteOverride() on whichever controller
     // was armed.
     PsDialog {
         id: deleteOverrideConfirm
@@ -2379,7 +2379,7 @@ RowLayout {
     }
 
     // Applying a MangoHud preset to a per-game override replaces every
-    // metric/value in it — confirm before overwriting.
+    // metric/value in it - confirm before overwriting.
     PsDialog {
         id: perGameMangoPresetConfirm
         property string pendingPreset: ""

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerate the vendored (offline) Python dependency modules for the Flathub build.
 #
-# PySide6 is NOT vendored here — it comes from io.qt.PySide.BaseApp (see the
+# PySide6 is NOT vendored here - it comes from io.qt.PySide.BaseApp (see the
 # Flathub manifest). Only pure-Python runtime deps outside the BaseApp need
 # vendoring; today that is just `vdf`.
 #
@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# Pinned to a specific flatpak-builder-tools commit and verified by sha256 —
+# Pinned to a specific flatpak-builder-tools commit and verified by sha256 -
 # never execute a script curl'd from a mutable ref. To bump: pick a new commit,
 # fetch the file, update GEN_SHA256 with `sha256sum` of the download.
 GEN_COMMIT="dda10aa5949811589747e6e485da6ae2e86b5d2b"
@@ -27,7 +27,7 @@ curl -sSL -o "$TMP/fpg.py" "$GEN_URL"
 
 echo "› verifying sha256"
 echo "${GEN_SHA256}  $TMP/fpg.py" | sha256sum --check --quiet || {
-  echo "!! flatpak-pip-generator.py checksum mismatch — refusing to execute" >&2
+  echo "!! flatpak-pip-generator.py checksum mismatch - refusing to execute" >&2
   exit 1
 }
 

@@ -6,9 +6,9 @@ MATE, ``startx`` …) the file is written and nothing ever reads it. This module
 adds two more targets that those sessions *do* read, both as a managed block
 inside a shell file the user may also own:
 
-* ``~/.xsessionrc`` — sourced by the Debian/Ubuntu/Mint ``Xsession`` wrapper
+* ``~/.xsessionrc`` - sourced by the Debian/Ubuntu/Mint ``Xsession`` wrapper
   for every X11 session started from a display manager.
-* ``~/.profile`` — sourced by login shells and by most display-manager session
+* ``~/.profile`` - sourced by login shells and by most display-manager session
   wrappers (GDM, LightDM, SDDM); the portable fallback.
 
 The managed block is delimited by two marker comments and contains only
@@ -16,7 +16,7 @@ The managed block is delimited by two marker comments and contains only
 byte-for-byte. Values are single-quoted with POSIX escaping so a value can't
 inject shell into a file that is sourced at every login.
 
-Pure Python, no Qt — keep it that way so :mod:`tests` stay Qt-free.
+Pure Python, no Qt - keep it that way so :mod:`tests` stay Qt-free.
 """
 
 from __future__ import annotations
@@ -123,7 +123,7 @@ def _unquote(value: str) -> str:
 def _find_block(lines: list[str]) -> tuple[int, int] | None:
     """Return ``(start, end)`` line indices of the managed block, inclusive.
 
-    An unterminated block (begin marker, no end) runs to the end of the file —
+    An unterminated block (begin marker, no end) runs to the end of the file -
     everything after the begin marker is ours by contract.
     """
     start: int | None = None
@@ -180,7 +180,7 @@ def write_block(path: Path, vars_dict: dict[str, str]) -> bool:
     Everything outside the block is preserved byte-for-byte; the file is
     created when missing; an empty ``vars_dict`` removes the block entirely.
     Every key must satisfy ``env_vars._valid_key`` or ``ValueError`` is raised
-    before a byte is written — these files are sourced by a shell at login.
+    before a byte is written - these files are sourced by a shell at login.
     """
     for key in vars_dict:
         if not _valid_key(key):

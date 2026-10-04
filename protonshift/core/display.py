@@ -1,4 +1,4 @@
-"""Display outputs, modes, and resolution switching — cross-session.
+"""Display outputs, modes, and resolution switching - cross-session.
 
 Reads the connected monitors and their modes from whichever tool the session
 provides, and applies a mode where the backend supports it:
@@ -90,7 +90,7 @@ def detect_backend() -> str | None:
             return "wlr-randr"
         if find_tool("kscreen-doctor"):
             return "kscreen-doctor"
-        # XWayland fallback — xrandr often still reports the virtual output.
+        # XWayland fallback - xrandr often still reports the virtual output.
         if find_tool("xrandr"):
             return "xrandr"
         return None
@@ -408,7 +408,7 @@ def set_mode(output: str, width: int, height: int, refresh: float) -> tuple[bool
             mode += f"@{refresh:g}Hz"
         argv = ["wlr-randr", "--output", output, "--mode", mode]
     elif backend == "hyprctl":
-        # `hyprctl keyword monitor NAME,WxH@R,XxY,SCALE` — keep the monitor's
+        # `hyprctl keyword monitor NAME,WxH@R,XxY,SCALE` - keep the monitor's
         # current position and scale so only the mode changes.
         pos, scale = _hypr_position_scale(output)
         mode = f"{width}x{height}"
@@ -424,7 +424,7 @@ def set_mode(output: str, width: int, height: int, refresh: float) -> tuple[bool
         if refresh:
             target += f"@{round(refresh)}"
         argv = ["kscreen-doctor", target]
-    else:  # pragma: no cover — detect_backend only returns the four above
+    else:  # pragma: no cover - detect_backend only returns the four above
         return False, "Unsupported display backend."
 
     try:

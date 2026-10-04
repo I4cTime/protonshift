@@ -29,4 +29,4 @@
 
 ## Breaking changes
 
-<!-- None — or describe the impact and migration steps. -->
+<!-- None - or describe the impact and migration steps. -->

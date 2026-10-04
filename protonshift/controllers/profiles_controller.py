@@ -32,7 +32,7 @@ class ProfilesController(QObject):
 
     _listResult = Signal(list)
     _actionResult = Signal(str, bool)  # message, ok
-    _workError = Signal(str)  # unexpected worker exception (list path — no refresh loop)
+    _workError = Signal(str)  # unexpected worker exception (list path - no refresh loop)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -180,7 +180,7 @@ class ProfilesController(QObject):
         compat = ""
         if root:
             # M6 fix: a failed read must fail the capture, not silently store
-            # "" — applying such a profile would blank the user's launch
+            # "" - applying such a profile would blank the user's launch
             # options and clear their Proton pin.
             lc = get_localconfig_path(root)
             if lc:
@@ -268,7 +268,7 @@ class ProfilesController(QObject):
 
     def _on_work_error(self, message: str) -> None:
         # List-worker failure: clear busy and surface status, but do NOT
-        # refresh — that would retry the failing worker in a loop.
+        # refresh - that would retry the failing worker in a loop.
         self._busy = False
         self._status = f"Unexpected error: {message}"
         self._status_ok = False

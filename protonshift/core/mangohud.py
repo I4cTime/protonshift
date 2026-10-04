@@ -2,7 +2,7 @@
 
 Lifted from the old backend. Three changes:
 * ``read_mangohud_config`` lets a real read error (OSError) propagate instead of
-  swallowing it into ``{}`` — the controller distinguishes "couldn't read" from
+  swallowing it into ``{}`` - the controller distinguishes "couldn't read" from
   "empty config" and refuses to save over an unread file (same safety as env).
 * per-game listing uses ``removeprefix`` not ``replace`` (review #L1), so a name
   like ``wine-my_wine-game`` no longer collapses its inner ``wine-``.
@@ -103,7 +103,7 @@ def is_mangohud_available() -> bool:
 def read_mangohud_config(path: Path | None = None) -> dict[str, str]:
     """Parse a MangoHud config file into key-value pairs (toggles map to "").
 
-    A missing file returns ``{}``. A read error is **not** swallowed — it
+    A missing file returns ``{}``. A read error is **not** swallowed - it
     propagates so the caller can tell "couldn't read" from "empty".
     """
     if path is None:
@@ -132,7 +132,7 @@ def write_mangohud_config(config: dict[str, str], path: Path | None = None) -> b
 
     Comments and blank lines are preserved in place; parameter lines are updated
     from ``config``; parameters no longer in ``config`` are dropped; new ones are
-    appended. Not bash, so no block handling is needed — just line-oriented merge.
+    appended. Not bash, so no block handling is needed - just line-oriented merge.
     """
     if path is None:
         path = MANGOHUD_GLOBAL_CONF
@@ -150,13 +150,13 @@ def write_mangohud_config(config: dict[str, str], path: Path | None = None) -> b
     for raw in existing:
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
-            out.append(raw)  # comment / blank — keep verbatim
+            out.append(raw)  # comment / blank - keep verbatim
             continue
         key = stripped.partition("=")[0].strip() if "=" in stripped else stripped
         if key in config:
             out.append(_format_param(key, config[key]))
             written.add(key)
-        # else: parameter removed in the UI — drop it
+        # else: parameter removed in the UI - drop it
 
     for key, value in config.items():
         if key and key not in written:

@@ -6,7 +6,7 @@ that shutil.which() searches.  This module provides a single
 ``find_tool()`` helper that first tries the normal PATH lookup, then
 probes well-known fallback locations.
 
-Lifted verbatim from the original ProtonShift Python core — no web layer,
+Lifted verbatim from the original ProtonShift Python core - no web layer,
 no changes.
 """
 
@@ -108,8 +108,8 @@ _TOOL_SPECIFIC_PATHS: dict[str, tuple[str, ...]] = {
 def find_tool(name: str) -> str | None:
     """Locate a tool binary, returning the absolute path or ``None``.
 
-    1. ``shutil.which(name)`` — uses the current process PATH.
-    2. ``shutil.which(name, path=...)`` — searches extra bin directories
+    1. ``shutil.which(name)`` - uses the current process PATH.
+    2. ``shutil.which(name, path=...)`` - searches extra bin directories
        common on immutable/atomic distros.
     3. Direct file existence checks for tool-specific known paths.
     """

@@ -68,16 +68,34 @@ locally from the manifest; full variants and options are in
 
 ### Your entire library, unified
 
-Pulls games from **Steam**, **Heroic** (Epic + GOG), and **Lutris** into one
+Pulls games from **Steam** (including Non-Steam shortcuts you added by hand),
+**Heroic** (Epic, GOG, Amazon and sideloaded games) and **Lutris** into one
 searchable list, with per-source counts and one-click launch, install-folder,
-and Wine-prefix access.
+and Wine-prefix access. Native Linux games are marked as such, and Steam's own
+tools (Proton builds, runtimes) are kept out of the list.
 
 ### Launch options, with quick presets
 
 Edit per-game launch options directly, or toggle common snippets without
 memorizing them: GameMode, force-NVIDIA-dGPU offload, MangoHud, Proton debug
 logging, and a ScopeBuddy wrapper. Each preset greys out with an install hint
-if the underlying tool isn't found.
+if the underlying tool isn't found. Snippets are placed around `%command%`
+for you, so a preset never ends up as a stray game argument, and switching
+games with unsaved edits asks before dropping them.
+
+### Launch check
+
+One button per game that lists the usual reasons it won't start, each with
+what to do about it: launch options with no `%command%` (or two), wrapper
+tools that aren't installed, a Proton build that was removed, a missing
+anti-cheat runtime, a missing install folder, and ProtonDB's rating as
+context. It reads files and settings only; it never starts the game.
+
+### Proton log viewer
+
+Turn on Proton's debug log for a game and read it in the app: the end of
+`steam-<appid>.log`, with a filter for lines that look like problems, plus
+copy and open-file. Large logs are never loaded whole.
 
 ### Compatibility tool selection
 
@@ -87,7 +105,7 @@ hunting through config files.
 
 ### GE-Proton manager
 
-The Proton page lists the custom builds in Steam's `compatibilitytools.d`
+The Proton builds page lists the custom builds in Steam's `compatibilitytools.d`
 (size, version, which games pin them), shows the latest
 [GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) releases,
 and installs them with sha512 verification and a cancellable progress bar -
@@ -100,7 +118,7 @@ your distro (`/usr/share/steam/compatibilitytools.d`) are listed as well.
 The game detail pane shows the community [ProtonDB](https://www.protondb.com)
 tier (Platinum → Borked), report count, confidence and trending tier, with a
 link to the full page. Lookups send only the Steam App ID, are cached for a
-day, and can be switched off in the System page's Privacy card.
+day, and can be switched off under Settings, Privacy.
 
 ### Heroic per-game toggles
 
@@ -112,7 +130,7 @@ offload for Heroic games, saved straight to Heroic's per-game config.
 Build a full `gamescope` invocation visually: output/game resolution with
 quick presets, FPS limit, FSR upscaling with sharpness, integer scaling, HDR,
 and window mode, plus a free-text field for extra arguments - with a live
-command preview to copy or paste into launch options. Can also emit a
+command preview to add to the selected game's launch options or copy. Can also emit a
 ScopeBuddy override (`SCB_AUTO_*` env vars + `scb --`) instead of a raw
 command.
 
@@ -171,8 +189,9 @@ quick-run common verbs. Supports native and Flatpak Protontricks installs.
 
 GPU detection (NVIDIA via `nvidia-smi`, AMD/Intel via sysfs) with live temps,
 power-profile switching (`system76-power`, `power-profiles-daemon`), and
-per-monitor resolution/refresh-rate control over `xrandr`, `wlr-randr`, or
-`kscreen-doctor`, depending on your session.
+per-monitor resolution/refresh-rate control over `xrandr`, `hyprctl`,
+`wlr-randr`, or `kscreen-doctor`, depending on your session. A mode change
+asks "keep it?" and goes back on its own after 15 seconds if you don't.
 
 ### Controllers, with a live gamepad tester
 
@@ -180,13 +199,16 @@ Detects connected controllers, generates an `SDL_GAMECONTROLLERCONFIG`
 mapping string, and includes a live tester - every button and axis in real
 time, plus a rumble test to confirm haptics before you launch a game.
 
-### Appearance
+### Appearance, sounds and about
 
 Settings → Appearance: pick a visual style - **Proton Neon** (ambient glow,
 gradient buttons), **Phosphor Console** (near-black, hairline borders),
 **Soft Glass** (calm, rounded) or **Deepslate** (flat, tight radius) - a
 dark/light/system mode, and an accent color from eight presets or any hex
 value. Every style ships with a default accent; the override applies on top.
+Settings → Sounds adds optional interface sounds (three sets, a volume, and
+success/error chimes for saves and installs), and Settings → About shows the
+version, a manual update check, and where the app keeps its files.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the design-system tokens work.
 
 ## Development

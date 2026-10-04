@@ -104,7 +104,7 @@ def test_migrate_legacy(legacy: str, expected: dict) -> None:
 def test_normalize_prefers_appearance_block() -> None:
     settings = {
         "appearance": {"style": "slate", "mode": "light", "accent": "#3ddc84"},
-        "theme": "sandstone",  # should be ignored — appearance block wins
+        "theme": "sandstone",  # should be ignored - appearance block wins
     }
     assert normalize(settings) == {"style": "slate", "mode": "light", "accent": "#3ddc84"}
 

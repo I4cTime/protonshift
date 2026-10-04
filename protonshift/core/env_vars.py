@@ -40,7 +40,7 @@ def _unescape(inner: str) -> str:
 
     ``write_conf`` turns ``\\`` into ``\\\\`` and ``"`` into ``\\"``. A pair of
     ``str.replace`` calls to undo that is order-dependent and corrupts values
-    like ``a\\"b`` — so scan once and consume each backslash-escape explicitly.
+    like ``a\\"b`` - so scan once and consume each backslash-escape explicitly.
     """
     out: list[str] = []
     i = 0
@@ -70,7 +70,7 @@ def read_conf(path: Path) -> dict[str, str]:
                 key = key.strip()
                 val = val.strip()
                 # invert write_conf: strip one layer of matching quotes, then
-                # unescape (double-quoted only — single quotes are literal in
+                # unescape (double-quoted only - single quotes are literal in
                 # environment.d, matching systemd's parser).
                 if len(val) >= 2 and val[0] == '"' and val[-1] == '"':
                     val = _unescape(val[1:-1])

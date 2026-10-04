@@ -56,13 +56,13 @@ jobs:
       # (e.g. flatpak-github-actions/flatpak-builder): that action is built
       # around Flathub-style offline manifests, and its exact input surface
       # for our network-enabled *local* manifest
-      # (flatpak/io.github.i4ctime.protonshift.yml — see flatpak/README.md,
+      # (flatpak/io.github.i4ctime.protonshift.yml - see flatpak/README.md,
       # "works today" variant) isn't worth guessing at.
       #
       # CI uses the *host* flatpak-builder (apt), not org.flatpak.Builder:
       # `flatpak run org.flatpak.Builder` executes flatpak-builder inside its
       # own sandbox, where the runner user's --user installation is not
-      # visible — the build fails with "Unable to find sdk
+      # visible - the build fails with "Unable to find sdk
       # org.freedesktop.Sdk version 24.08" even though the SDK is installed.
       # Local dev still uses org.flatpak.Builder per flatpak/README.md.
       - name: Install flatpak + flatpak-builder

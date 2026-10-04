@@ -3,7 +3,7 @@
 Replaces the old six-fixed-palette scheme with a MineUI-style split: a
 handful of visual STYLES (each carrying its own shape/neutral personality and
 a default accent color), a user-overridable ACCENT, and a MODE
-(system/dark/light) applied independently of style. Pure Python — no PySide6
+(system/dark/light) applied independently of style. Pure Python - no PySide6
 import here, so this is exercised directly in tests/test_appearance.py
 without a QApplication.
 

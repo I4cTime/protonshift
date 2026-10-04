@@ -1,12 +1,12 @@
-"""Read/write Steam localconfig.vdf LaunchOptions — fail-closed.
+"""Read/write Steam localconfig.vdf LaunchOptions - fail-closed.
 
 The old backend swallowed a parse failure into ``{}`` and then rebuilt a minimal
 tree over the top, so a corrupt or mid-write ``localconfig.vdf`` (Steam holds it
-open while running) got overwritten with a stub — destroying every launch option
+open while running) got overwritten with a stub - destroying every launch option
 and per-app setting (review #20, critical). Here a parse failure on an existing
 file makes the write **refuse**, never overwrite.
 
-Scope: LaunchOptions only. CompatToolMapping is intentionally left out — the old
+Scope: LaunchOptions only. CompatToolMapping is intentionally left out - the old
 code read/wrote it in the wrong file (review #H1); porting it needs the
 config.vdf/InstallConfigStore fix, done separately.
 """
@@ -37,7 +37,7 @@ def _get_apps_node(data: dict) -> dict | None:
 def _load_vdf_strict(path: Path) -> dict:
     """Load a VDF file, raising ``VdfParseError`` if it exists but won't parse.
 
-    A *missing* file is not an error (returns ``{}``) — that's a legitimate
+    A *missing* file is not an error (returns ``{}``) - that's a legitimate
     first-write. A present-but-unparseable file raises, so callers can refuse to
     clobber it.
     """
@@ -87,11 +87,11 @@ def read_launch_options(config_path: Path, app_id: str) -> tuple[bool, str]:
 
 def set_launch_options(config_path: Path, app_id: str, options: str) -> bool:
     """Set LaunchOptions for a game. Returns False (writing nothing) if the
-    existing file can't be parsed — never overwrites an unreadable config."""
+    existing file can't be parsed - never overwrites an unreadable config."""
     try:
         data = _load_vdf_strict(config_path)
     except VdfParseError:
-        # #20 fix: the file exists but is unparseable — abort rather than
+        # #20 fix: the file exists but is unparseable - abort rather than
         # rebuild a stub over the user's entire localconfig.
         return False
 
@@ -103,7 +103,7 @@ def set_launch_options(config_path: Path, app_id: str, options: str) -> bool:
     # Steam files in the wild carry either casing; some carry *both*. The old
     # ``setdefault("apps", steam.pop("Apps", {}))`` popped and silently
     # discarded the entire "Apps" subtree whenever "apps" also existed, so the
-    # next save dropped those per-app entries. Merge instead — existing
+    # next save dropped those per-app entries. Merge instead - existing
     # lowercase "apps" keys win on collision.
     legacy = steam.pop("Apps", None)
     apps = steam.get("apps")

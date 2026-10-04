@@ -30,7 +30,7 @@ _SURROUNDING = (
     "\n"
     "export PATH=\"$HOME/bin:$PATH\"   # user's own line, keep verbatim\n"
 )
-_TRAILER = "\n# after the block — must survive too\nalias ll='ls -l'\n"
+_TRAILER = "\n# after the block - must survive too\nalias ll='ls -l'\n"
 
 
 # --- managed block --------------------------------------------------------------
@@ -105,7 +105,7 @@ def test_read_ignores_exports_outside_the_block(tmp_path):
         "'leading and trailing'",
         "$HOME/not/expanded",
         'double "quotes" and $(cmd) `tick` \\ backslash',
-        "a'\\''b",  # already looks escaped — must survive as literal text
+        "a'\\''b",  # already looks escaped - must survive as literal text
     ],
 )
 def test_quoting_round_trips_and_is_single_quoted(tmp_path, value):

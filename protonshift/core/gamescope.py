@@ -119,7 +119,7 @@ def build_gamescope_argv(opts: GamescopeOptions) -> list[str]:
         try:
             parts.extend(shlex.split(opts.extra_args))
         except ValueError:
-            # unbalanced quotes — fall back to whitespace split so the user
+            # unbalanced quotes - fall back to whitespace split so the user
             # at least sees something instead of silent loss
             parts.extend(opts.extra_args.split())
 

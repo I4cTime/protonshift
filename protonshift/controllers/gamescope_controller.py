@@ -2,7 +2,7 @@
 
 This is the entire IPC story in the new architecture: a QObject with
 ``Property``/``Signal``/``Slot`` members. QML binds directly to these; there is
-no HTTP server, no bearer token, no serialization boundary, no localhost port —
+no HTTP server, no bearer token, no serialization boundary, no localhost port -
 so the whole class of transport bugs from the old FastAPI layer cannot exist.
 
 The pattern here (a single shared ``changed`` signal driving every option
@@ -50,7 +50,7 @@ class GamescopeController(QObject):
         super().__init__(parent)
         self._opts = GamescopeOptions()
         # M4: the availability lookup can shell out (flatpak-spawn host which)
-        # — probe on a worker instead of blocking app construction.
+        # - probe on a worker instead of blocking app construction.
         self._available = False
         self._availResult.connect(self._on_avail)
         start_worker(self._avail_work, on_error=lambda _m: self._availResult.emit(False))

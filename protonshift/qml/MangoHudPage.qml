@@ -9,7 +9,7 @@ RowLayout {
     id: page
     spacing: Theme.spaceLg
 
-    // Applying a preset replaces the whole config — confirm before overwriting.
+    // Applying a preset replaces the whole config - confirm before overwriting.
     PsDialog {
         id: presetConfirmDialog
         property string pendingPreset: ""

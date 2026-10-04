@@ -32,7 +32,7 @@ class GameToolsController(QObject):
     statusChanged = Signal()
 
     _infoResult = Signal(str, "QVariantMap")  # app_id, info
-    _actionResult = Signal(str, str, str)  # app_id, message, kind ("ok"/"err") — L1 gating
+    _actionResult = Signal(str, str, str)  # app_id, message, kind ("ok"/"err") - L1 gating
     _workError = Signal(str)  # unexpected worker exception -> clear flags + status
 
     def __init__(self, parent: QObject | None = None) -> None:

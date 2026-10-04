@@ -2,7 +2,7 @@
 
 Ported from the original ProtonShift core (was gated behind a FastAPI route);
 same logic, no web layer. Reads the DXVK/VKD3D version straight out of the PE
-resource of the installed DLLs, sizes the prefix, and can delete it — with the
+resource of the installed DLLs, sizes the prefix, and can delete it - with the
 same defensive ``validate_user_path`` guard so a bug can never ``rmtree`` a
 system path.
 """

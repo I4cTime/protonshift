@@ -109,6 +109,6 @@ body:
     id: context
     attributes:
       label: Additional context
-      description: Any other context — logs, screenshots, related issues, etc.
+      description: Any other context - logs, screenshots, related issues, etc.
     validations:
       required: false

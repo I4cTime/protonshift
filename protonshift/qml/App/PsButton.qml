@@ -64,7 +64,7 @@ Button {
             }
         }
 
-        // keyboard focus ring — drawn inside the button bounds so the
+        // keyboard focus ring - drawn inside the button bounds so the
         // primary variant's layer effect can't clip it
         Rectangle {
             anchors.fill: parent

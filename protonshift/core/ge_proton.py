@@ -1,4 +1,4 @@
-"""GE-Proton manager — list, download, verify, install and remove Proton builds.
+"""GE-Proton manager - list, download, verify, install and remove Proton builds.
 
 Everything lives in Steam's ``compatibilitytools.d``. Releases come from the
 GitHub API for ``GloriousEggroll/proton-ge-custom``; the tarball is streamed to
@@ -6,7 +6,7 @@ a temp file *inside* the compat dir (same filesystem, so the final move is an
 atomic ``rename``), checked against the published ``.sha512sum`` when one is
 attached, extracted with the ``data`` tar filter, and only then moved into
 place. ``remove_tool`` only ever ``rmtree``\\s a direct child of the compat dir
-that is a recognised Proton tool — the resolved path must sit under the dir.
+that is a recognised Proton tool - the resolved path must sit under the dir.
 
 The two network touch points (``_get_json`` and ``_open_stream``) are tiny
 module-level helpers so the test suite can monkeypatch them and stay offline.
@@ -38,7 +38,7 @@ from .steam import (
 )
 
 GITHUB_API = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases"
-USER_AGENT = "ProtonShift/1.2"
+USER_AGENT = "ProtonShift/1.3"
 
 _CHUNK = 256 * 1024
 _TOOL_MARKERS = ("toolmanifest.vdf", "compatibilitytool.vdf")

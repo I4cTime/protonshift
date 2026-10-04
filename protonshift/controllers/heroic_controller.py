@@ -22,7 +22,7 @@ class HeroicController(QObject):
 
     _loadResult = Signal(str, "QVariantMap", list)  # app_id, config, versions
     # M7 fix: toggle/version writes report back via queued signals so all
-    # GUI-read state is mutated on the GUI thread and gated by app_id — the
+    # GUI-read state is mutated on the GUI thread and gated by app_id - the
     # workers no longer touch self._config/_status or emit notifies directly.
     _toggleResult = Signal(str, str, bool, bool)  # app_id, key, value, ok
     _versionResult = Signal(str, bool, str)  # app_id, ok, name

@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import App
 
-// Third slice: the environment.d editor — the safe read-modify-write pattern.
+// Third slice: the environment.d editor - the safe read-modify-write pattern.
 // `env` is the EnvController context property (owns a QAbstractListModel).
 RowLayout {
     id: page
@@ -190,7 +190,7 @@ RowLayout {
 
                     // Set text imperatively (never bind, so user typing can't
                     // break a binding) and re-sync from the model on external
-                    // changes — e.g. a preset merge — unless this field is focused.
+                    // changes - e.g. a preset merge - unless this field is focused.
                     Connections {
                         target: env.model
                         function onDataChanged(topLeft, bottomRight) {

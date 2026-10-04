@@ -24,7 +24,7 @@ ColumnLayout {
 
     // Mimics Python's `{:g}` formatting (up to 6 significant figures, no
     // trailing zeros) so "144.000" reads as "144 Hz" and "59.940" as
-    // "59.94 Hz" — matches core/display.py's DisplayMode.key/.label.
+    // "59.94 Hz" - matches core/display.py's DisplayMode.key/.label.
     function formatRefresh(r) {
         var s = r.toPrecision(6)
         if (s.indexOf(".") >= 0)

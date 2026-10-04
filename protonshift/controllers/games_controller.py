@@ -1,7 +1,7 @@
 """QObject bridge for game discovery (Steam, Non-Steam shortcuts, Heroic, Lutris).
 
 Discovery walks the disk (library folders + appmanifest ACFs), so it runs on a
-worker thread and reports back via a queued signal — the UI shows a loading
+worker thread and reports back via a queued signal - the UI shows a loading
 state instead of freezing. Selection is tracked by ``app_id``, not list index,
 so a refresh that re-sorts or drops a game can't leave the detail pane pointed
 at the wrong title (the stale-snapshot bug from the old React app, review #L4).

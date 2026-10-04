@@ -1,7 +1,7 @@
 [project]
 name = "protonshift"
-version = "1.2.0"
-description = "Native Qt Quick edition of ProtonShift — a Linux gaming setup tool"
+version = "1.3.0"
+description = "Native Qt Quick edition of ProtonShift - a Linux gaming setup tool"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-or-later" }

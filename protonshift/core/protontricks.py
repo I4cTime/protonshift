@@ -1,4 +1,4 @@
-"""protontricks integration — run winetricks verbs against a game's Proton prefix.
+"""protontricks integration - run winetricks verbs against a game's Proton prefix.
 
 protontricks is a wrapper that points winetricks at the right Steam Proton
 prefix for a given app id. We support both the native binary and the Flathub
@@ -7,10 +7,10 @@ so it works from inside our own Flatpak too.
 
 Two kinds of action:
 
-* **verbs** — ``protontricks <appid> <verb> …`` runs a batch of winetricks verbs
+* **verbs** - ``protontricks <appid> <verb> …`` runs a batch of winetricks verbs
   (corefonts, vcrun2022, dxvk, …). Long-running and may download; run off the UI
   thread with a generous timeout.
-* **GUI** — ``protontricks --gui`` (optionally scoped to an app id) opens the
+* **GUI** - ``protontricks --gui`` (optionally scoped to an app id) opens the
   interactive winetricks window; launched detached, we don't wait on it.
 
 The ``--no-bwrap`` flag is passed for verb runs: on some setups (notably the
@@ -27,7 +27,7 @@ from .host import host_argv, host_run, in_flatpak
 from .tool_check import find_tool
 
 # A curated shortlist of the verbs people most often need for Proton games.
-# (verb, human label). Not exhaustive — the GUI covers the long tail.
+# (verb, human label). Not exhaustive - the GUI covers the long tail.
 COMMON_VERBS: tuple[tuple[str, str], ...] = (
     ("corefonts", "MS core fonts"),
     ("vcrun2022", "Visual C++ 2015-2022"),
@@ -50,13 +50,13 @@ def protontricks_base() -> list[str] | None:
     """Return the base argv for protontricks, or ``None`` if not installed.
 
     Prefers a native binary; falls back to the Flathub package. The returned
-    argv is *not* yet wrapped for the host — pass it through :func:`host_argv`
+    argv is *not* yet wrapped for the host - pass it through :func:`host_argv`
     (or :func:`host_run`) at call time.
     """
     native = find_tool("protontricks")
     if native:
         return [native]
-    # Flathub package — probe via the host's flatpak.
+    # Flathub package - probe via the host's flatpak.
     try:
         r = host_run(
             ["flatpak", "info", _FLATPAK_ID],
@@ -121,7 +121,7 @@ def _verb_env() -> dict | None:
 
 
 def run_verbs(appid: str, verbs: list[str], timeout: int = 1800) -> tuple[bool, str]:
-    """Run winetricks ``verbs`` for ``appid``. Blocking — call off the UI thread.
+    """Run winetricks ``verbs`` for ``appid``. Blocking - call off the UI thread.
 
     Returns ``(ok, combined_output)``.
     """

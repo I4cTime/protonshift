@@ -70,6 +70,6 @@ body:
     id: context
     attributes:
       label: Additional context
-      description: Anything else — mockups, links, related issues, etc.
+      description: Anything else - mockups, links, related issues, etc.
     validations:
       required: false
