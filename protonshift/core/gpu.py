@@ -105,7 +105,7 @@ def _system76_power_profile_query() -> subprocess.CompletedProcess[str] | None:
 
 def get_power_profiles() -> list[str]:
     """Get available power profiles."""
-    # system76-power (Pop!_OS) — modern CLI has no `profile list`; values are battery|balanced|performance
+    # system76-power (Pop!_OS) - modern CLI has no `profile list`; values are battery|balanced|performance
     r = _system76_power_profile_query()
     if r is not None and r.returncode == 0 and r.stdout.strip():
         return ["battery", "balanced", "performance"]

@@ -16,7 +16,7 @@ Popup {
     dim: true
     anchors.centerIn: Overlay.overlay
     width: 640
-    // Never taller than the window — the body Flickable scrolls instead, so
+    // Never taller than the window - the body Flickable scrolls instead, so
     // footer buttons stay reachable on short windows.
     height: Overlay.overlay
             ? Math.min(implicitHeight, Overlay.overlay.height - 2 * Theme.spaceLg)
@@ -111,7 +111,7 @@ Popup {
 
         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-        // body — children land here. Wrapped in a Flickable so that when the
+        // body - children land here. Wrapped in a Flickable so that when the
         // dialog is height-clamped to the window the content scrolls.
         Flickable {
             id: bodyFlick

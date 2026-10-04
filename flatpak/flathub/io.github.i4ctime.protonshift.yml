@@ -1,8 +1,8 @@
-# ProtonShift — FLATHUB manifest (offline, no network during build).
+# ProtonShift - FLATHUB manifest (offline, no network during build).
 #
 # Unlike the local manifest (flatpak/io.github.i4ctime.protonshift.yml, which
 # pip-installs PySide6 with network access), Flathub forbids build-time network.
-# The Flathub-blessed way to ship PySide6 is the io.qt.PySide.BaseApp — it
+# The Flathub-blessed way to ship PySide6 is the io.qt.PySide.BaseApp - it
 # provides PySide6/shiboken6 built against org.kde.Platform, so we do NOT vendor
 # the (huge) PySide6 wheel. We only vendor `vdf` (pure-Python, tiny) and install
 # our own package with --no-index.
@@ -31,6 +31,8 @@ finish-args:
   - --share=network
   - --socket=wayland
   - --socket=fallback-x11
+  # Interface sounds (Settings, Sounds); playback only.
+  - --socket=pulseaudio
   - --device=dri
   # game controllers (gamepad tester)
   - --device=input
@@ -56,7 +58,7 @@ finish-args:
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl
   # Host tool detection and launch (gamescope, mangohud, protontricks) and
   # display enumeration (wlr-randr) run on the host via `flatpak-spawn --host`.
-  # Core functionality — linter exception requested in the submission PR;
+  # Core functionality - linter exception requested in the submission PR;
   # precedent: io.github.dvlv.boxbuddyrs ("Requires use of Distrobox on the
   # host"). Steam/Heroic appdata rw precedent: com.github.Matoking.protontricks.
   - --talk-name=org.freedesktop.Flatpak
@@ -71,7 +73,7 @@ cleanup-commands:
   - rm -rf /app/lib/python3/dist-packages/PySide6/examples || true
 
 modules:
-  # vdf — pure-Python, vendored as a pinned wheel (see gen-vendor.sh).
+  # vdf - pure-Python, vendored as a pinned wheel (see gen-vendor.sh).
   - python3-vdf.yaml
 
   - name: protonshift

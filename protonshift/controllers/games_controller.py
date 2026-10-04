@@ -1,7 +1,7 @@
-"""QObject bridge for Steam game discovery.
+"""QObject bridge for game discovery (Steam, Non-Steam shortcuts, Heroic, Lutris).
 
 Discovery walks the disk (library folders + appmanifest ACFs), so it runs on a
-worker thread and reports back via a queued signal — the UI shows a loading
+worker thread and reports back via a queued signal - the UI shows a loading
 state instead of freezing. Selection is tracked by ``app_id``, not list index,
 so a refresh that re-sorts or drops a game can't leave the detail pane pointed
 at the wrong title (the stale-snapshot bug from the old React app, review #L4).
@@ -16,52 +16,99 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from ..core.steam import SteamGame, discover_games, invalidate_discovery_cache
 from ._worker import start_worker
 
+_HEROIC_STORES = {"epic": "Epic", "gog": "GOG", "amazon": "Amazon", "sideload": "Sideloaded"}
+_LUTRIS_RUNNERS = {"wine": "Wine", "linux": "Linux native", "steam": "Steam", "flatpak": "Flatpak"}
+_LUTRIS_SERVICES = {"gog": "GOG", "egs": "Epic", "humblebundle": "Humble", "amazon": "Amazon",
+                    "ubisoft": "Ubisoft", "ea_app": "EA", "battlenet": "Battle.net", "itchio": "itch.io"}
+
+
+def _game(**fields) -> dict:
+    """One library row for QML. Every source fills the same keys.
+
+    ``prefixKind`` tells the UI what a prefix means for this game: ``proton``
+    (Steam), ``wine`` (Heroic/Lutris Windows games) or ``none`` (Linux-native,
+    nothing to manage). ``idLabel`` is the ready-to-show second line.
+    """
+    base = {
+        "appId": "", "name": "", "source": "steam", "store": "steam", "storeLabel": "Steam",
+        "idLabel": "", "prefixKind": "proton", "installDir": "", "lastPlayed": 0,
+        "hasPrefix": False, "installPath": "", "compatdataPath": "", "libraryPath": "",
+        "launchUri": "", "launchOptions": "",
+    }
+    base.update(fields)
+    return base
+
 
 def _to_dict(g: SteamGame) -> dict:
-    return {
-        "appId": g.app_id,
-        "name": g.name,
-        "source": "steam",
-        "store": "steam",
-        "installDir": g.install_dir,
-        "lastPlayed": g.last_played,
-        "hasPrefix": g.has_compatdata,
-        "installPath": str(g.install_path) if g.install_path else "",
-        "compatdataPath": str(g.compatdata_path) if g.compatdata_path else "",
-        "libraryPath": str(g.library_path),
-    }
+    return _game(
+        appId=g.app_id,
+        name=g.name,
+        idLabel=f"App {g.app_id}",
+        installDir=g.install_dir,
+        lastPlayed=g.last_played,
+        hasPrefix=g.has_compatdata,
+        installPath=str(g.install_path) if g.install_path else "",
+        compatdataPath=str(g.compatdata_path) if g.compatdata_path else "",
+        libraryPath=str(g.library_path),
+        launchUri=f"steam://rungameid/{g.app_id}",
+    )
+
+
+def _shortcut_to_dict(g) -> dict:
+    prefix = str(g.compatdata_path) if g.compatdata_path else ""
+    return _game(
+        appId=g.app_id,
+        name=g.name,
+        source="shortcut",
+        store="shortcut",
+        storeLabel="Non-Steam",
+        idLabel=f"Non-Steam shortcut · {g.app_id}",
+        hasPrefix=bool(prefix),
+        installPath=str(g.start_dir) if g.start_dir else "",
+        compatdataPath=prefix,
+        launchUri=f"steam://rungameid/{g.game_id}",
+        launchOptions=g.launch_options,
+    )
 
 
 def _heroic_to_dict(g) -> dict:
     prefix = str(g.prefix_path) if g.prefix_path else ""
-    return {
-        "appId": g.app_id,
-        "name": g.name,
-        "source": "heroic",
-        "store": g.store,  # "epic" | "gog"
-        "installDir": "",
-        "lastPlayed": 0,
-        "hasPrefix": bool(prefix),
-        "installPath": str(g.install_path) if g.install_path else "",
-        "compatdataPath": prefix,
-        "libraryPath": "",
-    }
+    label = _HEROIC_STORES.get(g.store, "Heroic")
+    return _game(
+        appId=g.app_id,
+        name=g.name,
+        source="heroic",
+        store=g.store,
+        storeLabel=label,
+        idLabel=f"{label} · {g.app_id}" + (" · Linux native" if g.is_native else ""),
+        prefixKind="none" if g.is_native else "wine",
+        hasPrefix=bool(prefix),
+        installPath=str(g.install_path) if g.install_path else "",
+        compatdataPath=prefix,
+        launchUri=f"heroic://launch/{g.app_id}",
+    )
 
 
 def _lutris_to_dict(g) -> dict:
     prefix = str(g.prefix_path) if g.prefix_path else ""
-    return {
-        "appId": g.app_id,
-        "name": g.name,
-        "source": "lutris",
-        "store": "lutris",
-        "installDir": "",
-        "lastPlayed": 0,
-        "hasPrefix": bool(prefix),
-        "installPath": str(g.install_path) if g.install_path else "",
-        "compatdataPath": prefix,
-        "libraryPath": "",
-    }
+    runner = _LUTRIS_RUNNERS.get(g.runner, g.runner)
+    service = _LUTRIS_SERVICES.get(g.service, "")
+    # e.g. "Wine · GOG · the-witcher-3": how it runs, where it came from, its id
+    parts = [p for p in (runner, service, g.app_id) if p]
+    return _game(
+        appId=g.app_id,
+        name=g.name,
+        source="lutris",
+        store="lutris",
+        storeLabel="Lutris",
+        idLabel=" · ".join(parts),
+        # only Wine games have a prefix to manage; native and emulated ones don't
+        prefixKind="wine" if g.runner in ("wine", "") else "none",
+        hasPrefix=bool(prefix),
+        installPath=str(g.install_path) if g.install_path else "",
+        compatdataPath=prefix,
+        launchUri=f"lutris:rungame/{g.app_id}",
+    )
 
 
 class GamesController(QObject):
@@ -103,8 +150,8 @@ class GamesController(QObject):
 
     @Property("QVariantMap", notify=gamesChanged)
     def sourceCounts(self) -> dict:
-        """Per-source game counts for the library filter (steam/heroic/lutris)."""
-        counts: dict[str, int] = {"steam": 0, "heroic": 0, "lutris": 0}
+        """Per-source game counts for the library filter."""
+        counts: dict[str, int] = {"steam": 0, "shortcut": 0, "heroic": 0, "lutris": 0}
         for g in self._games:
             counts[g.get("source", "steam")] = counts.get(g.get("source", "steam"), 0) + 1
         return counts
@@ -142,13 +189,16 @@ class GamesController(QObject):
     def _work(self) -> None:
         from ..core.heroic import discover_heroic_games
         from ..core.lutris import discover_lutris_games
+        from ..core.steam_shortcuts import discover_shortcuts
 
         invalidate_discovery_cache()
         root, games = discover_games()
         merged = [_to_dict(g) for g in games]
-        # Heroic (Epic/GOG) and Lutris games sit alongside Steam ones, tagged by
-        # source so the UI can filter and gate Steam-only actions.
-        # A broken Heroic or Lutris install must not kill Steam discovery.
+        # Non-Steam shortcuts, Heroic and Lutris games sit alongside Steam ones,
+        # tagged by source so the UI can filter and gate Steam-only actions.
+        # A broken shortcuts file, Heroic or Lutris install must not kill Steam discovery.
+        with contextlib.suppress(Exception):
+            merged += [_shortcut_to_dict(g) for g in discover_shortcuts(root)]
         with contextlib.suppress(Exception):
             merged += [_heroic_to_dict(g) for g in discover_heroic_games()]
         with contextlib.suppress(Exception):

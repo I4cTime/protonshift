@@ -10,6 +10,11 @@ RowLayout {
     id: page
     spacing: Theme.spaceLg
 
+    // The game this command can be added to: the Library's selection, when it
+    // is a Steam game whose launch options are loaded.
+    readonly property bool hasTarget: (library.selected.source || "") === "steam" && launch.loaded
+    readonly property string targetName: library.selected.name || ""
+
     // ============================ CONTROLS =================================
     PsCard {
         Layout.preferredWidth: 560
@@ -227,7 +232,7 @@ RowLayout {
             PsSectionHeader {
                 Layout.fillWidth: true
                 text: "Launch command"
-                subtitle: "Paste into a game's Steam launch options."
+                subtitle: "A complete Steam launch-options line. Add it to the game selected in Library, or copy it."
             }
 
             Rectangle {
@@ -268,23 +273,42 @@ RowLayout {
                 }
             }
 
-            RowLayout {
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: copied.running ? "Copied to clipboard."
+                      : added.running ? "Added to " + page.targetName + "'s launch options. Not saved yet: review and save it in Library."
+                      : page.hasTarget ? "Selected in Library: " + page.targetName + "."
+                      : "Select a Steam game in Library to add this to its launch options."
+                color: (copied.running || added.running) ? Theme.success : Theme.faint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
-                Text {
-                    Layout.fillWidth: true
-                    text: copied.running ? "Copied to clipboard" : ""
-                    color: Theme.success
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fsCaption
+                PsButton {
+                    text: page.hasTarget ? "Add to " + page.targetName : "Add to game"
+                    enabled: page.hasTarget
+                    // long game names must not push the button off the card
+                    width: Math.min(implicitWidth, 320)
+                    onClicked: { launch.appendPreset(gamescope.prefix); added.restart() }
+                }
+                PsButton {
+                    text: "Open Library"
+                    primary: false
+                    visible: page.hasTarget && launch.dirty
+                    onClicked: window.currentPage = 0
                 }
                 PsButton {
                     text: "Copy command"
+                    primary: false
                     onClicked: { gamescope.copyCommand(); copied.restart() }
                 }
             }
         }
 
         Timer { id: copied; interval: 1600; repeat: false }
+        Timer { id: added; interval: 6000; repeat: false }
     }
 }

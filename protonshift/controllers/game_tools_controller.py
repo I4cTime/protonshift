@@ -32,7 +32,7 @@ class GameToolsController(QObject):
     statusChanged = Signal()
 
     _infoResult = Signal(str, "QVariantMap")  # app_id, info
-    _actionResult = Signal(str, str, str)  # app_id, message, kind ("ok"/"err") — L1 gating
+    _actionResult = Signal(str, str, str)  # app_id, message, kind ("ok"/"err") - L1 gating
     _workError = Signal(str)  # unexpected worker exception -> clear flags + status
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -157,6 +157,14 @@ class GameToolsController(QObject):
         self._status_ok = ok
         self.statusChanged.emit()
 
+    @Slot(str)
+    def launchUri(self, uri: str) -> None:
+        """Launch through the game's own launcher (steam://, heroic://, lutris:)."""
+        ok, msg = open_uri(uri)
+        self._status = msg or ("Launching…" if ok else "Couldn't launch.")
+        self._status_ok = ok
+        self.statusChanged.emit()
+
     @Slot()
     def launchGame(self) -> None:
         if not self._app_id:
@@ -189,7 +197,7 @@ class GameToolsController(QObject):
         ok = delete_prefix(prefix_path)
         self._actionResult.emit(
             app_id,
-            "Prefix deleted — Steam will recreate it on next launch." if ok
+            "Prefix deleted. It is recreated the next time the game runs." if ok
             else "Couldn't delete the prefix.",
             "ok" if ok else "err",
         )

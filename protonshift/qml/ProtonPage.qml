@@ -228,7 +228,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     visible: geProton.releases.length === 0 && !geProton.busy
                     text: geProton.error.length > 0
-                          ? "Couldn't reach GitHub — installed builds still work."
+                          ? "Couldn't reach GitHub - installed builds still work."
                           : "No releases found."
                     wrapMode: Text.WordWrap
                     color: Theme.faint
@@ -327,7 +327,7 @@ ColumnLayout {
                         Text {
                             Layout.fillWidth: true
                             text: "Installing " + geProton.installingTag
-                                  + (geProton.progressLabel ? " — " + geProton.progressLabel : "")
+                                  + (geProton.progressLabel ? " - " + geProton.progressLabel : "")
                             elide: Text.ElideRight
                             color: Theme.muted
                             font.family: Theme.fontFamily

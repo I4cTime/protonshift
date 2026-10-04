@@ -1,4 +1,4 @@
-"""Display outputs, modes, and resolution switching — cross-session.
+"""Display outputs, modes, and resolution switching - cross-session.
 
 Reads the connected monitors and their modes from whichever tool the session
 provides, and applies a mode where the backend supports it:
@@ -90,7 +90,7 @@ def detect_backend() -> str | None:
             return "wlr-randr"
         if find_tool("kscreen-doctor"):
             return "kscreen-doctor"
-        # XWayland fallback — xrandr often still reports the virtual output.
+        # XWayland fallback - xrandr often still reports the virtual output.
         if find_tool("xrandr"):
             return "xrandr"
         return None
@@ -352,6 +352,46 @@ def _hypr_position_scale(output: str) -> tuple[str, str]:
     return "auto", "1"
 
 
+# Hyprland monitor names (eDP-1, HDMI-A-1, DP-3...). The name is spliced into
+# a Lua string for `hyprctl eval`, so anything outside this set is refused.
+_HYPR_OUTPUT_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
+
+
+def hypr_monitor_lua(output: str, mode: str, pos: str, scale: str) -> str | None:
+    """The Lua call that sets one monitor's mode, or None for an unsafe name."""
+    if not _HYPR_OUTPUT_RE.match(output) or not re.match(r"^\d+x\d+(@[\d.]+)?$", mode):
+        return None
+    if not re.match(r"^(auto|-?\d+x-?\d+)$", pos) or not re.match(r"^[\d.]+$", scale):
+        return None
+    return f'hl.monitor({{ output = "{output}", mode = "{mode}", position = "{pos}", scale = {scale} }})'
+
+
+def _hypr_set_mode(output: str, mode: str, pos: str, scale: str, done: str) -> tuple[bool, str]:
+    """Apply a mode on Hyprland, whichever config parser it runs.
+
+    Classic (hyprlang) configs take ``hyprctl keyword monitor ...``. Lua
+    configs refuse that ("keyword can't work with non-legacy parsers. Use
+    eval.") while still exiting 0, so success is read from the reply text
+    ("ok"), and the Lua form is sent through ``hyprctl eval`` instead.
+    """
+    attempts = [["hyprctl", "keyword", "monitor", f"{output},{mode},{pos},{scale}"]]
+    lua = hypr_monitor_lua(output, mode, pos, scale)
+    if lua:
+        attempts.append(["hyprctl", "eval", lua])
+    reply = "Failed"
+    for argv in attempts:
+        try:
+            r = host_run(argv, capture_output=True, text=True, timeout=10)
+        except (FileNotFoundError, OSError, subprocess.SubprocessError) as exc:
+            return False, f"Couldn't run hyprctl: {exc}"
+        reply = (r.stdout or r.stderr or "Failed").strip()
+        if r.returncode == 0 and reply.lower() == "ok":
+            return True, done
+        if "eval" not in reply.lower():
+            break  # a real error, not "use eval instead"
+    return False, f"Hyprland refused the mode: {reply}"
+
+
 def set_mode(output: str, width: int, height: int, refresh: float) -> tuple[bool, str]:
     """Apply ``width×height@refresh`` to ``output``. Returns ``(ok, message)``."""
     backend = detect_backend()
@@ -368,13 +408,14 @@ def set_mode(output: str, width: int, height: int, refresh: float) -> tuple[bool
             mode += f"@{refresh:g}Hz"
         argv = ["wlr-randr", "--output", output, "--mode", mode]
     elif backend == "hyprctl":
-        # `hyprctl keyword monitor NAME,WxH@R,XxY,SCALE` — keep the monitor's
+        # `hyprctl keyword monitor NAME,WxH@R,XxY,SCALE` - keep the monitor's
         # current position and scale so only the mode changes.
         pos, scale = _hypr_position_scale(output)
         mode = f"{width}x{height}"
         if refresh:
             mode += f"@{refresh:g}"
-        argv = ["hyprctl", "keyword", "monitor", f"{output},{mode},{pos},{scale}"]
+        done = f"Set {output} to {width}×{height}" + (f" @ {refresh:g} Hz" if refresh else "")
+        return _hypr_set_mode(output, mode, pos, scale, done)
     elif backend == "kscreen-doctor":
         oid = _kscreen_output_index(output)
         if oid is None:
@@ -383,7 +424,7 @@ def set_mode(output: str, width: int, height: int, refresh: float) -> tuple[bool
         if refresh:
             target += f"@{round(refresh)}"
         argv = ["kscreen-doctor", target]
-    else:  # pragma: no cover — detect_backend only returns the four above
+    else:  # pragma: no cover - detect_backend only returns the four above
         return False, "Unsupported display backend."
 
     try:
@@ -391,5 +432,5 @@ def set_mode(output: str, width: int, height: int, refresh: float) -> tuple[bool
     except (FileNotFoundError, OSError, subprocess.SubprocessError) as exc:
         return False, f"Couldn't run {backend}: {exc}"
     if r.returncode == 0:
-        return True, f"Set {output} to {width}×{height}"
+        return True, f"Set {output} to {width}×{height}" + (f" @ {refresh:g} Hz" if refresh else "")
     return False, (r.stderr or r.stdout or "Failed").strip()

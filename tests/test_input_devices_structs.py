@@ -53,7 +53,7 @@ def test_unpack_effect_id_roundtrip() -> None:
 
 def test_play_event_layout() -> None:
     ev = pack_ff_play(7, 1)
-    assert len(ev) == 24  # not 16 — timeval is two 8-byte longs on 64-bit
+    assert len(ev) == 24  # not 16 - timeval is two 8-byte longs on 64-bit
     sec, usec, etype, code, value = struct.unpack("=qqHHi", ev)
     assert (sec, usec) == (0, 0)
     assert etype == _EV_FF

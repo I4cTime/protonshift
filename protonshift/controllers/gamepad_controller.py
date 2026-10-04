@@ -43,7 +43,7 @@ class GamepadController(QObject):
         self._status = ""
         self._status_ok = True
         # live test state. The poll thread OWNS its fd (opens-close lifecycle):
-        # stopTest only signals the per-test Event — it never closes the fd,
+        # stopTest only signals the per-test Event - it never closes the fd,
         # so a slow thread can't read from a recycled descriptor (L2). Each
         # test gets a fresh Event so a timed-out join can't race a clear().
         self._test_path = ""
@@ -136,7 +136,7 @@ class GamepadController(QObject):
         self._test_name = name
         self._buttons = [False] * max(nbtn, 1)
         self._axes = [0.0] * max(naxes, 1)
-        stop = threading.Event()  # fresh per test — no set/clear race with a slow join
+        stop = threading.Event()  # fresh per test - no set/clear race with a slow join
         self._stop = stop
         self._thread = threading.Thread(
             target=self._test_loop, args=(fd, stop), daemon=True
@@ -151,7 +151,7 @@ class GamepadController(QObject):
             self._stop.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=0.3)
-        # The poll thread closes its own fd on exit — even if the join timed
+        # The poll thread closes its own fd on exit - even if the join timed
         # out, the thread sees the (per-test) Event within one poll tick and
         # cleans up; nothing here can close an fd another thread still reads.
         self._thread = None
@@ -195,7 +195,7 @@ class GamepadController(QObject):
                 time.sleep(0.016)
         finally:
             try:
-                os.close(fd)  # thread owns the fd — sole closer (L2)
+                os.close(fd)  # thread owns the fd - sole closer (L2)
             except OSError:
                 pass
 

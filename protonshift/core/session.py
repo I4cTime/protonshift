@@ -4,7 +4,7 @@
 is started by that manager (GNOME, KDE Plasma, sway/Hyprland under uwsm, …)
 inherits the variables, and so does every game launched from it. A desktop
 started the classic way by a display manager (Cinnamon, XFCE, MATE, a bare
-X11 ``startx`` session, …) never sees them — the file is written, nothing is
+X11 ``startx`` session, …) never sees them - the file is written, nothing is
 wrong with it, and MangoHud/Gamemode simply don't activate (#47).
 
 ``systemctl --user is-active graphical-session.target`` is the honest test:
@@ -23,7 +23,7 @@ from .host import host_run
 SYSTEMD = "systemd"  # environment.d applies (after a re-login)
 NOT_SYSTEMD = "not-systemd"  # systemd present, but the desktop isn't started by it
 NO_SYSTEMD = "no-systemd"  # no systemctl at all (Void, Artix, …)
-UNKNOWN = "unknown"  # couldn't tell — don't warn
+UNKNOWN = "unknown"  # couldn't tell - don't warn
 
 
 def session_env_support() -> str:

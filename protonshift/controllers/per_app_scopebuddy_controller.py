@@ -106,7 +106,7 @@ class PerAppScopeBuddyController(QObject):
         if not key:
             return
         if not _valid_key(key):
-            self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+            self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -120,7 +120,7 @@ class PerAppScopeBuddyController(QObject):
         cfg = self._model.to_dict()
         bad = next((k for k in cfg if not _valid_key(k)), None)
         if bad is not None:
-            self._status = f"Not saved — key “{bad}” is invalid."
+            self._status = f"Not saved - key “{bad}” is invalid."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -139,7 +139,7 @@ class PerAppScopeBuddyController(QObject):
                 self.dirtyChanged.emit()
                 self.existsChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 
@@ -173,7 +173,7 @@ class PerAppScopeBuddyController(QObject):
             self.statusChanged.emit()
 
     def _on_invalid_key(self, key: str) -> None:
-        self._status = f"Key “{key}” is invalid — letters, digits, underscore only."
+        self._status = f"Key “{key}” is invalid - letters, digits, underscore only."
         self._status_ok = False
         self.statusChanged.emit()
 

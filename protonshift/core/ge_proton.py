@@ -1,4 +1,4 @@
-"""GE-Proton manager — list, download, verify, install and remove Proton builds.
+"""GE-Proton manager - list, download, verify, install and remove Proton builds.
 
 Everything lives in Steam's ``compatibilitytools.d``. Releases come from the
 GitHub API for ``GloriousEggroll/proton-ge-custom``; the tarball is streamed to
@@ -6,7 +6,7 @@ a temp file *inside* the compat dir (same filesystem, so the final move is an
 atomic ``rename``), checked against the published ``.sha512sum`` when one is
 attached, extracted with the ``data`` tar filter, and only then moved into
 place. ``remove_tool`` only ever ``rmtree``\\s a direct child of the compat dir
-that is a recognised Proton tool — the resolved path must sit under the dir.
+that is a recognised Proton tool - the resolved path must sit under the dir.
 
 The two network touch points (``_get_json`` and ``_open_stream``) are tiny
 module-level helpers so the test suite can monkeypatch them and stay offline.
@@ -38,7 +38,7 @@ from .steam import (
 )
 
 GITHUB_API = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases"
-USER_AGENT = "ProtonShift/1.2"
+USER_AGENT = "ProtonShift/1.3"
 
 _CHUNK = 256 * 1024
 _TOOL_MARKERS = ("toolmanifest.vdf", "compatibilitytool.vdf")
@@ -89,7 +89,7 @@ def _network_error(exc: Exception) -> GeProtonError:
         if exc.code == 403 and exc.headers.get("X-RateLimit-Remaining") == "0":
             return GeProtonError("GitHub rate limit reached, try again in an hour")
         if exc.code == 404:
-            return GeProtonError("GitHub returned 404 — the release asset is gone")
+            return GeProtonError("GitHub returned 404 - the release asset is gone")
         return GeProtonError(f"GitHub returned HTTP {exc.code}")
     if isinstance(exc, urllib.error.URLError):
         return GeProtonError(f"Couldn't reach GitHub: {exc.reason}")
@@ -375,7 +375,7 @@ def download_and_install(
         if release.sha512_url:
             expected = _read_expected_sha512(release.sha512_url)
             if expected and expected != digest.hexdigest():
-                raise GeProtonError(f"Checksum mismatch for {release.tag} — download discarded")
+                raise GeProtonError(f"Checksum mismatch for {release.tag} - download discarded")
 
         extract_dir = Path(tempfile.mkdtemp(prefix=".ge-extract-", dir=str(target_dir)))
         try:
@@ -419,7 +419,7 @@ def remove_tool(name: str) -> None:
     if tool is None:
         raise GeProtonError(f"{name} isn't an installed Proton tool")
     if not tool.removable:
-        raise GeProtonError(f"{name} was installed by your package manager — remove it there")
+        raise GeProtonError(f"{name} was installed by your package manager - remove it there")
     candidate = compat / tool.dir_name
     try:
         resolved = validate_within(compat, candidate)

@@ -1,4 +1,4 @@
-"""Game-specific fixes database — built-in and user-contributed."""
+"""Game-specific fixes database - built-in and user-contributed."""
 
 from __future__ import annotations
 

@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import App
 
-// Branded startup overlay. NOT a separate window — it's an opaque layer that
+// Branded startup overlay. NOT a separate window - it's an opaque layer that
 // fills the main window, hiding the UI behind it for a beat, then fades out to
 // reveal the app. (An earlier version used a second Window; nested Window.close()
 // is unreliable across compositors and left a ghost window on screen.)

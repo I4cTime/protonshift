@@ -11,7 +11,60 @@ RowLayout {
     spacing: Theme.spaceLg
 
     property string query: ""
-    property string sourceFilter: "all"   // all | steam | heroic | lutris
+    property string sourceFilter: "all"   // all | steam | shortcut | heroic | lutris
+
+    function sourceLabel(source) {
+        if (source === "heroic") return "Heroic"
+        if (source === "lutris") return "Lutris"
+        if (source === "shortcut") return "Non-Steam"
+        return "Steam"
+    }
+    function runLaunchCheck() {
+        var g = library.selected
+        // "\u0000" = read the saved launch options from Steam; a Non-Steam
+        // shortcut carries its own, which Steam keeps inside the shortcut.
+        launchCheck.run(g.appId, g.installPath || "", g.compatdataPath || "",
+                        g.source === "shortcut" ? (g.launchOptions || "") : "\u0000",
+                        (g.source === "steam" && protondb.enabled && protondb.loaded) ? protondb.tierLabel : "")
+    }
+    function levelColor(level) {
+        if (level === "error") return Theme.danger
+        if (level === "warn") return Theme.warning
+        if (level === "ok") return Theme.success
+        return Theme.muted
+    }
+    function levelGlyph(level) {
+        if (level === "error") return "✕"
+        if (level === "warn") return "!"
+        if (level === "ok") return "✓"
+        return "i"
+    }
+
+    // Selecting another game reloads the launch options, which would drop
+    // unsaved edits without a word. Ask first.
+    function requestSelect(appId) {
+        if (appId === library.selectedAppId)
+            return
+        if (launch.dirty) {
+            unsavedDialog.pendingAppId = appId
+            unsavedDialog.open()
+        } else {
+            library.select(appId)
+        }
+    }
+    // Up/Down in the game list: select the neighbour and keep it in view.
+    function stepSelection(delta) {
+        if (filtered.length === 0)
+            return
+        var at = -1
+        for (var i = 0; i < filtered.length; i++)
+            if (filtered[i].appId === library.selectedAppId) { at = i; break }
+        var next = Math.max(0, Math.min(filtered.length - 1, at < 0 ? 0 : at + delta))
+        if (next === at)
+            return
+        list.positionViewAtIndex(next, ListView.Contain)
+        requestSelect(filtered[next].appId)
+    }
     // Rebuilt imperatively rather than via a binding: a fresh array on every
     // change made the ListView reset and jump to the top. refilter() skips
     // rebuilds whose result is identical, and preserves the scroll position
@@ -45,11 +98,13 @@ RowLayout {
         target: library
         function onGamesChanged() { page.refilter(true) }
         function onSelectedChanged() {
-            launch.appId = library.selectedAppId
+            // launch options and the Proton choice exist only for Steam's own
+            // games and its Non-Steam shortcuts
+            var src = library.selected.source || "steam"
+            launch.appId = (src === "steam" || src === "shortcut") ? library.selectedAppId : ""
             gameTools.appId = library.selectedAppId
             gameTools.prefixPath = library.selected.compatdataPath || ""
             gameTools.installPath = library.selected.installPath || ""
-            detailCard.confirmDelete = false
             profiles.appId = library.selectedAppId
             saves.appId = library.selectedAppId
             saves.prefixPath = library.selected.compatdataPath || ""
@@ -79,23 +134,12 @@ RowLayout {
                     subtitle: library.loading ? "Scanning…"
                               : library.count + " game" + (library.count === 1 ? "" : "s")
                 }
-                Text {
-                    text: "↻"
-                    color: refreshArea.containsMouse ? Theme.primaryBright : Theme.muted
-                    font.pixelSize: 18
-                    MouseArea {
-                        id: refreshArea
-                        anchors.fill: parent
-                        anchors.margins: -6
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: library.refresh()
-                    }
-                    RotationAnimation on rotation {
-                        running: library.loading
-                        loops: Animation.Infinite
-                        from: 0; to: 360; duration: 900
-                    }
+                PsIconButton {
+                    glyph: "↻"
+                    label: "Rescan the library"
+                    spinning: library.loading
+                    enabled: !library.loading
+                    onClicked: library.refresh()
                 }
             }
 
@@ -129,35 +173,22 @@ RowLayout {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceXs
-                visible: (library.sourceCounts.heroic > 0) || (library.sourceCounts.lutris > 0)
+                visible: library.count > (library.sourceCounts.steam || 0)
                 Repeater {
                     model: [
                         { k: "all", l: "All", n: library.count },
                         { k: "steam", l: "Steam", n: library.sourceCounts.steam || 0 },
+                        { k: "shortcut", l: "Non-Steam", n: library.sourceCounts.shortcut || 0 },
                         { k: "heroic", l: "Heroic", n: library.sourceCounts.heroic || 0 },
                         { k: "lutris", l: "Lutris", n: library.sourceCounts.lutris || 0 }
                     ]
-                    delegate: Rectangle {
+                    delegate: PsChip {
                         required property var modelData
                         visible: modelData.k === "all" || modelData.n > 0
-                        implicitWidth: sfLbl.implicitWidth + 18
-                        implicitHeight: 24
-                        radius: 12
-                        property bool active: page.sourceFilter === modelData.k
-                        color: active ? Theme.surfaceElevated : (sfh.hovered ? Theme.surface : Theme.bgDeep)
-                        border.color: active ? Theme.primary : Theme.border
-                        border.width: active ? 2 : 1
-                        Behavior on color { ColorAnimation { duration: 100 } }
-                        HoverHandler { id: sfh }
-                        TapHandler { onTapped: page.sourceFilter = modelData.k }
-                        Text {
-                            id: sfLbl
-                            anchors.centerIn: parent
-                            text: modelData.l + " " + modelData.n
-                            color: active ? Theme.primaryBright : Theme.muted
-                            font.family: Theme.fontFamily; font.pixelSize: 10
-                            font.weight: active ? Font.DemiBold : Font.Normal
-                        }
+                        text: modelData.l + " " + modelData.n
+                        active: page.sourceFilter === modelData.k
+                        Accessible.name: "Show " + modelData.l + " games (" + modelData.n + ")"
+                        onClicked: page.sourceFilter = modelData.k
                     }
                 }
             }
@@ -177,10 +208,12 @@ RowLayout {
                     color: Theme.faint
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsSmall
-                    text: !library.steamFound
-                          ? "Steam installation not found."
-                          : (library.count === 0 ? "No installed games found."
-                                                  : "No games match “" + page.query + "”.")
+                    text: library.count === 0
+                          ? (library.steamFound
+                             ? "No installed games found."
+                             : "No games found. ProtonShift looked for Steam, Heroic and Lutris libraries.")
+                          : (page.query.length > 0 ? "No games match “" + page.query + "”."
+                                                   : "No " + page.sourceLabel(page.sourceFilter) + " games.")
                 }
 
                 ListView {
@@ -190,6 +223,24 @@ RowLayout {
                     spacing: 4
                     model: page.filtered
                     boundsBehavior: Flickable.StopAtBounds
+
+                    // one Tab stop for the whole list; Up/Down pick a game
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.List
+                    Accessible.name: "Games"
+                    Keys.onUpPressed: page.stepSelection(-1)
+                    Keys.onDownPressed: page.stepSelection(1)
+
+                    // keyboard focus ring
+                    Rectangle {
+                        anchors.fill: parent
+                        z: 2
+                        radius: Theme.radiusSm
+                        color: "transparent"
+                        border.width: 2
+                        border.color: Theme.accentBright
+                        visible: list.activeFocus
+                    }
 
                     delegate: Rectangle {
                         id: gameRow
@@ -212,7 +263,11 @@ RowLayout {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: library.select(gameRow.modelData.appId)
+                            onClicked: {
+                                list.forceActiveFocus()
+                                sounds.play("click")
+                                page.requestSelect(gameRow.modelData.appId)
+                            }
                         }
 
                         RowLayout {
@@ -243,11 +298,7 @@ RowLayout {
                                     font.weight: Font.Medium
                                 }
                                 Text {
-                                    text: (modelData.source === "steam")
-                                          ? "App " + modelData.appId
-                                          : (modelData.store === "epic" ? "Epic"
-                                             : modelData.store === "gog" ? "GOG"
-                                             : "Lutris") + " · " + modelData.appId
+                                    text: modelData.idLabel
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
                                     color: Theme.faint
@@ -268,7 +319,7 @@ RowLayout {
                                 Text {
                                     id: srcBadge
                                     anchors.centerIn: parent
-                                    text: modelData.source === "heroic" ? "Heroic" : "Lutris"
+                                    text: page.sourceLabel(modelData.source)
                                     color: Theme.primaryBright
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
@@ -310,11 +361,15 @@ RowLayout {
         Layout.fillHeight: true
         glowing: hasSelection
         property bool hasSelection: Object.keys(library.selected).length > 0
-        // two-step guard for the destructive prefix delete
-        property bool confirmDelete: false
-        // Steam-only sections (Proton/launch options/per-game tweaks) hide for
-        // Heroic/Lutris games, which get their own controls.
+        // Steam-only sections (launch options, ProtonDB, per-game tools) hide
+        // for other sources, which get their own controls.
         property bool isSteam: (library.selected.source || "steam") === "steam"
+        // A game added to Steam by hand: it has a Proton prefix and a Proton
+        // choice like a store game, but Steam keeps its launch options itself.
+        property bool isShortcut: library.selected.source === "shortcut"
+        // "proton" | "wine" | "none" (Linux-native: no prefix to manage)
+        property string prefixKind: library.selected.prefixKind || "proton"
+        property string prefixWord: prefixKind === "proton" ? "Proton prefix" : "Wine prefix"
 
         // placeholder
         Text {
@@ -337,27 +392,43 @@ RowLayout {
             width: parent.width
             spacing: Theme.space
 
-            Text {
+            RowLayout {
                 Layout.fillWidth: true
-                text: library.selected.name || ""
-                wrapMode: Text.WordWrap
-                color: Theme.text
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fsDisplay
-                font.weight: Font.Bold
+                spacing: Theme.space
+                Text {
+                    Layout.fillWidth: true
+                    text: library.selected.name || ""
+                    wrapMode: Text.WordWrap
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsDisplay
+                    font.weight: Font.Bold
+                }
+                // the one thing most people came to do
+                PsButton {
+                    Layout.alignment: Qt.AlignTop
+                    text: "Launch"
+                    visible: (library.selected.launchUri || "").length > 0
+                    Accessible.name: "Launch " + (library.selected.name || "") + " via "
+                                     + page.sourceLabel(detailCard.isShortcut ? "steam" : library.selected.source)
+                    onClicked: gameTools.launchUri(library.selected.launchUri)
+                }
             }
 
-            RowLayout {
+            Flow {
+                Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 Text {
-                    text: "App " + (library.selected.appId || "")
+                    height: 22
+                    verticalAlignment: Text.AlignVCenter
+                    text: library.selected.idLabel || ""
                     color: Theme.muted
                     font.family: Theme.monoFamily
                     font.pixelSize: Theme.fsSmall
                 }
                 Rectangle {
-                    implicitWidth: statusLbl.implicitWidth + 16
-                    implicitHeight: 22
+                    width: statusLbl.implicitWidth + 16
+                    height: 22
                     radius: 11
                     color: library.selected.hasPrefix ? Theme.successTint : Theme.surfaceElevated
                     border.width: 1
@@ -365,7 +436,9 @@ RowLayout {
                     Text {
                         id: statusLbl
                         anchors.centerIn: parent
-                        text: library.selected.hasPrefix ? "Proton prefix present" : "No prefix yet"
+                        text: detailCard.prefixKind === "none" ? "Runs natively, no prefix"
+                              : (library.selected.hasPrefix ? detailCard.prefixWord + " present"
+                                                            : "No prefix yet")
                         color: library.selected.hasPrefix ? Theme.success : Theme.muted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fsCaption
@@ -381,11 +454,15 @@ RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 Repeater {
-                    model: [
-                        { k: "Install", v: library.selected.installPath || "—" },
-                        { k: "Prefix (compatdata)", v: library.selected.compatdataPath || "—" },
-                        { k: "Library", v: library.selected.libraryPath || "—" }
-                    ]
+                    model: {
+                        var rows = [{ k: "Install", v: library.selected.installPath || "Not known" }]
+                        if (detailCard.prefixKind !== "none")
+                            rows.push({ k: detailCard.prefixKind === "proton" ? "Prefix (compatdata)" : "Prefix",
+                                        v: library.selected.compatdataPath || "Not created yet" })
+                        if ((library.selected.libraryPath || "").length > 0)
+                            rows.push({ k: "Library", v: library.selected.libraryPath })
+                        return rows
+                    }
                     delegate: ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
@@ -409,11 +486,11 @@ RowLayout {
                 }
             }
 
-            // ===== Steam-only: Proton + launch options + presets =====
+            // ===== Steam + Non-Steam shortcuts: Proton; Steam only: launch options + presets =====
             ColumnLayout {
               Layout.fillWidth: true
               spacing: Theme.space
-              visible: detailCard.isSteam
+              visible: detailCard.isSteam || detailCard.isShortcut
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
@@ -421,7 +498,7 @@ RowLayout {
             PsSectionHeader {
                 Layout.fillWidth: true
                 text: "Proton version"
-                subtitle: "Compatibility tool · written to Steam's config.vdf"
+                subtitle: "Compatibility tool · saved to Steam's config.vdf as soon as you pick"
             }
             PsSelect {
                 id: protonSelect
@@ -455,6 +532,33 @@ RowLayout {
                 font.pixelSize: Theme.fsCaption
             }
 
+            // Non-Steam shortcut: Steam stores these inside the shortcut itself
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                visible: detailCard.isShortcut
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+                PsSectionHeader {
+                    Layout.fillWidth: true
+                    text: "Launch options"
+                    subtitle: "Read-only here. Change them in Steam: right-click the game, Properties."
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: (library.selected.launchOptions || "").length > 0 ? library.selected.launchOptions : "None set"
+                    wrapMode: Text.WrapAnywhere
+                    color: (library.selected.launchOptions || "").length > 0 ? Theme.text : Theme.faint
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fsSmall
+                }
+            }
+
+            // Steam games: the editable launch options
+            ColumnLayout {
+              Layout.fillWidth: true
+              spacing: Theme.space
+              visible: detailCard.isSteam
+
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             // --- launch options (writes localconfig.vdf, fail-closed) ---
@@ -463,7 +567,7 @@ RowLayout {
                 PsSectionHeader {
                     Layout.fillWidth: true
                     text: "Launch options"
-                    subtitle: "Written to Steam's localconfig.vdf"
+                    subtitle: "Saved to Steam's localconfig.vdf when you press Save to Steam"
                 }
                 BusyIndicator {
                     running: launch.loading
@@ -499,7 +603,7 @@ RowLayout {
                 mono: true
                 visible: !launch.loadError.length
                 enabled: launch.loaded
-                placeholder: "gamescope -f -- %command%"
+                placeholder: "e.g. gamemoderun %command%"
                 Component.onCompleted: text = launch.text
                 onEdited: launch.setText(newText)
                 Connections {
@@ -543,31 +647,20 @@ RowLayout {
                 spacing: Theme.spaceXs
                 Repeater {
                     model: launch.launchPresets
-                    delegate: Rectangle {
+                    delegate: PsChip {
                         required property var modelData
-                        implicitWidth: lpLbl.implicitWidth + 18
-                        implicitHeight: 24
-                        radius: 12
-                        opacity: modelData.installed ? 1.0 : 0.55
-                        color: lph.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                        border.color: lph.hovered ? Theme.primary : Theme.border
-                        border.width: 1
-                        Behavior on color { ColorAnimation { duration: 100 } }
-                        HoverHandler { id: lph }
-                        TapHandler { onTapped: if (launch.loaded) launch.appendPreset(modelData.value) }
-                        Text {
-                            id: lpLbl
-                            anchors.centerIn: parent
-                            text: "+ " + modelData.name + (modelData.installed ? "" : " (not installed)")
-                            color: lph.hovered ? Theme.primaryBright : Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 10
-                        }
+                        text: "+ " + modelData.name + (modelData.installed ? "" : " (not installed)")
+                        dimmed: !modelData.installed
+                        enabled: launch.loaded
+                        Accessible.name: "Add " + modelData.name + " to the launch options"
+                        Accessible.description: modelData.description
+                        onClicked: launch.appendPreset(modelData.value)
                     }
                 }
             }
 
-            } // ===== end Steam-only (Proton + launch options + presets) =====
+            } // end Steam games: editable launch options
+            } // ===== end Proton + launch options + presets =====
 
             // ===== ProtonDB community rating (Steam-only; opt-in network lookup) =====
             ColumnLayout {
@@ -576,7 +669,7 @@ RowLayout {
                 spacing: Theme.spaceSm
                 visible: detailCard.isSteam
 
-                // Only Steam ids are ProtonDB ids — Heroic/Lutris games bind 0,
+                // Only Steam ids are ProtonDB ids - Heroic/Lutris games bind 0,
                 // which clears the controller and fires no request.
                 Binding {
                     target: protondb
@@ -616,7 +709,7 @@ RowLayout {
                     }
                 }
 
-                // privacy opt-in — shown while lookups are switched off
+                // privacy opt-in - shown while lookups are switched off
                 RowLayout {
                     Layout.fillWidth: true
                     visible: !protondb.enabled
@@ -673,7 +766,7 @@ RowLayout {
                     }
                 }
 
-                // trending tier — only when it differs from the overall one
+                // trending tier - only when it differs from the overall one
                 RowLayout {
                     visible: protondb.enabled && protondb.loaded && protondb.trendingLabel.length > 0
                     spacing: Theme.spaceXs
@@ -741,7 +834,8 @@ RowLayout {
                 PsSectionHeader {
                     Layout.fillWidth: true
                     text: "Maintenance"
-                    subtitle: "Proton prefix, shader cache, and shortcuts"
+                    subtitle: detailCard.prefixKind === "none" ? "Folders"
+                              : (detailCard.isSteam ? "Prefix, shader cache and folders" : "Prefix and folders")
                 }
                 BusyIndicator {
                     running: gameTools.loading || gameTools.busy
@@ -755,13 +849,22 @@ RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spaceXs
                 Repeater {
-                    model: [
-                        { l: "Prefix", v: gameTools.info.prefixExists ? gameTools.info.prefixSize : "none" },
-                        { l: "Created", v: gameTools.info.created || "—" },
-                        { l: "DXVK", v: gameTools.info.dxvk || "—" },
-                        { l: "VKD3D", v: gameTools.info.vkd3d || "—" },
-                        { l: "Shader cache", v: gameTools.info.shaderExists ? gameTools.info.shaderSize : "none" }
-                    ]
+                    // only what applies: no prefix facts for a native game,
+                    // no Steam shader cache outside Steam
+                    model: {
+                        var chips = []
+                        if (detailCard.prefixKind !== "none") {
+                            chips.push({ l: "Prefix", v: gameTools.info.prefixExists ? gameTools.info.prefixSize : "none" })
+                            if (gameTools.info.prefixExists) {
+                                chips.push({ l: "Created", v: gameTools.info.created || "unknown" })
+                                chips.push({ l: "DXVK", v: gameTools.info.dxvk || "not found" })
+                                chips.push({ l: "VKD3D", v: gameTools.info.vkd3d || "not found" })
+                            }
+                        }
+                        if (detailCard.isSteam)
+                            chips.push({ l: "Shader cache", v: gameTools.info.shaderExists ? gameTools.info.shaderSize : "none" })
+                        return chips
+                    }
                     delegate: Rectangle {
                         required property var modelData
                         implicitWidth: mChipRow.implicitWidth + 20
@@ -806,12 +909,6 @@ RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
-                    text: "Launch"
-                    primary: false
-                    visible: detailCard.isSteam
-                    onClicked: gameTools.launchGame()
-                }
-                PsButton {
                     text: "Open in Steam"
                     primary: false
                     visible: detailCard.isSteam
@@ -826,6 +923,7 @@ RowLayout {
                 PsButton {
                     text: "Open prefix"
                     primary: false
+                    visible: detailCard.prefixKind !== "none"
                     enabled: gameTools.info.prefixExists === true
                     onClicked: gameTools.openFolder(library.selected.compatdataPath)
                 }
@@ -837,37 +935,49 @@ RowLayout {
                     onClicked: gameTools.clearShaderCache()
                 }
                 PsButton {
-                    text: detailCard.confirmDelete ? "Confirm delete" : "Delete prefix"
+                    text: "Delete prefix…"
                     primary: false
                     danger: true
+                    sound: "back"
+                    visible: detailCard.prefixKind !== "none"
                     enabled: gameTools.info.prefixExists === true && !gameTools.busy
-                    onClicked: {
-                        if (detailCard.confirmDelete) { detailCard.confirmDelete = false; gameTools.deletePrefix() }
-                        else detailCard.confirmDelete = true
-                    }
+                    onClicked: deletePrefixConfirm.open()
                 }
             }
 
-            // ===== Steam-only: per-game tweaks + fixes/profiles/saves =====
+            // ===== Steam: per-game tools; Non-Steam shortcuts: Winetricks only =====
             ColumnLayout {
               Layout.fillWidth: true
               spacing: Theme.space
-              visible: detailCard.isSteam
+              visible: detailCard.isSteam || detailCard.isShortcut
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             // --- per-game overrides ---
             PsSectionHeader {
                 Layout.fillWidth: true
-                text: "Per-game tweaks"
-                subtitle: "gamescope/ScopeBuddy overrides just for this game"
+                text: "Per-game tools"
+                subtitle: detailCard.isSteam ? "Launch check, Proton log, overrides, Winetricks, known fixes, profiles and save backups"
+                                             : "Check why it won't start, or install Windows components into its prefix"
             }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
+                    text: "Launch check…"
+                    primary: false
+                    onClicked: { launchCheckDialog.open(); page.runLaunchCheck() }
+                }
+                PsButton {
+                    text: "Proton log…"
+                    primary: false
+                    visible: detailCard.isSteam
+                    onClicked: { protonLog.open(library.selected.appId); protonLogDialog.open() }
+                }
+                PsButton {
                     text: "ScopeBuddy override…"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: {
                         perAppScb.appId = library.selected.appId
                         scbOverrideDialog.open()
@@ -876,6 +986,7 @@ RowLayout {
                 PsButton {
                     text: "MangoHud override…"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: {
                         perGameMango.gameName = library.selected.name
                         mangoOverrideDialog.open()
@@ -893,16 +1004,19 @@ RowLayout {
                 PsButton {
                     text: "Known fixes…"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: { fixes.appId = library.selected.appId; fixesDialog.open() }
                 }
                 PsButton {
                     text: "Profiles…"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: { profiles.appId = library.selected.appId; profiles.refresh(); profilesDialog.open() }
                 }
                 PsButton {
                     text: "Save backups…"
                     primary: false
+                    visible: detailCard.isSteam
                     onClicked: {
                         saves.appId = library.selected.appId
                         saves.prefixPath = library.selected.compatdataPath || ""
@@ -926,16 +1040,21 @@ RowLayout {
                         Layout.fillWidth: true
                         text: "Heroic settings"
                         subtitle: heroic.config.exists ? "GamesConfig · saved on change"
-                                                       : "No per-game config yet — toggling creates one"
+                                                       : "No per-game config yet - toggling creates one"
                     }
                     BusyIndicator { running: heroic.loading; visible: heroic.loading; implicitWidth: 20; implicitHeight: 20 }
                 }
 
-                // wine/proton version
-                PsSectionHeader { Layout.fillWidth: true; text: "Wine / Proton version" }
+                // wine/proton version (a native Linux game uses neither)
+                PsSectionHeader {
+                    Layout.fillWidth: true
+                    text: "Wine / Proton version"
+                    visible: detailCard.prefixKind !== "none"
+                }
                 PsSelect {
                     id: heroicWineSelect
                     Layout.fillWidth: true
+                    visible: detailCard.prefixKind !== "none"
                     enabled: heroic.wineVersions.length > 0
                     model: heroic.wineVersions.map(function (v) { return v.name })
                     function syncCurrent() {
@@ -961,8 +1080,8 @@ RowLayout {
                 }
                 Text {
                     Layout.fillWidth: true
-                    visible: heroic.wineVersions.length === 0
-                    text: "No wine/proton builds found under Heroic's tools dir."
+                    visible: heroic.wineVersions.length === 0 && detailCard.prefixKind !== "none"
+                    text: "No Wine or Proton builds found in Heroic's tools folder. Install one from Heroic's Wine Manager."
                     wrapMode: Text.WordWrap
                     color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
@@ -993,16 +1112,6 @@ RowLayout {
                     }
                 }
 
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: Theme.spaceSm
-                    PsButton { text: "Launch via Heroic"; primary: false; onClicked: heroic.launch() }
-                    PsButton {
-                        text: "Open prefix"; primary: false
-                        enabled: (library.selected.compatdataPath || "").length > 0
-                        onClicked: gameTools.openFolder(library.selected.compatdataPath)
-                    }
-                }
                 Text {
                     Layout.fillWidth: true
                     visible: heroic.status.length > 0
@@ -1033,7 +1142,7 @@ RowLayout {
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true
-                    text: perAppScb.exists ? "Existing override" : "No override yet — add keys to create one."
+                    text: perAppScb.exists ? "Existing override" : "No override yet - add keys to create one."
                     color: perAppScb.exists ? Theme.muted : Theme.faint
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
@@ -1050,25 +1159,13 @@ RowLayout {
                 spacing: Theme.spaceXs
                 Repeater {
                     model: perAppScb.knownKeys
-                    delegate: Rectangle {
+                    delegate: PsChip {
                         required property string modelData
-                        implicitWidth: chip.implicitWidth + 18
-                        implicitHeight: 24
-                        radius: 12
-                        color: ch.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                        border.color: ch.hovered ? Theme.primary : Theme.border
-                        border.width: 1
-                        Behavior on color { ColorAnimation { duration: 100 } }
-                        HoverHandler { id: ch }
-                        TapHandler { onTapped: if (perAppScb.loaded) perAppScb.addKey(modelData) }
-                        Text {
-                            id: chip
-                            anchors.centerIn: parent
-                            text: "+ " + modelData
-                            color: ch.hovered ? Theme.primaryBright : Theme.muted
-                            font.family: Theme.monoFamily
-                            font.pixelSize: 10
-                        }
+                        text: "+ " + modelData
+                        mono: true
+                        enabled: perAppScb.loaded
+                        Accessible.name: "Add key " + modelData
+                        onClicked: perAppScb.addKey(modelData)
                     }
                 }
             }
@@ -1108,14 +1205,11 @@ RowLayout {
                         Component.onCompleted: text = r.value
                         onEdited: perAppScb.model.setValue(r.index, newText)
                     }
-                    Rectangle {
-                        width: 28; height: 28; radius: Theme.radiusSm
-                        color: rmv.hovered ? Theme.dangerSurface : "transparent"
-                        border.width: 1
-                        border.color: rmv.hovered ? Theme.danger : Theme.border
-                        Text { anchors.centerIn: parent; text: "✕"; color: rmv.hovered ? Theme.danger : Theme.muted; font.pixelSize: 12 }
-                        HoverHandler { id: rmv }
-                        TapHandler { onTapped: perAppScb.model.removeRow(r.index) }
+                    PsIconButton {
+                        glyph: "✕"
+                        danger: true
+                        label: "Remove " + (r.key.length > 0 ? r.key : "this row")
+                        onClicked: perAppScb.model.removeRow(r.index)
                     }
                 }
             }
@@ -1154,7 +1248,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: perAppScb.loaded && perAppScb.dirty
-                    onClicked: perAppScb.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { perAppScb.save(); sounds.result(perAppScb.statusOk) }
                 }
             }
         }
@@ -1177,7 +1272,7 @@ RowLayout {
                 Text {
                     Layout.fillWidth: true
                     text: perGameMango.exists ? "Existing override"
-                                              : "No override yet — pick a preset or toggle metrics."
+                                              : "No override yet - pick a preset or toggle metrics."
                     color: perGameMango.exists ? Theme.muted : Theme.faint
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
@@ -1193,29 +1288,14 @@ RowLayout {
                 spacing: Theme.spaceXs
                 Repeater {
                     model: perGameMango.presetNames
-                    delegate: Rectangle {
+                    delegate: PsChip {
                         required property string modelData
-                        implicitWidth: pl.implicitWidth + 18
-                        implicitHeight: 24
-                        radius: 12
-                        color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                        border.color: ph.hovered ? Theme.primary : Theme.border
-                        border.width: 1
-                        Behavior on color { ColorAnimation { duration: 100 } }
-                        HoverHandler { id: ph }
-                        TapHandler {
-                            onTapped: if (perGameMango.loaded) {
-                                perGameMangoPresetConfirm.pendingPreset = modelData
-                                perGameMangoPresetConfirm.open()
-                            }
-                        }
-                        Text {
-                            id: pl
-                            anchors.centerIn: parent
-                            text: modelData
-                            color: ph.hovered ? Theme.primaryBright : Theme.muted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 10
+                        text: modelData
+                        enabled: perGameMango.loaded
+                        Accessible.name: "Apply preset " + modelData
+                        onClicked: {
+                            perGameMangoPresetConfirm.pendingPreset = modelData
+                            perGameMangoPresetConfirm.open()
                         }
                     }
                 }
@@ -1274,7 +1354,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: perGameMango.loaded && perGameMango.dirty
-                    onClicked: perGameMango.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { perGameMango.save(); sounds.result(perGameMango.statusOk) }
                 }
             }
         }
@@ -1355,13 +1436,29 @@ RowLayout {
                             border.width: checked ? 2 : 1
                             Behavior on color { ColorAnimation { duration: 100 } }
                             enabled: !protontricks.running
+                            function toggle() {
+                                var s = protontricksDialog.selected
+                                s[verbRow.modelData.verb] = !verbRow.checked
+                                protontricksDialog.selected = s
+                                sounds.play(verbRow.checked ? "toggle_on" : "toggle_off")
+                            }
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: verbRow.modelData.label
+                            Accessible.checked: verbRow.checked
+                            Accessible.onPressAction: verbRow.toggle()
+                            Keys.onSpacePressed: verbRow.toggle()
                             HoverHandler { id: vh }
-                            TapHandler {
-                                onTapped: {
-                                    var s = protontricksDialog.selected
-                                    s[verbRow.modelData.verb] = !verbRow.checked
-                                    protontricksDialog.selected = s
-                                }
+                            TapHandler { onTapped: verbRow.toggle() }
+                            // keyboard focus ring
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -2
+                                radius: parent.radius + 2
+                                color: "transparent"
+                                border.width: 2
+                                border.color: Theme.accentBright
+                                visible: verbRow.activeFocus
                             }
                             RowLayout {
                                 anchors.fill: parent
@@ -1469,7 +1566,7 @@ RowLayout {
         objectName: "fixesDialog"
         width: 680
         title: "Known fixes"
-        subtitle: (library.selected.name || "") + " · appends to launch options"
+        subtitle: (library.selected.name || "") + " · adds to the launch options, saved when you press Save to Steam"
 
         ColumnLayout {
             width: parent.width
@@ -1516,7 +1613,7 @@ RowLayout {
                                 Text { id: srcLbl; anchors.centerIn: parent; text: modelData.source; color: Theme.muted; font.pixelSize: 9; font.family: Theme.fontFamily }
                             }
                             PsButton {
-                                text: "Apply"; primary: false
+                                text: "Add to launch options"; primary: false
                                 enabled: launch.loaded
                                 onClicked: { launch.appendPreset(modelData.snippet); fixesDialog.close() }
                             }
@@ -1539,7 +1636,7 @@ RowLayout {
             Text {
                 Layout.fillWidth: true
                 visible: !launch.loaded
-                text: "Select the game's launch options load before applying (open the detail pane)."
+                text: "The launch options are still loading. Fixes can be added once they are."
                 color: Theme.faint; wrapMode: Text.WordWrap
                 font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
             }
@@ -1591,7 +1688,7 @@ RowLayout {
                 spacing: Theme.spaceSm
                 Text {
                     Layout.fillWidth: true
-                    text: "Profiles are stored as JSON — export a bundle to back them up or move them to another PC."
+                    text: "Profiles are stored as JSON - export a bundle to back them up or move them to another PC."
                     wrapMode: Text.WordWrap
                     color: Theme.faint; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
@@ -1668,7 +1765,7 @@ RowLayout {
         }
     }
 
-    // Deleting a profile removes its saved snapshot outright — confirm first.
+    // Deleting a profile removes its saved snapshot outright - confirm first.
     PsDialog {
         id: deleteProfileConfirm
         property string pendingName: ""
@@ -1813,8 +1910,436 @@ RowLayout {
         }
     }
 
+    // ============================ LAUNCH CHECK DIALOG =======================
+    PsDialog {
+        id: launchCheckDialog
+        objectName: "launchCheckDialog"
+        width: 660
+        title: "Launch check"
+        subtitle: (library.selected.name || "") + " · the usual reasons a game won't start"
+
+        // one chime when a run finishes
+        property bool wasRunning: false
+        Connections {
+            target: launchCheck
+            function onChanged() {
+                if (launchCheckDialog.wasRunning && !launchCheck.running && launchCheckDialog.opened) {
+                    var worst = "ok"
+                    for (var i = 0; i < launchCheck.findings.length; i++) {
+                        var l = launchCheck.findings[i].level
+                        if (l === "error") worst = "error"
+                        else if (l === "warn" && worst !== "error") worst = "warn"
+                    }
+                    sounds.play(worst === "error" ? "error" : (worst === "warn" ? "notification" : "success"))
+                }
+                launchCheckDialog.wasRunning = launchCheck.running
+            }
+        }
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                BusyIndicator {
+                    running: launchCheck.running; visible: launchCheck.running
+                    implicitWidth: 20; implicitHeight: 20
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: launchCheck.running ? "Checking…" : launchCheck.summary
+                    color: launchCheck.running ? Theme.muted
+                           : (launchCheck.hasProblems ? Theme.text : Theme.success)
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsBody
+                    font.weight: Font.DemiBold
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: detailCard.isSteam && launch.dirty
+                wrapMode: Text.WordWrap
+                text: "This checks the launch options saved in Steam. Your unsaved edits are not included."
+                color: Theme.warning
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 40), 380)
+                clip: true
+                spacing: 6
+                model: launchCheck.findings
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: Rectangle {
+                    id: findingRow
+                    required property var modelData
+                    readonly property color tone: page.levelColor(modelData.level)
+                    width: ListView.view.width
+                    implicitHeight: findingCol.implicitHeight + 2 * Theme.spaceSm
+                    radius: Theme.radiusSm
+                    color: Theme.bgDeep
+                    border.width: 1
+                    border.color: (modelData.level === "error" || modelData.level === "warn") ? tone : Theme.border
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData.level + ": " + modelData.title
+                    Accessible.description: modelData.detail + " " + modelData.fix
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.spaceSm
+                        spacing: Theme.spaceSm
+                        Rectangle {
+                            Layout.alignment: Qt.AlignTop
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: "transparent"
+                            border.width: 1
+                            border.color: findingRow.tone
+                            Text {
+                                anchors.centerIn: parent
+                                text: page.levelGlyph(findingRow.modelData.level)
+                                color: findingRow.tone
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+                        }
+                        ColumnLayout {
+                            id: findingCol
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                text: findingRow.modelData.title
+                                wrapMode: Text.WordWrap
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsSmall
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: findingRow.modelData.detail.length > 0
+                                text: findingRow.modelData.detail
+                                wrapMode: Text.Wrap
+                                color: Theme.muted
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsCaption
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: findingRow.modelData.fix.length > 0
+                                text: "What to do: " + findingRow.modelData.fix
+                                wrapMode: Text.Wrap
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsCaption
+                            }
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: "Checks files and settings on this PC. It does not start the game."
+                    color: Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Proton log…"; primary: false
+                    visible: detailCard.isSteam
+                    onClicked: {
+                        launchCheckDialog.close()
+                        protonLog.open(library.selected.appId)
+                        protonLogDialog.open()
+                    }
+                }
+                PsButton {
+                    text: "Check again"
+                    enabled: !launchCheck.running
+                    onClicked: page.runLaunchCheck()
+                }
+            }
+        }
+    }
+
+    // ============================ PROTON LOG DIALOG =========================
+    PsDialog {
+        id: protonLogDialog
+        objectName: "protonLogDialog"
+        width: 820
+        title: "Proton log"
+        subtitle: (library.selected.name || "") + " · what Proton wrote the last time the game ran"
+        readonly property bool loggingOn: protonLog.loggingEnabled(launch.text)
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            // logging switch state
+            Rectangle {
+                Layout.fillWidth: true
+                radius: Theme.radiusSm
+                color: protonLogDialog.loggingOn ? Theme.successTint : Theme.warningSurface
+                border.width: 1
+                border.color: protonLogDialog.loggingOn ? Theme.success : Theme.warningBorder
+                implicitHeight: logState.implicitHeight + 2 * Theme.spaceSm
+                RowLayout {
+                    id: logState
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    spacing: Theme.spaceSm
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: protonLogDialog.loggingOn
+                              ? (launch.dirty ? "Logging is switched on, but not saved yet. Press Save to Steam, then run the game."
+                                              : "Logging is on. Each run of the game replaces the log.")
+                              : "Logging is off for this game, so Proton writes no log."
+                        color: protonLogDialog.loggingOn ? Theme.success : Theme.warning
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                    PsButton {
+                        text: "Turn on logging"
+                        primary: false
+                        implicitHeight: 32
+                        visible: !protonLogDialog.loggingOn
+                        enabled: launch.loaded
+                        onClicked: launch.appendPreset("PROTON_LOG=1")
+                    }
+                    PsButton {
+                        text: "Save to Steam"
+                        implicitHeight: 32
+                        visible: protonLogDialog.loggingOn && launch.dirty
+                        onClicked: launch.save()
+                    }
+                }
+            }
+
+            // file facts + filter
+            RowLayout {
+                Layout.fillWidth: true
+                visible: protonLog.exists
+                spacing: Theme.space
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideMiddle
+                    text: protonLog.path + "  ·  " + protonLog.sizeLabel + "  ·  " + protonLog.modifiedLabel
+                    color: Theme.faint
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                BusyIndicator {
+                    running: protonLog.loading; visible: protonLog.loading
+                    implicitWidth: 18; implicitHeight: 18
+                }
+            }
+            PsSwitchRow {
+                Layout.fillWidth: true
+                visible: protonLog.exists
+                text: "Show only lines that look like problems"
+                subtitle: protonLog.problemCount === 0 ? "None found in the part of the log that was read"
+                          : protonLog.problemCount + (protonLog.problemCount === 1 ? " line" : " lines")
+                            + " with errors, crashes or missing files"
+                checked: protonLog.problemsOnly
+                onToggled: protonLog.setProblemsOnly(value)
+            }
+
+            // the log itself
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 320
+                radius: Theme.radiusSm
+                color: Theme.bgDeep
+                border.color: Theme.border
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    width: parent.width - 2 * Theme.spaceLg
+                    visible: !protonLog.loading && (!protonLog.exists || protonLog.error.length > 0
+                                                    || protonLog.text.length === 0)
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: protonLog.error.length > 0 ? protonLog.error
+                          : !protonLog.exists
+                            ? "No log yet. Turn logging on, save, run the game once and quit it, then press Refresh."
+                            : (protonLog.problemsOnly ? "No lines that look like problems." : "The log is empty.")
+                    color: protonLog.error.length > 0 ? Theme.danger : Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsSmall
+                }
+
+                ScrollView {
+                    id: logScroll
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    clip: true
+                    visible: protonLog.exists && protonLog.text.length > 0
+                    TextEdit {
+                        id: logText
+                        width: logScroll.availableWidth
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.WrapAnywhere
+                        text: protonLog.text
+                        color: Theme.muted
+                        font.family: Theme.monoFamily
+                        font.pixelSize: 11
+                        Accessible.name: "Proton log"
+                        // a log is read from its end: that is where it stopped
+                        onTextChanged: Qt.callLater(function () {
+                            logScroll.ScrollBar.vertical.position = Math.max(0, 1.0 - logScroll.ScrollBar.vertical.size)
+                        })
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: protonLog.exists && protonLog.truncated
+                text: "Showing the end of the log. Open the file for all of it."
+                color: Theme.faint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    text: protonLog.notice
+                    elide: Text.ElideRight
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Open file"; primary: false; sound: ""
+                    enabled: protonLog.exists
+                    onClicked: sounds.play(protonLog.openFile() ? "click" : "error")
+                }
+                PsButton {
+                    text: "Copy"; primary: false; sound: ""
+                    enabled: protonLog.exists && protonLog.text.length > 0
+                    onClicked: sounds.result(protonLog.copy())
+                }
+                PsButton {
+                    text: "Refresh"
+                    enabled: !protonLog.loading
+                    onClicked: protonLog.refresh()
+                }
+            }
+        }
+    }
+
+    // Leaving a game with unsaved launch options: nothing is saved or dropped
+    // without the user saying so.
+    PsDialog {
+        id: unsavedDialog
+        property string pendingAppId: ""
+        title: "Unsaved launch options"
+        width: 440
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "The launch options for " + (library.selected.name || "this game")
+                      + " have changes that aren't saved to Steam yet."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Discard changes"; primary: false; danger: true; sound: "back"
+                    onClicked: {
+                        unsavedDialog.close()
+                        library.select(unsavedDialog.pendingAppId)
+                    }
+                }
+                PsButton {
+                    text: "Keep editing"
+                    onClicked: unsavedDialog.close()
+                }
+            }
+        }
+    }
+
+    // Deleting a prefix wipes the game's Windows-side files (settings, and
+    // saves that aren't in the cloud). Same confirm pattern as every other delete.
+    PsDialog {
+        id: deletePrefixConfirm
+        title: "Delete this prefix?"
+        subtitle: library.selected.name || ""
+        width: 480
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "This removes the " + detailCard.prefixWord + " ("
+                      + (gameTools.info.prefixSize || "size unknown") + "), including in-game settings and any "
+                      + "saves stored inside it. It is recreated empty the next time the game runs."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsSmall
+            }
+            Text {
+                Layout.fillWidth: true
+                text: library.selected.compatdataPath || ""
+                wrapMode: Text.WrapAnywhere
+                color: Theme.text
+                font.family: Theme.monoFamily
+                font.pixelSize: Theme.fsCaption
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: detailCard.isSteam
+                wrapMode: Text.WordWrap
+                text: "Tip: Per-game tools, Save backups can back up the saves first."
+                color: Theme.faint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Item { Layout.fillWidth: true }
+                PsButton {
+                    text: "Cancel"; primary: false; sound: "back"
+                    onClicked: deletePrefixConfirm.close()
+                }
+                PsButton {
+                    text: "Delete prefix"; primary: false; danger: true
+                    onClicked: {
+                        gameTools.deletePrefix()
+                        deletePrefixConfirm.close()
+                    }
+                }
+            }
+        }
+    }
+
     // Shared confirm for the per-game ScopeBuddy / MangoHud override delete
-    // buttons above — both just call deleteOverride() on whichever controller
+    // buttons above - both just call deleteOverride() on whichever controller
     // was armed.
     PsDialog {
         id: deleteOverrideConfirm
@@ -1854,7 +2379,7 @@ RowLayout {
     }
 
     // Applying a MangoHud preset to a per-game override replaces every
-    // metric/value in it — confirm before overwriting.
+    // metric/value in it - confirm before overwriting.
     PsDialog {
         id: perGameMangoPresetConfirm
         property string pendingPreset: ""

@@ -1,4 +1,4 @@
-# Build outputs — Python
+# Build outputs - Python
 __pycache__/
 *.pyc
 *.py[cod]
@@ -34,7 +34,7 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Secrets — never commit
+# Secrets - never commit
 .env
 .env.*
 *token*

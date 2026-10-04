@@ -2,7 +2,7 @@
 
 Bind ``appId`` to the selected game; the controller loads that game's
 LaunchOptions from ``localconfig.vdf`` on a worker thread and saves them back
-fail-closed (the underlying core refuses to overwrite an unparseable file —
+fail-closed (the underlying core refuses to overwrite an unparseable file -
 review #20). A late load result for a game the user already navigated away from
 is discarded, so switching games can't strand the editor on stale text
 (review #8, the old app's cross-game bleed).
@@ -159,15 +159,26 @@ class LaunchOptionsController(QObject):
 
     @Slot(str)
     def appendPreset(self, value: str) -> None:
-        """Append a preset snippet to the launch options (no-op if already present)."""
-        value = value.strip()
-        if not value or not self._loaded or value in self._text:
+        """Merge a snippet into the launch options (see core/launch_merge.py).
+
+        The result is NOT saved: it shows as unsaved until "Save to Steam".
+        """
+        from ..core.launch_merge import merge_launch_snippet
+
+        if not value.strip() or not self._loaded:
             return
-        self._text = f"{self._text} {value}".strip() if self._text else value
+        merged = merge_launch_snippet(self._text, value)
+        if merged == self._text:
+            self._status = "Already in the launch options."
+            self._status_ok = True
+            self.statusChanged.emit()
+            return
+        self._text = merged
         if not self._dirty:
             self._dirty = True
             self.dirtyChanged.emit()
-        self._status = ""
+        self._status = "Added. Not saved yet: press Save to Steam to keep it."
+        self._status_ok = True
         self.stateChanged.emit()
         self.statusChanged.emit()
 
@@ -176,7 +187,7 @@ class LaunchOptionsController(QObject):
     @Slot()
     def save(self) -> None:
         if not self._loaded or not self._app_id:
-            self._status = "Not saved — launch options weren't loaded."
+            self._status = "Not saved - launch options weren't loaded."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -267,7 +278,7 @@ class LaunchOptionsController(QObject):
             return
         if ok:
             self._proton_current = tool_name
-            self._proton_status = "Proton set — quit Steam first (it rewrites config.vdf on exit)."
+            self._proton_status = "Proton set - quit Steam first (it rewrites config.vdf on exit)."
         else:
             self._proton_status = "Couldn't write config.vdf."
         self._proton_status_ok = ok
@@ -293,7 +304,7 @@ class LaunchOptionsController(QObject):
 
     def _on_loaded(self, app_id: str, ok: bool, value: str) -> None:
         if app_id != self._app_id:
-            return  # user switched games mid-load — discard the stale result
+            return  # user switched games mid-load - discard the stale result
         self._loading = False
         if ok:
             self._loaded = True
@@ -301,7 +312,7 @@ class LaunchOptionsController(QObject):
             self._error = ""
         else:
             self._loaded = False
-            self._error = "Couldn't read localconfig.vdf — editing is disabled so nothing gets overwritten."
+            self._error = "Couldn't read localconfig.vdf - editing is disabled so nothing gets overwritten."
         self._dirty = False
         self.stateChanged.emit()
         self.dirtyChanged.emit()
@@ -311,9 +322,9 @@ class LaunchOptionsController(QObject):
             return
         if ok:
             self._dirty = False
-            self._status = "Saved. Quit Steam first — it rewrites this file on exit."
+            self._status = "Saved. Quit Steam first - it rewrites this file on exit."
             self.dirtyChanged.emit()
         else:
-            self._status = "Save failed — localconfig.vdf unreadable or unwritable."
+            self._status = "Save failed - localconfig.vdf unreadable or unwritable."
         self._status_ok = ok
         self.statusChanged.emit()

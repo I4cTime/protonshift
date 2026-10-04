@@ -20,6 +20,9 @@ RowLayout {
         spacing: 1
         Text {
             id: title
+            // fill the row so the switch sits at the right edge even without a subtitle
+            Layout.fillWidth: true
+            elide: Text.ElideRight
             color: Theme.text
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fsSmall
@@ -39,7 +42,10 @@ RowLayout {
     Switch {
         id: sw
         Accessible.name: title.text
-        onToggled: row.toggled(checked)
+        onToggled: {
+            row.toggled(checked)
+            sounds.play(checked ? "toggle_on" : "toggle_off")
+        }
 
         // A plain `checked: row.checked` binding is destroyed by the first
         // user toggle, so later external changes to the bound config value

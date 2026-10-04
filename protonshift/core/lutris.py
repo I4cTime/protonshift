@@ -19,6 +19,13 @@ class LutrisGame:
     name: str
     install_path: Path | None
     prefix_path: Path | None
+    runner: str = ""   # "wine", "linux", "steam", an emulator name, ...
+    service: str = ""  # store the game came from ("gog", "egs", ...), if any
+
+    @property
+    def is_native(self) -> bool:
+        """A Linux-native game: no Wine prefix to manage."""
+        return self.runner == "linux"
 
     @property
     def compatdata_path(self) -> Path | None:
@@ -64,7 +71,7 @@ def discover_lutris_games() -> list[LutrisGame]:
         conn = sqlite3.connect(str(pga_path), timeout=2)
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
-            "SELECT name, slug, directory, installed FROM games "
+            "SELECT * FROM games "
             "WHERE installed = 1 AND slug IS NOT NULL AND slug != '' ORDER BY name"
         )
         for row in cur:
@@ -75,12 +82,16 @@ def discover_lutris_games() -> list[LutrisGame]:
             if directory and not directory.exists():
                 directory = None
             prefix_path = _get_prefix_from_yaml(slug)
+            # runner/service columns are absent from very old Lutris databases
+            columns = row.keys()
             games.append(
                 LutrisGame(
                     app_id=slug,
                     name=str(name),
                     install_path=directory,
                     prefix_path=prefix_path,
+                    runner=str(row["runner"] or "") if "runner" in columns else "",
+                    service=str(row["service"] or "") if "service" in columns else "",
                 )
             )
         conn.close()

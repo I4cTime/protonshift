@@ -79,7 +79,7 @@ def _write_config_file(app_id: str, config: dict[str, Any]) -> bool:
     cfg_file = _config_file_for(app_id, cfg_dir)
 
     # Fail closed (same contract as vdf_config._load_vdf_strict): a present
-    # but unparseable file means we refuse to write — the old "existing = {}"
+    # but unparseable file means we refuse to write - the old "existing = {}"
     # fallback meant one toggle write destroyed every other Heroic setting.
     existing: dict[str, Any] = {}
     if cfg_file.exists():

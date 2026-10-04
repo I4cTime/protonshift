@@ -3,7 +3,7 @@ import QtQuick.Effects
 import App
 
 // Ambient background: a deep base with two large violet glows slowly drifting.
-// GPU-composited, cheap, and it's the kind of "luster" the web build had —
+// GPU-composited, cheap, and it's the kind of "luster" the web build had -
 // here done natively with a blur effect instead of CSS.
 Item {
     id: root
@@ -17,7 +17,7 @@ Item {
         }
     }
 
-    // Only animate while the window is focused and the item is visible — the
+    // Only animate while the window is focused and the item is visible - the
     // full-window blur layer below re-renders every animation frame, so the
     // GPU idles whenever the app is unfocused/minimized.
     readonly property bool animating: root.visible && Window.active
@@ -25,12 +25,12 @@ Item {
     Item {
         id: blobs
         anchors.fill: parent
-        // Flat styles (ambientStrength == 0) skip the glow blobs entirely —
+        // Flat styles (ambientStrength == 0) skip the glow blobs entirely -
         // no point paying for the blur layer/animations when opacity is 0.
         visible: Theme.ambientStrength > 0
 
         // Blobs animate a 0..1 progress and bind x/y to it, so positions
-        // track the CURRENT size — animating x/y directly snapshots
+        // track the CURRENT size - animating x/y directly snapshots
         // root.width/height into `to:` at loop start and drifts after a
         // resize.
         Rectangle {

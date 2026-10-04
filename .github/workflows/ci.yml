@@ -51,7 +51,7 @@ jobs:
           pyside6-qmllint -I protonshift/qml protonshift/qml/**/*.qml
 
       # Importing protonshift.controllers pulls in PySide6.QtGui, which dlopens
-      # libEGL.so.1 — absent on ubuntu-latest. Tests are otherwise headless
+      # libEGL.so.1 - absent on ubuntu-latest. Tests are otherwise headless
       # (QT_QPA_PLATFORM=offscreen above); no display server needed.
       - name: Install Qt runtime library (libEGL)
         run: sudo apt-get update && sudo apt-get install -y libegl1

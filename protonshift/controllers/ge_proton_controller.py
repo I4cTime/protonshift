@@ -4,7 +4,7 @@ Everything that touches the network or disk (release listing, download,
 extraction, removal) runs on a ``start_worker`` thread; results, progress and
 errors come back through queued signals so the page never blocks. The
 download's progress callback fires on the worker thread and only *emits*
-``_installProgress`` — the connected handler mutates state on the GUI thread.
+``_installProgress`` - the connected handler mutates state on the GUI thread.
 
 ``toolsChanged`` fires after a successful install or remove so other
 controllers (the per-game Proton picker in ``LaunchOptionsController``) can
@@ -179,7 +179,7 @@ class GeProtonController(QObject):
         try:
             root, games = discover_games()
             usage = tool_usage(games, root)
-        except Exception:  # noqa: BLE001 — usage is a nicety; never block the list
+        except Exception:  # noqa: BLE001 - usage is a nicety; never block the list
             usage = {}
         installed = [
             {

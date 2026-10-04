@@ -6,7 +6,7 @@ Two build variants share one manifest shape.
 
 `io.github.i4ctime.protonshift.yml` allows network during the build and
 pip-installs PySide6 + vdf straight into `/app`. This is the fast path to a
-running package — including on a Steam Deck in Desktop Mode.
+running package - including on a Steam Deck in Desktop Mode.
 
 ```bash
 # one-time tooling
@@ -22,7 +22,7 @@ flatpak run io.github.i4ctime.protonshift
 ## Flathub build (offline)
 
 Lives in [`flathub/`](flathub/). It is a *different* manifest: Flathub forbids
-build-time network, and — importantly — PySide6 must **not** be pip-vendored.
+build-time network, and - importantly - PySide6 must **not** be pip-vendored.
 `flatpak-pip-generator` refuses PySide6 and points to `io.qt.PySide.BaseApp`,
 which is the correct way to ship it (PySide6 built against `org.kde.Platform`,
 no 150 MB Qt duplication). We vendor only the tiny pure-Python `vdf`.
@@ -34,20 +34,20 @@ submission checklist. Regenerate vendored deps with `flathub/gen-vendor.sh`.
 
 Both variants use `org.freedesktop.Platform` + a bundled Qt (~150 MB via the
 PySide6 wheel). Moving to `org.kde.Platform//6.x` (Qt from the runtime, PySide6
-built against it) removes that duplication — do it when Deck image size matters,
+built against it) removes that duplication - do it when Deck image size matters,
 not before.
 
 ## Assets in this dir
 
-- `io.github.i4ctime.protonshift.yml` — the local manifest
-- `io.github.i4ctime.protonshift.desktop` — launcher entry
-- `io.github.i4ctime.protonshift.metainfo.xml` — AppStream (name, summary, release notes)
-- `io.github.i4ctime.protonshift.svg` — app icon (violet chevrons)
-- `flathub/` — the offline Flathub manifest + vendored deps + submission checklist
+- `io.github.i4ctime.protonshift.yml` - the local manifest
+- `io.github.i4ctime.protonshift.desktop` - launcher entry
+- `io.github.i4ctime.protonshift.metainfo.xml` - AppStream (name, summary, release notes)
+- `io.github.i4ctime.protonshift.svg` - app icon (violet chevrons)
+- `flathub/` - the offline Flathub manifest + vendored deps + submission checklist
 
 ## App ID
 
-`io.github.i4ctime.protonshift` — maps to `github.com/I4cTime` as Flathub
+`io.github.i4ctime.protonshift` - maps to `github.com/I4cTime` as Flathub
 requires. The app sets `QGuiApplication.setDesktopFileName()` to the same ID so
 the Wayland/X11 window picks up the icon and `StartupWMClass`. Both manifests,
 all three asset files, and the `.metainfo.xml` `<id>`/`<launchable>` use it.

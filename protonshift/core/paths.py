@@ -1,4 +1,4 @@
-"""Path validation helpers — keep API inputs from escaping their sandbox.
+"""Path validation helpers - keep API inputs from escaping their sandbox.
 
 Centralised so :mod:`api` (and any future caller) sanitizes the same way and
 ``..``/absolute/symlink-escape attacks fail at one boundary instead of being
@@ -40,7 +40,7 @@ def safe_join(base: Path, *parts: str) -> Path:
 
     ``base`` must already exist (or at least its parent must); the joined
     components may not yet exist. Symlinks are not followed by ``resolve``
-    when targets are missing, which is fine — we only need the lexical
+    when targets are missing, which is fine - we only need the lexical
     parent check to reject ``..`` escape and absolute overrides.
 
     Raises :class:`PathValidationError` on escape, absolute overrides, or
@@ -77,7 +77,7 @@ def validate_within(base: Path, candidate: Path) -> Path:
 
 
 # Roots a localhost API caller may interact with. Anything outside these is
-# rejected — keeps a malicious or buggy client from poking at /etc, /usr, etc.
+# rejected - keeps a malicious or buggy client from poking at /etc, /usr, etc.
 _USER_PATH_ROOTS: tuple[Path, ...] = (
     Path.home(),
     Path("/run/media"),
@@ -92,7 +92,7 @@ def validate_user_path(path: str | Path, *, allow_missing: bool = False) -> Path
 
     Used at API boundaries. Rejects null bytes, ``..`` escape, and anything
     outside :data:`_USER_PATH_ROOTS`. Set ``allow_missing=False`` (default) to
-    require the target to exist — typical for "open this folder" actions.
+    require the target to exist - typical for "open this folder" actions.
     """
     raw = str(path)
     if "\x00" in raw:

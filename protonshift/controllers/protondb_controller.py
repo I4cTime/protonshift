@@ -2,8 +2,8 @@
 
 Bind ``appid`` to the selected Steam game; after a short debounce (so arrowing
 through the library doesn't fire a request per row) the controller looks the
-summary up on a worker thread — disk cache first, network only when the cache
-is missing or older than a day — and reports back through queued signals. A
+summary up on a worker thread - disk cache first, network only when the cache
+is missing or older than a day - and reports back through queued signals. A
 late result for a game the user has already left is discarded.
 
 Privacy: a lookup sends the Steam app id to protondb.com, so it sits behind the
@@ -216,7 +216,7 @@ class ProtonDbController(QObject):
 
     def _on_result(self, appid: int, data: dict, unreachable: bool) -> None:
         if appid != self._appid:
-            return  # user moved on — discard the stale result
+            return  # user moved on - discard the stale result
         self._summary = dict(data)
         self._error = "ProtonDB unreachable" if unreachable else ""
         self._loading = False

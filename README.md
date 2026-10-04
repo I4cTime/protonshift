@@ -42,14 +42,14 @@ pasted from a Reddit comment, `scb.conf` for ScopeBuddy, `environment.d/*.conf`
 for system-wide tuning, and a `~/.steam/steam/steamapps/compatdata/<appid>`
 folder you're afraid to touch.
 
-ProtonShift gathers all of that into one place: a native Linux desktop app —
+ProtonShift gathers all of that into one place: a native Linux desktop app -
 **Qt Quick (QML)** UI driven from **Python via PySide6**, no Electron, no
-bundled browser, no backend server to run or secure — that gives every one of
+bundled browser, no backend server to run or secure - that gives every one of
 those tools a sensible UI.
 
 ## Install
 
-The recommended path is the signed [I4C Flatpak repository](https://flatpak.i4c.studio) —
+The recommended path is the signed [I4C Flatpak repository](https://flatpak.i4c.studio) -
 add it once and updates arrive with `flatpak update`:
 
 ```bash
@@ -59,8 +59,8 @@ flatpak run io.github.i4ctime.protonshift
 ```
 
 Alternatively, tagged GitHub releases attach a prebuilt `.flatpak` bundle
-(one-shot install, no auto-updates) — see
-[Releases](https://github.com/I4cTime/protonshift/releases) — or build
+(one-shot install, no auto-updates) - see
+[Releases](https://github.com/I4cTime/protonshift/releases) - or build
 locally from the manifest; full variants and options are in
 [flatpak/README.md](flatpak/README.md).
 
@@ -68,29 +68,47 @@ locally from the manifest; full variants and options are in
 
 ### Your entire library, unified
 
-Pulls games from **Steam**, **Heroic** (Epic + GOG), and **Lutris** into one
+Pulls games from **Steam** (including Non-Steam shortcuts you added by hand),
+**Heroic** (Epic, GOG, Amazon and sideloaded games) and **Lutris** into one
 searchable list, with per-source counts and one-click launch, install-folder,
-and Wine-prefix access.
+and Wine-prefix access. Native Linux games are marked as such, and Steam's own
+tools (Proton builds, runtimes) are kept out of the list.
 
 ### Launch options, with quick presets
 
 Edit per-game launch options directly, or toggle common snippets without
 memorizing them: GameMode, force-NVIDIA-dGPU offload, MangoHud, Proton debug
 logging, and a ScopeBuddy wrapper. Each preset greys out with an install hint
-if the underlying tool isn't found.
+if the underlying tool isn't found. Snippets are placed around `%command%`
+for you, so a preset never ends up as a stray game argument, and switching
+games with unsaved edits asks before dropping them.
+
+### Launch check
+
+One button per game that lists the usual reasons it won't start, each with
+what to do about it: launch options with no `%command%` (or two), wrapper
+tools that aren't installed, a Proton build that was removed, a missing
+anti-cheat runtime, a missing install folder, and ProtonDB's rating as
+context. It reads files and settings only; it never starts the game.
+
+### Proton log viewer
+
+Turn on Proton's debug log for a game and read it in the app: the end of
+`steam-<appid>.log`, with a filter for lines that look like problems, plus
+copy and open-file. Large logs are never loaded whole.
 
 ### Compatibility tool selection
 
-Pick a Proton or Wine build from a dropdown — Steam's `compatibilitytools.d`
-and built-in tools, or Heroic's `tools/wine` and `tools/proton` — instead of
+Pick a Proton or Wine build from a dropdown - Steam's `compatibilitytools.d`
+and built-in tools, or Heroic's `tools/wine` and `tools/proton` - instead of
 hunting through config files.
 
 ### GE-Proton manager
 
-The Proton page lists the custom builds in Steam's `compatibilitytools.d`
+The Proton builds page lists the custom builds in Steam's `compatibilitytools.d`
 (size, version, which games pin them), shows the latest
 [GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) releases,
-and installs them with sha512 verification and a cancellable progress bar —
+and installs them with sha512 verification and a cancellable progress bar -
 or removes them, warning when a game still uses the build. New builds show
 up in the per-game Proton picker immediately. Builds installed system-wide by
 your distro (`/usr/share/steam/compatibilitytools.d`) are listed as well.
@@ -100,7 +118,7 @@ your distro (`/usr/share/steam/compatibilitytools.d`) are listed as well.
 The game detail pane shows the community [ProtonDB](https://www.protondb.com)
 tier (Platinum → Borked), report count, confidence and trending tier, with a
 link to the full page. Lookups send only the Steam App ID, are cached for a
-day, and can be switched off in the System page's Privacy card.
+day, and can be switched off under Settings, Privacy.
 
 ### Heroic per-game toggles
 
@@ -111,29 +129,29 @@ offload for Heroic games, saved straight to Heroic's per-game config.
 
 Build a full `gamescope` invocation visually: output/game resolution with
 quick presets, FPS limit, FSR upscaling with sharpness, integer scaling, HDR,
-and window mode, plus a free-text field for extra arguments — with a live
-command preview to copy or paste into launch options. Can also emit a
+and window mode, plus a free-text field for extra arguments - with a live
+command preview to add to the selected game's launch options or copy. Can also emit a
 ScopeBuddy override (`SCB_AUTO_*` env vars + `scb --`) instead of a raw
 command.
 
 ### ScopeBuddy integration
 
 A dedicated editor for [ScopeBuddy](https://github.com/HikariKnight/ScopeBuddy)'s
-`scb.conf` — global config and per-app overrides under `scb.conf.d/`, plus
+`scb.conf` - global config and per-app overrides under `scb.conf.d/`, plus
 reusable environment-variable snippets. Comments and existing bash structure
 in the file are preserved on write.
 
 ### MangoHud config editor
 
 Visual editing for global (`~/.config/MangoHud/MangoHud.conf`) and per-game
-(`wine-<game>.conf`) configs — metrics grouped by category, overlay position,
+(`wine-<game>.conf`) configs - metrics grouped by category, overlay position,
 toggle hotkey, and log folder, with presets to get started fast.
 
 ### Environment variables, wherever your desktop reads them
 
 Manage system-wide gaming environment variables with presets for common
 GPU/Proton/Wayland tuning, and choose where they go:
-`~/.config/environment.d/70-protonshift.conf` (systemd user sessions — GNOME,
+`~/.config/environment.d/70-protonshift.conf` (systemd user sessions - GNOME,
 KDE Plasma, sway/Hyprland under uwsm), `~/.profile` (login shells and
 display-manager session wrappers) or `~/.xsessionrc` (Debian/Ubuntu/Mint X11
 sessions). ProtonShift detects how your session was started, recommends the
@@ -151,7 +169,7 @@ via timestamped ZIPs.
 ### Configuration profiles
 
 Save a game's launch options, compatibility tool, environment variables, and
-power profile as a named profile, then reapply it later — to the same game or
+power profile as a named profile, then reapply it later - to the same game or
 a different one. Export all profiles (or one) to a JSON bundle and import it
 on another machine; imports are validated entry by entry and never overwrite
 an existing profile unless you ask.
@@ -164,29 +182,33 @@ apply. User-contributed fixes live under `~/.config/protonshift/fixes/`.
 
 ### Protontricks
 
-Run Protontricks without leaving the app — open its GUI for a game, or
+Run Protontricks without leaving the app - open its GUI for a game, or
 quick-run common verbs. Supports native and Flatpak Protontricks installs.
 
 ### System info & display management
 
 GPU detection (NVIDIA via `nvidia-smi`, AMD/Intel via sysfs) with live temps,
 power-profile switching (`system76-power`, `power-profiles-daemon`), and
-per-monitor resolution/refresh-rate control over `xrandr`, `wlr-randr`, or
-`kscreen-doctor`, depending on your session.
+per-monitor resolution/refresh-rate control over `xrandr`, `hyprctl`,
+`wlr-randr`, or `kscreen-doctor`, depending on your session. A mode change
+asks "keep it?" and goes back on its own after 15 seconds if you don't.
 
 ### Controllers, with a live gamepad tester
 
 Detects connected controllers, generates an `SDL_GAMECONTROLLERCONFIG`
-mapping string, and includes a live tester — every button and axis in real
+mapping string, and includes a live tester - every button and axis in real
 time, plus a rumble test to confirm haptics before you launch a game.
 
-### Appearance
+### Appearance, sounds and about
 
-Settings → Appearance: pick a visual style — **Proton Neon** (ambient glow,
+Settings → Appearance: pick a visual style - **Proton Neon** (ambient glow,
 gradient buttons), **Phosphor Console** (near-black, hairline borders),
-**Soft Glass** (calm, rounded) or **Deepslate** (flat, tight radius) — a
+**Soft Glass** (calm, rounded) or **Deepslate** (flat, tight radius) - a
 dark/light/system mode, and an accent color from eight presets or any hex
 value. Every style ships with a default accent; the override applies on top.
+Settings → Sounds adds optional interface sounds (three sets, a volume, and
+success/error chimes for saves and installs), and Settings → About shows the
+version, a manual update check, and where the app keeps its files.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the design-system tokens work.
 
 ## Development
@@ -196,7 +218,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for how the design-system tokens work.
 ```
 
 First run creates a `.venv`, installs the app in editable mode (PySide6 +
-`vdf`), and launches. Re-run any time — it re-syncs dependencies and is
+`vdf`), and launches. Re-run any time - it re-syncs dependencies and is
 near-instant once the venv is current. Or manually:
 
 ```bash
@@ -219,6 +241,6 @@ PySide6/QML threading pattern, and the release process, and
 
 ## License
 
-[AGPL-3.0](LICENSE) — copyleft for the network era. If you ship a modified
+[AGPL-3.0](LICENSE) - copyleft for the network era. If you ship a modified
 version of ProtonShift (even as a hosted service), the source has to stay
 open.

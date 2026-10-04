@@ -33,7 +33,7 @@ class ProtontricksController(QObject):
         self._status = ""
         self._status_ok = True
         self._output = ""
-        # M4: is_available() can shell out (`flatpak info`, up to 5 s) — probe
+        # M4: is_available() can shell out (`flatpak info`, up to 5 s) - probe
         # on a worker instead of blocking app construction.
         self._available = False
         self._verbs = [{"verb": v, "label": lbl} for v, lbl in COMMON_VERBS]
@@ -147,10 +147,10 @@ class ProtontricksController(QObject):
         if app_id != self._app_id:
             return
         self._running = False
-        # Keep only the tail — winetricks logs are enormous.
+        # Keep only the tail - winetricks logs are enormous.
         lines = output.splitlines()
         self._output = "\n".join(lines[-40:])
-        self._status = "Done." if ok else "Install failed — see log below."
+        self._status = "Done." if ok else "Install failed - see log below."
         self._status_ok = ok
         self.runningChanged.emit()
         self.outputChanged.emit()

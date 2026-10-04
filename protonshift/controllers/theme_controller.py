@@ -5,7 +5,7 @@ Persists ``{style, mode, accent}`` under the ``appearance`` key in
 concrete dark/light choice from the OS color scheme, updating live when the
 desktop flips between light and dark. A legacy ``theme`` key (six fixed
 palette ids, or "system") is still read for migration on first load, but is
-never written back — new saves only ever write ``appearance``.
+never written back - new saves only ever write ``appearance``.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class ThemeController(QObject):
             "accent": self._accent or None,
         }
         try:
-            # L8: atomic replace (same contract as every other config write) —
+            # L8: atomic replace (same contract as every other config write) -
             # a crash mid-write can't corrupt settings.json.
             atomic_write_text(_SETTINGS, json.dumps(existing, indent=2))
         except OSError:
@@ -116,9 +116,16 @@ class ThemeController(QObject):
     @Property(str, notify=resolvedChanged)
     def resolvedAccent(self) -> str:
         if self._accent:
-            return self._accent
+            # A bright override is shown darker in light mode so text and
+            # icons in it stay readable; the stored pick is left untouched.
+            return self._accent if self.resolvedDark else appearance_core.readable_on_light(self._accent)
         entry = self._style_dict(self._style)
         return entry["default_accent_dark"] if self.resolvedDark else entry["default_accent_light"]
+
+    @Property(bool, notify=resolvedChanged)
+    def accentAdjusted(self) -> bool:
+        """True when light mode is showing the override darker than picked."""
+        return bool(self._accent) and self.resolvedAccent != self._accent
 
     @Property("QVariantList", notify=resolvedChanged)
     def styles(self) -> list:

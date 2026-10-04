@@ -6,7 +6,7 @@ succeeded, so a failed read can't be followed by an empty overwrite.
 
 State is a single ``config`` map (QVariantMap) exposed reactively; toggles read
 membership, value fields read the mapped value. A toggle present with an empty
-value is "on" — MangoHud's own convention.
+value is "on" - MangoHud's own convention.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ class MangoHudController(QObject):
         self._error = ""
         self._status = ""
         self._status_ok = True
-        # M4: availability lookup can shell out inside a Flatpak — probed on
+        # M4: availability lookup can shell out inside a Flatpak - probed on
         # the load worker, delivered via _availResult.
         self._available = False
         self._toggle_params = [p for p in MANGOHUD_PARAMS if p["type"] == "toggle"]
@@ -143,7 +143,7 @@ class MangoHudController(QObject):
     @Slot()
     def save(self) -> None:
         if not self._loaded:
-            self._status = "Not saved — config was never loaded."
+            self._status = "Not saved - config was never loaded."
             self._status_ok = False
             self.statusChanged.emit()
             return
@@ -151,7 +151,7 @@ class MangoHudController(QObject):
 
         try:
             ok = write_mangohud_config(dict(self._config))
-        except Exception as exc:  # noqa: BLE001 — a raising core writer must not kill the slot
+        except Exception as exc:  # noqa: BLE001 - a raising core writer must not kill the slot
             ok = False
             self._status = f"Save failed: {type(exc).__name__}: {exc}"
         else:
@@ -160,7 +160,7 @@ class MangoHudController(QObject):
                 self._status = "Saved to MangoHud.conf"
                 self.dirtyChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 

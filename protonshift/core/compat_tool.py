@@ -1,7 +1,7 @@
-"""Per-game Proton version (CompatToolMapping) — in the *correct* file.
+"""Per-game Proton version (CompatToolMapping) - in the *correct* file.
 
 The old backend read/wrote ``CompatToolMapping`` in ``localconfig.vdf`` under
-``UserLocalConfigStore`` — but Steam keeps it in ``<steam_root>/config/config.vdf``
+``UserLocalConfigStore`` - but Steam keeps it in ``<steam_root>/config/config.vdf``
 under ``InstallConfigStore.Software.Valve.Steam.CompatToolMapping``. So the
 feature silently no-oped: ProtonShift injected a node Steam ignores, then read
 its own bogus node back and reported success (review #H1).

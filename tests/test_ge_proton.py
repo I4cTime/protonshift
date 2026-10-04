@@ -1,4 +1,4 @@
-"""GE-Proton manager tests — offline, Qt-free, everything under tmp_path.
+"""GE-Proton manager tests - offline, Qt-free, everything under tmp_path.
 
 Network is stubbed at the two module seams (``_get_json`` / ``_open_stream``);
 the compat dir comes from a monkeypatched ``get_compattools_dir`` so the real
@@ -103,7 +103,7 @@ class _Stub:
     def __call__(self, url: str, timeout: float = 30):
         self.opened.append(url)
         if url not in self.urls:
-            raise GeProtonError("GitHub returned 404 — the release asset is gone")
+            raise GeProtonError("GitHub returned 404 - the release asset is gone")
         data = self.urls[url]
         return io.BytesIO(data), len(data)
 

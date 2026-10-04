@@ -1,4 +1,4 @@
-"""Shared filesystem helpers — directory sizing, human-readable sizes, atomic writes."""
+"""Shared filesystem helpers - directory sizing, human-readable sizes, atomic writes."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ def dir_size(path: Path, *, follow_symlinks: bool = False) -> int:
     """Recursively compute directory size in bytes.
 
     Symlinks are skipped by default to avoid infinite loops and double-counting.
-    Errors on individual files are silently ignored — a partial size is more
+    Errors on individual files are silently ignored - a partial size is more
     useful than an exception in UI-facing code.
     """
     total = 0

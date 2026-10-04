@@ -71,6 +71,11 @@
   </developer>
 
   <releases>
+    <release version="1.3.0" date="2026-10-04">
+      <description>
+        <p>A launch check lists the usual reasons a game won't start, and a Proton log viewer shows what Proton wrote the last time it ran. The library now includes Heroic's Amazon and sideloaded games and Steam's Non-Steam shortcuts. Settings gain interface sounds and a fuller About card with a manual update check. Navigation is grouped, the gamescope command can be added straight to a game, and a display mode change asks before it sticks. Fixes: launch-option presets are placed around %command%, and Displays works on Hyprland with a Lua config.</p>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-09-27">
       <description>
         <p>Environment variables now reach every desktop: pick environment.d, ~/.profile or ~/.xsessionrc, with a recommendation for your session and a "copy as Steam launch options" fallback. New Proton page installs and removes GE-Proton builds with checksum verification. Game details show the ProtonDB rating (opt-out on the System page). Profiles can be exported and imported as JSON bundles. New Settings page with four visual styles, dark/light/system mode and an accent color override.</p>

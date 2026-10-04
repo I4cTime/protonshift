@@ -2,7 +2,7 @@
 #
 # This variant builds LOCALLY: it allows network during the build and pip-installs
 # PySide6 (the freedesktop runtime ships no Qt, so the wheel bundles it). That is
-# the fast, reliable way to prove the package runs — including on a Steam Deck in
+# the fast, reliable way to prove the package runs - including on a Steam Deck in
 # Desktop Mode.
 #
 # For a FLATHUB submission, network during build is not allowed: replace the pip
@@ -27,10 +27,12 @@ finish-args:
   - --share=network
   - --socket=wayland
   - --socket=fallback-x11
+  # Interface sounds (Settings -> Sounds); playback only.
+  - --socket=pulseaudio
   - --device=dri
   # game controllers (gamepad tester + rumble ioctls). The narrow `input`
   # device class needs flatpak >= 1.16, which CI's apt flatpak-builder
-  # predates — `all` is the compatible superset here; the Flathub manifest
+  # predates - `all` is the compatible superset here; the Flathub manifest
   # (flatpak/flathub/) keeps `input` since Flathub's builders are current.
   - --device=all
   # ProtonShift reads game libraries (read-only home) and writes only the
@@ -81,7 +83,7 @@ modules:
   - name: protonshift
     buildsystem: simple
     build-options:
-      # LOCAL build only — Flathub forbids network here (vendor instead).
+      # LOCAL build only - Flathub forbids network here (vendor instead).
       build-args:
         - --share=network
     build-commands:

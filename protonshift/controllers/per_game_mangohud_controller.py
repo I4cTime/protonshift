@@ -148,7 +148,7 @@ class PerGameMangoHudController(QObject):
 
         try:
             ok = write_per_game_config(self._name, dict(self._config))
-        except Exception as exc:  # noqa: BLE001 — a raising core writer must not kill the slot
+        except Exception as exc:  # noqa: BLE001 - a raising core writer must not kill the slot
             ok = False
             self._status = f"Save failed: {type(exc).__name__}: {exc}"
         else:
@@ -159,7 +159,7 @@ class PerGameMangoHudController(QObject):
                 self.dirtyChanged.emit()
                 self.existsChanged.emit()
             else:
-                self._status = "Save failed — check permissions."
+                self._status = "Save failed - check permissions."
         self._status_ok = ok
         self.statusChanged.emit()
 

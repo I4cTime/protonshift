@@ -5,7 +5,7 @@ Ported from the original ProtonShift core. Shader caches live under
 the UI show and clear them per game plus a grand total.
 
 ``app_id`` ultimately comes from ``appmanifest_*.acf`` filenames on disk, which
-an attacker (or a stray file) can shape — e.g. ``appmanifest_...acf`` yields an
+an attacker (or a stray file) can shape - e.g. ``appmanifest_...acf`` yields an
 app_id of ``..`` which would make ``clear_shader_cache`` rmtree ``steamapps``
 itself. Steam app ids are always decimal digits, so anything else is rejected,
 and the resolved path is additionally verified to stay under ``shadercache/``.
@@ -65,7 +65,7 @@ def get_shader_cache_info(steam_root: Path, app_id: str) -> ShaderCacheInfo:
 def clear_shader_cache(steam_root: Path, app_id: str) -> bool:
     """Delete the shader cache dir for a game. True if gone (incl. never existed).
 
-    An invalid ``app_id`` returns False — nothing is deleted.
+    An invalid ``app_id`` returns False - nothing is deleted.
     """
     cache_dir = _shader_cache_dir(steam_root, app_id)
     if cache_dir is None:

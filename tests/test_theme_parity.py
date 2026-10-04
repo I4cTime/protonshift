@@ -2,7 +2,7 @@
 appearance model.
 
 `core/appearance.py` is pure Python (no PySide6 import), so its STYLES
-registry can be imported directly — no Qt needed. Theme.qml itself is parsed
+registry can be imported directly - no Qt needed. Theme.qml itself is parsed
 as text/regex (same approach as before this file's rewrite), since it can't
 be imported without a QML engine.
 

@@ -88,7 +88,7 @@ RowLayout {
                 }
                 Text {
                     visible: scopebuddy.autoCaps.any !== true
-                    text: "— no supported backend detected"
+                    text: "- no supported backend detected"
                     color: Theme.faint
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
@@ -116,7 +116,7 @@ RowLayout {
                     color: Theme.warning
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
-                    text: "ScopeBuddy (scb) isn't installed — you can still edit the config for later."
+                    text: "ScopeBuddy (scb) isn't installed - you can still edit the config for later."
                 }
             }
 
@@ -137,7 +137,7 @@ RowLayout {
                     color: Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fsCaption
-                    text: "Couldn't read scb.conf — editing disabled so nothing gets overwritten.\n" + scopebuddy.loadError
+                    text: "Couldn't read scb.conf - editing disabled so nothing gets overwritten.\n" + scopebuddy.loadError
                 }
             }
 
@@ -148,25 +148,13 @@ RowLayout {
                 spacing: Theme.spaceXs
                 Repeater {
                     model: scopebuddy.knownKeys
-                    delegate: Rectangle {
+                    delegate: PsChip {
                         required property string modelData
-                        implicitWidth: chip.implicitWidth + 18
-                        implicitHeight: 24
-                        radius: 12
-                        color: ch.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                        border.color: ch.hovered ? Theme.primary : Theme.border
-                        border.width: 1
-                        Behavior on color { ColorAnimation { duration: 100 } }
-                        HoverHandler { id: ch }
-                        TapHandler { onTapped: if (scopebuddy.loaded) scopebuddy.addKey(modelData) }
-                        Text {
-                            id: chip
-                            anchors.centerIn: parent
-                            text: "+ " + modelData
-                            color: ch.hovered ? Theme.primaryBright : Theme.muted
-                            font.family: Theme.monoFamily
-                            font.pixelSize: 10
-                        }
+                        text: "+ " + modelData
+                        mono: true
+                        enabled: scopebuddy.loaded
+                        Accessible.name: "Add key " + modelData
+                        onClicked: scopebuddy.addKey(modelData)
                     }
                 }
             }
@@ -215,18 +203,11 @@ RowLayout {
                         Component.onCompleted: text = row.value
                         onEdited: scopebuddy.model.setValue(row.index, newText)
                     }
-                    Rectangle {
-                        width: 28; height: 28; radius: Theme.radiusSm
-                        color: rm.hovered ? Theme.dangerSurface : "transparent"
-                        border.width: 1
-                        border.color: rm.hovered ? Theme.danger : Theme.border
-                        Text {
-                            anchors.centerIn: parent; text: "✕"
-                            color: rm.hovered ? Theme.danger : Theme.muted
-                            font.pixelSize: 12
-                        }
-                        HoverHandler { id: rm }
-                        TapHandler { onTapped: scopebuddy.model.removeRow(row.index) }
+                    PsIconButton {
+                        glyph: "✕"
+                        danger: true
+                        label: "Remove " + (row.key.length > 0 ? row.key : "this row")
+                        onClicked: scopebuddy.model.removeRow(row.index)
                     }
                 }
 
@@ -236,7 +217,7 @@ RowLayout {
                     visible: list.count === 0 && !scopebuddy.loading
                     Text {
                         anchors.centerIn: parent
-                        text: "No SCB_ keys yet — add one above or apply a preset."
+                        text: "No SCB_ keys yet - add one above or apply a preset."
                         color: Theme.faint
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fsSmall
@@ -271,7 +252,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: scopebuddy.loaded && scopebuddy.dirty
-                    onClicked: scopebuddy.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { scopebuddy.save(); sounds.result(scopebuddy.statusOk) }
                 }
             }
         }
@@ -294,31 +276,14 @@ RowLayout {
             }
             Repeater {
                 model: scopebuddy.presetNames
-                delegate: Rectangle {
+                delegate: PsRowButton {
                     required property string modelData
                     Layout.fillWidth: true
-                    implicitHeight: 40
-                    radius: Theme.radiusSm
-                    color: ph.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                    border.color: ph.hovered ? Theme.borderStrong : Theme.border
-                    border.width: 1
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    HoverHandler { id: ph }
-                    TapHandler { onTapped: if (scopebuddy.loaded) scopebuddy.applyPreset(modelData) }
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.spaceSm
-                        anchors.rightMargin: Theme.spaceSm
-                        Text {
-                            Layout.fillWidth: true
-                            text: modelData
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fsSmall
-                            font.weight: Font.Medium
-                        }
-                        Text { text: "+"; color: Theme.primaryBright; font.pixelSize: 16; font.bold: true }
-                    }
+                    text: modelData
+                    trailing: "+"
+                    enabled: scopebuddy.loaded
+                    Accessible.name: "Add preset " + modelData
+                    onClicked: scopebuddy.applyPreset(modelData)
                 }
             }
             Item { Layout.fillHeight: true }
@@ -351,22 +316,13 @@ RowLayout {
                     spacing: Theme.spaceXs
                     Repeater {
                         model: scbEnvvars.snippets
-                        delegate: Rectangle {
+                        delegate: PsChip {
                             required property string modelData
-                            implicitWidth: snLbl.implicitWidth + 18
-                            implicitHeight: 24
-                            radius: 12
-                            property bool active: scbEnvvars.name === modelData
-                            color: active ? Theme.surfaceElevated : (snh.hovered ? Theme.surface : Theme.bgDeep)
-                            border.color: active ? Theme.primary : Theme.border
-                            border.width: active ? 2 : 1
-                            HoverHandler { id: snh }
-                            TapHandler { onTapped: scbEnvvars.select(modelData) }
-                            Text {
-                                id: snLbl; anchors.centerIn: parent; text: modelData
-                                color: active ? Theme.primaryBright : Theme.muted
-                                font.family: Theme.monoFamily; font.pixelSize: 10
-                            }
+                            text: modelData
+                            mono: true
+                            active: scbEnvvars.name === modelData
+                            Accessible.name: "Edit snippet " + modelData
+                            onClicked: scbEnvvars.select(modelData)
                         }
                     }
                     Text {
@@ -409,14 +365,12 @@ RowLayout {
                 spacing: Theme.spaceXs
                 Repeater {
                     model: scbEnvvars.knownKeys
-                    delegate: Rectangle {
+                    delegate: PsChip {
                         required property string modelData
-                        implicitWidth: kc.implicitWidth + 18; implicitHeight: 24; radius: 12
-                        color: kch.hovered ? Theme.surfaceElevated : Theme.bgDeep
-                        border.color: kch.hovered ? Theme.primary : Theme.border; border.width: 1
-                        HoverHandler { id: kch }
-                        TapHandler { onTapped: scbEnvvars.addKey(modelData) }
-                        Text { id: kc; anchors.centerIn: parent; text: "+ " + modelData; color: kch.hovered ? Theme.primaryBright : Theme.muted; font.family: Theme.monoFamily; font.pixelSize: 10 }
+                        text: "+ " + modelData
+                        mono: true
+                        Accessible.name: "Add key " + modelData
+                        onClicked: scbEnvvars.addKey(modelData)
                     }
                 }
             }
@@ -452,13 +406,11 @@ RowLayout {
                     }
                     EnvField { id: skf; Layout.preferredWidth: 200; mono: true; placeholder: "SCB_KEY"; Component.onCompleted: text = sr.key; onEdited: scbEnvvars.model.setKey(sr.index, newText) }
                     EnvField { id: svf; Layout.fillWidth: true; mono: true; placeholder: "value"; Component.onCompleted: text = sr.value; onEdited: scbEnvvars.model.setValue(sr.index, newText) }
-                    Rectangle {
-                        width: 28; height: 28; radius: Theme.radiusSm
-                        color: srm.hovered ? Theme.dangerSurface : "transparent"
-                        border.width: 1; border.color: srm.hovered ? Theme.danger : Theme.border
-                        Text { anchors.centerIn: parent; text: "✕"; color: srm.hovered ? Theme.danger : Theme.muted; font.pixelSize: 12 }
-                        HoverHandler { id: srm }
-                        TapHandler { onTapped: scbEnvvars.model.removeRow(sr.index) }
+                    PsIconButton {
+                        glyph: "✕"
+                        danger: true
+                        label: "Remove " + (sr.key.length > 0 ? sr.key : "this row")
+                        onClicked: scbEnvvars.model.removeRow(sr.index)
                     }
                 }
             }
@@ -479,12 +431,15 @@ RowLayout {
                     font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
                 }
                 Text { visible: scbEnvvars.dirty; text: "● unsaved"; color: Theme.primaryBright; font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption }
-                PsButton { text: "Save"; enabled: scbEnvvars.loaded && scbEnvvars.dirty; onClicked: scbEnvvars.save() }
+                PsButton {
+                    text: "Save"; enabled: scbEnvvars.loaded && scbEnvvars.dirty; sound: ""
+                    onClicked: { scbEnvvars.save(); sounds.result(scbEnvvars.statusOk) }
+                }
             }
         }
     }
 
-    // Deleting a snippet removes envvars/<name>.conf outright — confirm first.
+    // Deleting a snippet removes envvars/<name>.conf outright - confirm first.
     PsDialog {
         id: deleteSnippetConfirm
         title: "Delete snippet?"

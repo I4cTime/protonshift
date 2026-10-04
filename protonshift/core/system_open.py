@@ -14,8 +14,9 @@ from .host import host_argv
 from .paths import PathValidationError, validate_user_path
 
 # Only these URI schemes may be handed to the opener. steam:// covers
-# rungameid / gameproperties / nav; heroic:// launches Heroic titles.
-_ALLOWED_SCHEMES = ("steam:", "heroic:")
+# rungameid / gameproperties / nav; heroic:// launches Heroic titles;
+# lutris: launches Lutris ones (lutris:rungame/<slug>).
+_ALLOWED_SCHEMES = ("steam:", "heroic:", "lutris:")
 
 
 def _spawn(argv: list[str]) -> tuple[bool, str]:
@@ -41,7 +42,7 @@ def open_path(path: str) -> tuple[bool, str]:
 
 
 def open_uri(uri: str) -> tuple[bool, str]:
-    """Hand an allow-listed URI (steam://, heroic://) to the system opener."""
+    """Hand an allow-listed URI (steam://, heroic://, lutris:) to the system opener."""
     uri = uri.strip()
     if not any(uri.lower().startswith(s) for s in _ALLOWED_SCHEMES):
         return False, "Unsupported URI."
