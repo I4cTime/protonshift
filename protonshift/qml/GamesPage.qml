@@ -19,6 +19,27 @@ RowLayout {
         if (source === "shortcut") return "Non-Steam"
         return "Steam"
     }
+    function runLaunchCheck() {
+        var g = library.selected
+        // "\u0000" = read the saved launch options from Steam; a Non-Steam
+        // shortcut carries its own, which Steam keeps inside the shortcut.
+        launchCheck.run(g.appId, g.installPath || "", g.compatdataPath || "",
+                        g.source === "shortcut" ? (g.launchOptions || "") : "\u0000",
+                        (g.source === "steam" && protondb.enabled && protondb.loaded) ? protondb.tierLabel : "")
+    }
+    function levelColor(level) {
+        if (level === "error") return Theme.danger
+        if (level === "warn") return Theme.warning
+        if (level === "ok") return Theme.success
+        return Theme.muted
+    }
+    function levelGlyph(level) {
+        if (level === "error") return "✕"
+        if (level === "warn") return "!"
+        if (level === "ok") return "✓"
+        return "i"
+    }
+
     // Selecting another game reloads the launch options, which would drop
     // unsaved edits without a word. Ask first.
     function requestSelect(appId) {
@@ -936,12 +957,23 @@ RowLayout {
             PsSectionHeader {
                 Layout.fillWidth: true
                 text: "Per-game tools"
-                subtitle: detailCard.isSteam ? "Overrides, Winetricks, known fixes, profiles and save backups for this game"
-                                             : "Install Windows components into this game's prefix"
+                subtitle: detailCard.isSteam ? "Launch check, Proton log, overrides, Winetricks, known fixes, profiles and save backups"
+                                             : "Check why it won't start, or install Windows components into its prefix"
             }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
+                PsButton {
+                    text: "Launch check…"
+                    primary: false
+                    onClicked: { launchCheckDialog.open(); page.runLaunchCheck() }
+                }
+                PsButton {
+                    text: "Proton log…"
+                    primary: false
+                    visible: detailCard.isSteam
+                    onClicked: { protonLog.open(library.selected.appId); protonLogDialog.open() }
+                }
                 PsButton {
                     text: "ScopeBuddy override…"
                     primary: false
@@ -1216,7 +1248,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: perAppScb.loaded && perAppScb.dirty
-                    onClicked: perAppScb.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { perAppScb.save(); sounds.result(perAppScb.statusOk) }
                 }
             }
         }
@@ -1321,7 +1354,8 @@ RowLayout {
                 PsButton {
                     text: "Save"
                     enabled: perGameMango.loaded && perGameMango.dirty
-                    onClicked: perGameMango.save()
+                    sound: ""  // the outcome chime says it
+                    onClicked: { perGameMango.save(); sounds.result(perGameMango.statusOk) }
                 }
             }
         }
@@ -1872,6 +1906,340 @@ RowLayout {
                 wrapMode: Text.WordWrap
                 color: saves.statusOk ? Theme.success : Theme.danger
                 font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
+            }
+        }
+    }
+
+    // ============================ LAUNCH CHECK DIALOG =======================
+    PsDialog {
+        id: launchCheckDialog
+        objectName: "launchCheckDialog"
+        width: 660
+        title: "Launch check"
+        subtitle: (library.selected.name || "") + " · the usual reasons a game won't start"
+
+        // one chime when a run finishes
+        property bool wasRunning: false
+        Connections {
+            target: launchCheck
+            function onChanged() {
+                if (launchCheckDialog.wasRunning && !launchCheck.running && launchCheckDialog.opened) {
+                    var worst = "ok"
+                    for (var i = 0; i < launchCheck.findings.length; i++) {
+                        var l = launchCheck.findings[i].level
+                        if (l === "error") worst = "error"
+                        else if (l === "warn" && worst !== "error") worst = "warn"
+                    }
+                    sounds.play(worst === "error" ? "error" : (worst === "warn" ? "notification" : "success"))
+                }
+                launchCheckDialog.wasRunning = launchCheck.running
+            }
+        }
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                BusyIndicator {
+                    running: launchCheck.running; visible: launchCheck.running
+                    implicitWidth: 20; implicitHeight: 20
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: launchCheck.running ? "Checking…" : launchCheck.summary
+                    color: launchCheck.running ? Theme.muted
+                           : (launchCheck.hasProblems ? Theme.text : Theme.success)
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsBody
+                    font.weight: Font.DemiBold
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: detailCard.isSteam && launch.dirty
+                wrapMode: Text.WordWrap
+                text: "This checks the launch options saved in Steam. Your unsaved edits are not included."
+                color: Theme.warning
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(Math.max(contentHeight, 40), 380)
+                clip: true
+                spacing: 6
+                model: launchCheck.findings
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: Rectangle {
+                    id: findingRow
+                    required property var modelData
+                    readonly property color tone: page.levelColor(modelData.level)
+                    width: ListView.view.width
+                    implicitHeight: findingCol.implicitHeight + 2 * Theme.spaceSm
+                    radius: Theme.radiusSm
+                    color: Theme.bgDeep
+                    border.width: 1
+                    border.color: (modelData.level === "error" || modelData.level === "warn") ? tone : Theme.border
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData.level + ": " + modelData.title
+                    Accessible.description: modelData.detail + " " + modelData.fix
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.spaceSm
+                        spacing: Theme.spaceSm
+                        Rectangle {
+                            Layout.alignment: Qt.AlignTop
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: "transparent"
+                            border.width: 1
+                            border.color: findingRow.tone
+                            Text {
+                                anchors.centerIn: parent
+                                text: page.levelGlyph(findingRow.modelData.level)
+                                color: findingRow.tone
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+                        }
+                        ColumnLayout {
+                            id: findingCol
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                text: findingRow.modelData.title
+                                wrapMode: Text.WordWrap
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsSmall
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: findingRow.modelData.detail.length > 0
+                                text: findingRow.modelData.detail
+                                wrapMode: Text.Wrap
+                                color: Theme.muted
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsCaption
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: findingRow.modelData.fix.length > 0
+                                text: "What to do: " + findingRow.modelData.fix
+                                wrapMode: Text.Wrap
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fsCaption
+                            }
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: "Checks files and settings on this PC. It does not start the game."
+                    color: Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Proton log…"; primary: false
+                    visible: detailCard.isSteam
+                    onClicked: {
+                        launchCheckDialog.close()
+                        protonLog.open(library.selected.appId)
+                        protonLogDialog.open()
+                    }
+                }
+                PsButton {
+                    text: "Check again"
+                    enabled: !launchCheck.running
+                    onClicked: page.runLaunchCheck()
+                }
+            }
+        }
+    }
+
+    // ============================ PROTON LOG DIALOG =========================
+    PsDialog {
+        id: protonLogDialog
+        objectName: "protonLogDialog"
+        width: 820
+        title: "Proton log"
+        subtitle: (library.selected.name || "") + " · what Proton wrote the last time the game ran"
+        readonly property bool loggingOn: protonLog.loggingEnabled(launch.text)
+
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.space
+
+            // logging switch state
+            Rectangle {
+                Layout.fillWidth: true
+                radius: Theme.radiusSm
+                color: protonLogDialog.loggingOn ? Theme.successTint : Theme.warningSurface
+                border.width: 1
+                border.color: protonLogDialog.loggingOn ? Theme.success : Theme.warningBorder
+                implicitHeight: logState.implicitHeight + 2 * Theme.spaceSm
+                RowLayout {
+                    id: logState
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    spacing: Theme.spaceSm
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: protonLogDialog.loggingOn
+                              ? (launch.dirty ? "Logging is switched on, but not saved yet. Press Save to Steam, then run the game."
+                                              : "Logging is on. Each run of the game replaces the log.")
+                              : "Logging is off for this game, so Proton writes no log."
+                        color: protonLogDialog.loggingOn ? Theme.success : Theme.warning
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fsCaption
+                    }
+                    PsButton {
+                        text: "Turn on logging"
+                        primary: false
+                        implicitHeight: 32
+                        visible: !protonLogDialog.loggingOn
+                        enabled: launch.loaded
+                        onClicked: launch.appendPreset("PROTON_LOG=1")
+                    }
+                    PsButton {
+                        text: "Save to Steam"
+                        implicitHeight: 32
+                        visible: protonLogDialog.loggingOn && launch.dirty
+                        onClicked: launch.save()
+                    }
+                }
+            }
+
+            // file facts + filter
+            RowLayout {
+                Layout.fillWidth: true
+                visible: protonLog.exists
+                spacing: Theme.space
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideMiddle
+                    text: protonLog.path + "  ·  " + protonLog.sizeLabel + "  ·  " + protonLog.modifiedLabel
+                    color: Theme.faint
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                BusyIndicator {
+                    running: protonLog.loading; visible: protonLog.loading
+                    implicitWidth: 18; implicitHeight: 18
+                }
+            }
+            PsSwitchRow {
+                Layout.fillWidth: true
+                visible: protonLog.exists
+                text: "Show only lines that look like problems"
+                subtitle: protonLog.problemCount === 0 ? "None found in the part of the log that was read"
+                          : protonLog.problemCount + (protonLog.problemCount === 1 ? " line" : " lines")
+                            + " with errors, crashes or missing files"
+                checked: protonLog.problemsOnly
+                onToggled: protonLog.setProblemsOnly(value)
+            }
+
+            // the log itself
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 320
+                radius: Theme.radiusSm
+                color: Theme.bgDeep
+                border.color: Theme.border
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    width: parent.width - 2 * Theme.spaceLg
+                    visible: !protonLog.loading && (!protonLog.exists || protonLog.error.length > 0
+                                                    || protonLog.text.length === 0)
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: protonLog.error.length > 0 ? protonLog.error
+                          : !protonLog.exists
+                            ? "No log yet. Turn logging on, save, run the game once and quit it, then press Refresh."
+                            : (protonLog.problemsOnly ? "No lines that look like problems." : "The log is empty.")
+                    color: protonLog.error.length > 0 ? Theme.danger : Theme.faint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsSmall
+                }
+
+                ScrollView {
+                    id: logScroll
+                    anchors.fill: parent
+                    anchors.margins: Theme.spaceSm
+                    clip: true
+                    visible: protonLog.exists && protonLog.text.length > 0
+                    TextEdit {
+                        id: logText
+                        width: logScroll.availableWidth
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.WrapAnywhere
+                        text: protonLog.text
+                        color: Theme.muted
+                        font.family: Theme.monoFamily
+                        font.pixelSize: 11
+                        Accessible.name: "Proton log"
+                        // a log is read from its end: that is where it stopped
+                        onTextChanged: Qt.callLater(function () {
+                            logScroll.ScrollBar.vertical.position = Math.max(0, 1.0 - logScroll.ScrollBar.vertical.size)
+                        })
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: protonLog.exists && protonLog.truncated
+                text: "Showing the end of the log. Open the file for all of it."
+                color: Theme.faint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fsCaption
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spaceSm
+                Text {
+                    Layout.fillWidth: true
+                    text: protonLog.notice
+                    elide: Text.ElideRight
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
+                }
+                PsButton {
+                    text: "Open file"; primary: false; sound: ""
+                    enabled: protonLog.exists
+                    onClicked: sounds.play(protonLog.openFile() ? "click" : "error")
+                }
+                PsButton {
+                    text: "Copy"; primary: false; sound: ""
+                    enabled: protonLog.exists && protonLog.text.length > 0
+                    onClicked: sounds.result(protonLog.copy())
+                }
+                PsButton {
+                    text: "Refresh"
+                    enabled: !protonLog.loading
+                    onClicked: protonLog.refresh()
+                }
             }
         }
     }

@@ -49,7 +49,7 @@ LAUNCH_PRESETS: list[LaunchPreset] = [
     LaunchPreset(
         name="Proton Log",
         value="PROTON_LOG=1",
-        description="Write a Proton debug log to /tmp/proton_*.log. Useful for troubleshooting.",
+        description="Write a Proton debug log (steam-<appid>.log in your home folder). Read it under Per-game tools, Proton log.",
     ),
     LaunchPreset(
         name="ScopeBuddy",

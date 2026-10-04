@@ -26,12 +26,14 @@ from .controllers import (
     GameToolsController,
     GeProtonController,
     HeroicController,
+    LaunchCheckController,
     LaunchOptionsController,
     MangoHudController,
     PerAppScopeBuddyController,
     PerGameMangoHudController,
     ProfilesController,
     ProtonDbController,
+    ProtonLogController,
     ProtontricksController,
     SavesController,
     ScopeBuddyController,
@@ -81,6 +83,25 @@ def main() -> int:
     ge_proton = GeProtonController()
     sounds = SoundController()
     about = AboutController()
+    launch_check = LaunchCheckController()
+    proton_log = ProtonLogController()
+    # Outcome chimes for work that finishes on a worker thread. (Saves that
+    # finish at once chime from their Save button in QML.) Where the control
+    # already made its own sound - a toggle, a profile row - only a failure
+    # is worth a second one.
+    launch._saveResult.connect(lambda _app, ok: sounds.chime(ok))
+    launch._protonSaveResult.connect(lambda _app, ok, _tool: sounds.chime(ok))
+    saves._actionResult.connect(lambda _app, _msg, ok: sounds.chime(ok))
+    profiles._actionResult.connect(lambda _msg, ok: sounds.chime(ok))
+    game_tools._actionResult.connect(lambda _app, _msg, kind: sounds.chime(kind == "ok"))
+    protontricks._runResult.connect(lambda _app, ok, _out: sounds.chime(ok))
+    heroic._versionResult.connect(lambda _app, ok, _name: sounds.chime(ok))
+    heroic._toggleResult.connect(lambda _app, _key, _value, ok: ok or sounds.chime(False))
+    system._powerResult.connect(lambda ok, _msg, _profile: ok or sounds.chime(False))
+    display._applyResult.connect(lambda ok, _msg, _output: ok or sounds.chime(False))
+    ge_proton._installDone.connect(lambda _name: sounds.chime(True))
+    ge_proton._installFailed.connect(lambda _msg, cancelled: cancelled or sounds.chime(False))
+    ge_proton._removeDone.connect(lambda _name, error: sounds.chime(not error))
     # installed/removed builds should show up in the per-game Proton picker
     ge_proton.toolsChanged.connect(launch.reloadProton)
     ctx = engine.rootContext()
@@ -107,6 +128,8 @@ def main() -> int:
     ctx.setContextProperty("geProton", ge_proton)
     ctx.setContextProperty("sounds", sounds)
     ctx.setContextProperty("about", about)
+    ctx.setContextProperty("launchCheck", launch_check)
+    ctx.setContextProperty("protonLog", proton_log)
     ctx.setContextProperty("appVersion", __version__)
 
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "main.qml")))
