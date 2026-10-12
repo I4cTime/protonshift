@@ -218,12 +218,17 @@ class GameToolsController(QObject):
         self.statusChanged.emit()
 
     def _on_info(self, app_id: str, info: dict) -> None:
+        # Always clear loading, even for a stale result: refresh() bails while
+        # a scan is in flight, so leaving it set would wedge the panel.
+        self._loading = False
+        self.loadingChanged.emit()
         if app_id != self._app_id:
+            # The selection moved on mid-scan and its own refresh() was
+            # skipped - scan the game that is selected now.
+            self.refresh()
             return
         self._info = info
-        self._loading = False
         self.infoChanged.emit()
-        self.loadingChanged.emit()
 
     def _on_action(self, app_id: str, message: str, kind: str) -> None:
         # Always clear busy, but only surface status / refresh for the game

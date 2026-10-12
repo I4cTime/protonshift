@@ -144,14 +144,16 @@ class ProtontricksController(QObject):
         self.availableChanged.emit()
 
     def _on_run(self, app_id: str, ok: bool, output: str) -> None:
+        # Always clear running, even for a game no longer selected: it gates
+        # installVerbs(), so leaving it set would block every later install.
+        self._running = False
+        self.runningChanged.emit()
         if app_id != self._app_id:
             return
-        self._running = False
         # Keep only the tail - winetricks logs are enormous.
         lines = output.splitlines()
         self._output = "\n".join(lines[-40:])
         self._status = "Done." if ok else "Install failed - see log below."
         self._status_ok = ok
-        self.runningChanged.emit()
         self.outputChanged.emit()
         self.statusChanged.emit()
