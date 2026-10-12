@@ -71,6 +71,11 @@
   </developer>
 
   <releases>
+    <release version="1.3.2" date="2026-10-12">
+      <description>
+        <p>Fixes: the per-game tools panel no longer gets stuck loading after switching games, deleting a prefix only ever deletes an actual Wine or Proton prefix, and the Flatpak now lists Lutris games, keeps Winetricks installs non-interactive and detects GNOME's gdctl for ScopeBuddy.</p>
+      </description>
+    </release>
     <release version="1.3.1" date="2026-10-04">
       <description>
         <p>Flatpak fix: Proton builds installed system-wide by a distro package (for example proton-ge-custom-bin in /usr/share/steam/compatibilitytools.d) are now listed on the Proton builds page and in the per-game Proton picker.</p>
