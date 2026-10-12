@@ -1,0 +1,78 @@
+name: Flatpak
+
+# Checks the packaging that ships to users, on the PRs that change it:
+# AppStream/desktop metadata, and an offline build of the Flathub manifest
+# (KDE runtime + PySide BaseApp, no build-time network) from this checkout.
+# The tag-triggered bundle build (build-release.yml) only covers the local
+# manifest, so without this a Flathub-manifest change ships untested.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "flatpak/**"
+      - "pyproject.toml"
+      - ".github/workflows/flatpak.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flatpak-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  metadata:
+    name: Validate metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install validators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+
+      - name: AppStream metainfo
+        run: appstreamcli validate --pedantic --no-net flatpak/io.github.i4ctime.protonshift.metainfo.xml
+
+      - name: Desktop entry
+        run: desktop-file-validate flatpak/io.github.i4ctime.protonshift.desktop
+
+  flathub-build:
+    name: Build Flathub manifest (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Flathub's builder image: a current flatpak (the runner's apt flatpak is
+    # too old for --device=input). KDE 6.11 + the PySide BaseApp are pulled
+    # from Flathub by --install-deps-from; the build itself has no network.
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    env:
+      MANIFEST: flatpak/flathub/io.github.i4ctime.protonshift.yml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The manifest pins the app source to a release commit; build this
+      # checkout instead so the PR's own changes are what gets tested.
+      - name: Point the app source at this checkout
+        run: |
+          sed -z -E -i \
+            's#- type: git\n(\s+)url: https://github\.com/I4cTime/protonshift\.git\n\s+commit: [0-9a-f]+#- type: dir\n\1path: ../..#' \
+            "$MANIFEST"
+          if grep -q 'I4cTime/protonshift.git' "$MANIFEST" || ! grep -q 'path: \.\./\.\.' "$MANIFEST"; then
+            echo "::error::could not point the app source at this checkout"
+            exit 1
+          fi
+
+      # Build and state dirs live outside the checkout so the `dir` source
+      # above doesn't copy the build into itself.
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+        with:
+          manifest-path: ${{ env.MANIFEST }}
+          build-dir: /tmp/flatpak-build
+          state-dir: /tmp/flatpak-state
+          build-bundle: false
+          upload-artifact: false
