@@ -20,6 +20,7 @@ and disabling it is the documented workaround.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 
@@ -102,7 +103,7 @@ def list_prefixes() -> list[tuple[str, str]]:
             capture_output=True,
             text=True,
             timeout=30,
-            env=_verb_env(),
+            extra_env=_VERB_ENV,
         )
     except (FileNotFoundError, OSError, subprocess.SubprocessError):
         return []
@@ -111,13 +112,8 @@ def list_prefixes() -> list[tuple[str, str]]:
     return parse_list(r.stdout)
 
 
-def _verb_env() -> dict | None:
-    """Non-interactive winetricks env so verb installs don't block on prompts."""
-    import os
-
-    env = dict(os.environ)
-    env["WINETRICKS_LATEST_VERSION_CHECK"] = "disabled"
-    return env
+# Non-interactive winetricks so verb installs don't block on prompts.
+_VERB_ENV = {"WINETRICKS_LATEST_VERSION_CHECK": "disabled"}
 
 
 def run_verbs(appid: str, verbs: list[str], timeout: int = 1800) -> tuple[bool, str]:
@@ -138,7 +134,7 @@ def run_verbs(appid: str, verbs: list[str], timeout: int = 1800) -> tuple[bool, 
             capture_output=True,
             text=True,
             timeout=timeout,
-            env=_verb_env(),
+            extra_env=_VERB_ENV,
         )
     except subprocess.TimeoutExpired:
         return False, f"Timed out after {timeout // 60} min."
@@ -156,7 +152,8 @@ def launch_gui(appid: str = "") -> tuple[bool, str]:
     argv = [*base, "--gui"] if not appid else [*base, appid, "--gui"]
     try:
         subprocess.Popen(
-            host_argv(argv),
+            host_argv(argv, _VERB_ENV),
+            env=None if in_flatpak() else {**os.environ, **_VERB_ENV},
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,

@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 
 from .fsutil import atomic_write_text
+from .host import host_run
 from .paths import sanitize_filename
 from .tool_check import find_scopebuddy, find_tool, is_tool_available
 
@@ -316,9 +317,11 @@ def delete_envvars(name: str) -> bool:
 def _gdctl_supports_json(gdctl_path: str) -> bool:
     """True if this gdctl understands ``--format=json`` (GNOME 47+)."""
     try:
-        r = subprocess.run(
+        # gdctl lives on the host; inside a Flatpak its path doesn't exist in
+        # the sandbox, so run it there.
+        r = host_run(
             [gdctl_path, "show", "--help"],
-            capture_output=True, text=True, timeout=3, check=False,
+            capture_output=True, text=True, timeout=3,
         )
     except (OSError, subprocess.SubprocessError):
         return False

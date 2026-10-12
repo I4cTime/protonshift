@@ -60,6 +60,9 @@ finish-args:
   - --filesystem=~/.var/app/com.valvesoftware.Steam
   - --filesystem=~/.config/heroic
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl
+  # Lutris library (pga.db + games/*.yml), read only
+  - --filesystem=~/.local/share/lutris:ro
+  - --filesystem=~/.var/app/net.lutris.Lutris:ro
   # Host tool detection and launch (gamescope, mangohud, protontricks) and
   # display enumeration (wlr-randr) run on the host via `flatpak-spawn --host`.
   # Core functionality - linter exception requested in the submission PR;
