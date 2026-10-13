@@ -71,7 +71,7 @@
   </developer>
 
   <releases>
-    <release version="1.3.2" date="2026-10-12">
+    <release version="1.3.2" date="2026-10-13">
       <description>
         <p>Fixes: the per-game tools panel no longer gets stuck loading after switching games, deleting a prefix only ever deletes an actual Wine or Proton prefix, and the Flatpak now lists Lutris games, keeps Winetricks installs non-interactive and detects GNOME's gdctl for ScopeBuddy.</p>
       </description>
