@@ -68,7 +68,12 @@ def discover_lutris_games() -> list[LutrisGame]:
 
     games: list[LutrisGame] = []
     try:
-        conn = sqlite3.connect(str(pga_path), timeout=2)
+        # Read-only: the Flathub build only gets a read-only view of Lutris's
+        # data, and we never write to it anyway.
+        conn = sqlite3.connect(pga_path.as_uri() + "?mode=ro", uri=True, timeout=2)
+    except sqlite3.Error:
+        return []
+    try:
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             "SELECT * FROM games "
@@ -94,8 +99,9 @@ def discover_lutris_games() -> list[LutrisGame]:
                     service=str(row["service"] or "") if "service" in columns else "",
                 )
             )
-        conn.close()
     except (sqlite3.Error, KeyError):
         pass
+    finally:
+        conn.close()
 
     return games

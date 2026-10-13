@@ -100,13 +100,21 @@ jobs:
         run: |
           flatpak build-bundle repo "${APP_ID}-${TAG}.flatpak" "${APP_ID}"
 
-      # Tag runs: create the release for this tag (if it doesn't exist yet)
-      # and attach the bundle. This is the only release-creating path.
+      # Release notes are this version's CHANGELOG.md section.
+      - name: Release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python3 scripts/release-notes.py "${TAG#v}" > release-notes.md
+
+      # Tag runs: create the release for this tag (if it doesn't exist yet),
+      # with the notes, marked latest, and attach the bundle. This is the
+      # only release-creating path.
       - name: Upload bundle to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: ${{ env.APP_ID }}-${{ env.TAG }}.flatpak
+          body_path: release-notes.md
+          make_latest: "true"
 
       # Dispatch dry-runs: prove the build without publishing anything.
       - name: Upload bundle artifact (dry-run)

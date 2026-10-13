@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-13
+
+### Fixed
+- **Per-game tools stuck loading.** Picking another game while the prefix and
+  shader cache were still being sized left the panel loading for good, and
+  prefix details never appeared again until a restart. The same thing could
+  block Winetricks installs after switching games mid-install.
+- **Deleting a prefix only deletes a prefix.** A Heroic or Lutris game whose
+  prefix setting points at an ordinary folder (for example `~/Games`) or at
+  your home folder no longer has that folder deleted; ProtonShift now only
+  deletes a folder that is actually a Wine or Proton prefix.
+- **Flatpak: Lutris games were missing** from the library in the Flatpak
+  from flatpak.i4c.studio, which had no access to Lutris's library. It now
+  gets a read-only view of it.
+- **Flatpak: Winetricks installs could stop to ask about updates**, because
+  the setting that turns that prompt off didn't reach the host. It does now.
+- **Flatpak: ScopeBuddy's GNOME auto resolution/HDR/VRR** was always reported
+  unavailable. `gdctl` is now checked on the host.
+
 ## [1.3.1] - 2026-10-04
 
 ### Fixed

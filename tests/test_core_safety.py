@@ -17,7 +17,9 @@ import vdf
 
 from protonshift.core import fixes as fixes_mod
 from protonshift.core import heroic_config, saves
+from protonshift.core import paths as paths_mod
 from protonshift.core.mangohud import read_mangohud_config
+from protonshift.core.prefix import delete_prefix
 from protonshift.core.scopebuddy import parse_scb_conf, write_scb_conf
 from protonshift.core.shader_cache import clear_shader_cache, get_shader_cache_info
 from protonshift.core.steam import get_userdata_dir
@@ -293,3 +295,40 @@ def test_backup_same_instant_gets_unique_names(
     assert first is not None and second is not None
     assert first != second
     assert Path(first).exists() and Path(second).exists()
+
+
+# --------------------------------------------------------------------------- #
+# prefix deletion: only real prefixes, never a permitted root
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize("marker", ["pfx", "drive_c"])
+def test_delete_prefix_removes_real_prefix(tmp_path: Path, marker: str) -> None:
+    prefix = tmp_path / "compatdata" / "12345"
+    (prefix / marker).mkdir(parents=True)
+    assert delete_prefix(str(prefix)) is True
+    assert not prefix.exists()
+
+
+def test_delete_prefix_removes_wine_prefix_by_registry(tmp_path: Path) -> None:
+    prefix = tmp_path / "wine"
+    prefix.mkdir()
+    (prefix / "system.reg").write_text("WINE REGISTRY Version 2\n")
+    assert delete_prefix(str(prefix)) is True
+
+
+def test_delete_prefix_refuses_plain_folder(tmp_path: Path) -> None:
+    # e.g. a Lutris prefix: pointed at ~/Games
+    games = tmp_path / "Games"
+    (games / "SomeGame").mkdir(parents=True)
+    assert delete_prefix(str(games)) is False
+    assert (games / "SomeGame").is_dir()
+
+
+def test_delete_prefix_refuses_permitted_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    (home / "drive_c").mkdir(parents=True)
+    monkeypatch.setattr(paths_mod, "_USER_PATH_ROOTS", (home,))
+    assert delete_prefix(str(home)) is False
+    assert home.is_dir()

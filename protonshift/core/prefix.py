@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .fsutil import dir_size as _dir_size
-from .paths import PathValidationError, validate_user_path
+from .paths import PathValidationError, is_user_path_root, validate_user_path
 
 
 @dataclass
@@ -100,14 +100,33 @@ def get_prefix_info(path: str) -> PrefixInfo:
     )
 
 
+def _looks_like_prefix(path: Path) -> bool:
+    """True if ``path`` is a Wine prefix (``drive_c``/``system.reg``) or a
+    Proton compatdata dir (``pfx/``) - not just any folder."""
+    return (
+        (path / "drive_c").is_dir()
+        or (path / "system.reg").is_file()
+        or (path / "pfx").is_dir()
+    )
+
+
 def delete_prefix(path: str) -> bool:
-    """Delete a prefix directory. Fail-closed: path must resolve under a
-    user-writable root, else refuse. Returns True on success."""
+    """Delete a prefix directory. Returns True on success.
+
+    Fail-closed: the path must resolve under a user-writable root, must not be
+    one of those roots itself, and must look like a Wine prefix. Prefix paths
+    come from Lutris/Heroic config files, so a prefix set to ``~/Games`` or
+    ``~`` must not ``rmtree`` everything under it.
+    """
     try:
         prefix = validate_user_path(path, allow_missing=False)
     except PathValidationError:
         return False
     if not prefix.exists() or not prefix.is_dir():
+        return False
+    if is_user_path_root(prefix):
+        return False
+    if not _looks_like_prefix(prefix):
         return False
     try:
         shutil.rmtree(prefix)

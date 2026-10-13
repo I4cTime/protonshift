@@ -87,6 +87,13 @@ _USER_PATH_ROOTS: tuple[Path, ...] = (
 )
 
 
+def is_user_path_root(path: str | Path) -> bool:
+    """True if ``path`` *is* one of :data:`_USER_PATH_ROOTS` (``~``, ``/mnt``,
+    ...) rather than something under one - never a valid target to delete."""
+    p = Path(path).expanduser().resolve(strict=False)
+    return any(p == root.resolve(strict=False) for root in _USER_PATH_ROOTS)
+
+
 def validate_user_path(path: str | Path, *, allow_missing: bool = False) -> Path:
     """Return a resolved :class:`Path` if it lives under a user-writable root.
 
