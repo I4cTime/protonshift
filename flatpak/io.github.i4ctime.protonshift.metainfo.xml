@@ -63,7 +63,8 @@
     </screenshot>
   </screenshots>
 
-  <url type="homepage">https://github.com/I4cTime/protonshift</url>
+  <url type="homepage">https://protonshift.i4c.studio</url>
+  <url type="help">https://protonshift.i4c.studio/docs</url>
   <url type="bugtracker">https://github.com/I4cTime/protonshift/issues</url>
 
   <developer id="io.github.i4ctime">
