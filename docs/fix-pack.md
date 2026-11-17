@@ -79,7 +79,7 @@ Titles and causes are plain text. They are shown as text, never as markup.
 
 ## Matching
 
-`match` holds up to three parts. Every part that is present must hold.
+`match` holds up to four parts. Every part that is present must hold.
 At least one of `app_ids` and `log`, or a `when` that uses `launch_has` or
 `env_set`, must be present: a rule that matches every game on every machine
 is not a rule.
@@ -95,6 +95,14 @@ is not a rule.
   a pattern can take a very long time on a long line. Matching is case
   sensitive, and only the first 2000 characters of a line are looked at.
   With no log on disk, a rule that has a `log` part does not match.
+- `log_also`: a list of regular expressions under the same limits. Every one
+  of them must also be found somewhere in the log tail, each in any line.
+  It is only allowed together with `log`. Use it for a line that healthy
+  games print too and that means trouble only next to another line: Wine
+  reports a missing library for helper processes of games that run fine, so
+  the missing-library rule also requires the line that says the game's own
+  start failed. The line quoted to the user as evidence is the one `log`
+  matched.
 - `when`: conditions on the machine and the game's settings. All listed
   conditions must hold.
 
