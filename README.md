@@ -66,6 +66,21 @@ locally from the manifest; full variants and options are in
 
 ## Features
 
+### Diagnose
+
+One button per game that lists what is wrong with it, most serious first:
+"Stops the game from starting", "Probably the cause", "Worth trying", "For
+context" and "Checked and fine". It looks at the game's launch options,
+Proton build and install folder, the end of its Proton log, this PC (Vulkan,
+a 32-bit Vulkan driver, free disk space) and a bundled pack of 26 rules, each
+linked to where its knowledge comes from. Every finding shows the log line or
+setting behind it. "Fix this" shows the launch options and Proton build
+before and after, saves a snapshot, then applies the change; Undo puts it
+back, also after a restart. Diagnose reads files and settings only and never
+starts the game. It covers Steam games and Non-Steam shortcuts; for a
+shortcut it copies the new launch options instead of writing them. The rule
+format is in [docs/fix-pack.md](docs/fix-pack.md).
+
 ### Your entire library, unified
 
 Pulls games from **Steam** (including Non-Steam shortcuts you added by hand),
@@ -82,14 +97,6 @@ logging, and a ScopeBuddy wrapper. Each preset greys out with an install hint
 if the underlying tool isn't found. Snippets are placed around `%command%`
 for you, so a preset never ends up as a stray game argument, and switching
 games with unsaved edits asks before dropping them.
-
-### Launch check
-
-One button per game that lists the usual reasons it won't start, each with
-what to do about it: launch options with no `%command%` (or two), wrapper
-tools that aren't installed, a Proton build that was removed, a missing
-anti-cheat runtime, a missing install folder, and ProtonDB's rating as
-context. It reads files and settings only; it never starts the game.
 
 ### Proton log viewer
 
@@ -174,12 +181,6 @@ a different one. Export all profiles (or one) to a JSON bundle and import it
 on another machine; imports are validated entry by entry and never overwrite
 an existing profile unless you ask.
 
-### Game-specific fixes database
-
-A built-in, extensible database of known fixes (environment variables and/or
-launch arguments) matched per App ID or applied universally, with one-click
-apply. User-contributed fixes live under `~/.config/protonshift/fixes/`.
-
 ### Protontricks
 
 Run Protontricks without leaving the app - open its GUI for a game, or
@@ -187,8 +188,9 @@ quick-run common verbs. Supports native and Flatpak Protontricks installs.
 
 ### System info & display management
 
-GPU detection (NVIDIA via `nvidia-smi`, AMD/Intel via sysfs) with live temps,
-power-profile switching (`system76-power`, `power-profiles-daemon`), and
+GPU detection, read when the app starts and on Refresh (NVIDIA via
+`nvidia-smi` with name, driver, VRAM and temperature; AMD/Intel via sysfs
+with the kernel driver and temperature), power-profile switching (`system76-power`, `power-profiles-daemon`), and
 per-monitor resolution/refresh-rate control over `xrandr`, `hyprctl`,
 `wlr-randr`, or `kscreen-doctor`, depending on your session. A mode change
 asks "keep it?" and goes back on its own after 15 seconds if you don't.
