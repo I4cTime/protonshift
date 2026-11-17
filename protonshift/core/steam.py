@@ -327,15 +327,20 @@ def read_tool_manifest(tool_dir: Path) -> tuple[str, str]:
     return fallback
 
 
-# Built-in Steam Proton tool IDs. Source of truth is Steam itself; this list is
-# best-effort for the dropdown and may lag a release. Newer Proton tools are
-# discovered via `compatibilitytools.d` so users always see GE-Proton/etc.
+# Built-in Steam Proton tool IDs: Steam's internal names (as in appinfo.vdf and
+# CompatToolMapping), not the display names. Source of truth is Steam itself;
+# this list is best-effort for the dropdown and may lag a release. Builds older
+# than 7 are left out of the offer. Newer Proton tools are discovered via
+# `compatibilitytools.d` so users always see GE-Proton/etc.
 _BUILTIN_PROTON: tuple[str, ...] = (
     "",
     "proton_experimental",
-    "proton_9_0",
-    "proton_8_0",
-    "proton_7_0",
+    "proton_hotfix",
+    "proton_11",
+    "proton_10",
+    "proton_9",
+    "proton_8",
+    "proton_7",
 )
 
 

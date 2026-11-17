@@ -19,27 +19,6 @@ RowLayout {
         if (source === "shortcut") return "Non-Steam"
         return "Steam"
     }
-    function runLaunchCheck() {
-        var g = library.selected
-        // "\u0000" = read the saved launch options from Steam; a Non-Steam
-        // shortcut carries its own, which Steam keeps inside the shortcut.
-        launchCheck.run(g.appId, g.installPath || "", g.compatdataPath || "",
-                        g.source === "shortcut" ? (g.launchOptions || "") : "\u0000",
-                        (g.source === "steam" && protondb.enabled && protondb.loaded) ? protondb.tierLabel : "")
-    }
-    function levelColor(level) {
-        if (level === "error") return Theme.danger
-        if (level === "warn") return Theme.warning
-        if (level === "ok") return Theme.success
-        return Theme.muted
-    }
-    function levelGlyph(level) {
-        if (level === "error") return "✕"
-        if (level === "warn") return "!"
-        if (level === "ok") return "✓"
-        return "i"
-    }
-
     // Selecting another game reloads the launch options, which would drop
     // unsaved edits without a word. Ask first.
     function requestSelect(appId) {
@@ -108,7 +87,6 @@ RowLayout {
             profiles.appId = library.selectedAppId
             saves.appId = library.selectedAppId
             saves.prefixPath = library.selected.compatdataPath || ""
-            fixes.appId = library.selectedAppId
             heroic.appId = (library.selected.source === "heroic") ? library.selectedAppId : ""
             if (library.selectedAppId.length > 0) gameTools.refresh()
         }
@@ -508,9 +486,12 @@ RowLayout {
                 displayMap: ({
                     "": "Steam default",
                     "proton_experimental": "Proton Experimental",
-                    "proton_9_0": "Proton 9.0 (Beta)",
-                    "proton_8_0": "Proton 8.0",
-                    "proton_7_0": "Proton 7.0"
+                    "proton_hotfix": "Proton Hotfix",
+                    "proton_11": "Proton 11",
+                    "proton_10": "Proton 10",
+                    "proton_9": "Proton 9",
+                    "proton_8": "Proton 8",
+                    "proton_7": "Proton 7"
                 })
                 onChosen: launch.setProton(value)
                 function syncCurrent() {
@@ -957,16 +938,16 @@ RowLayout {
             PsSectionHeader {
                 Layout.fillWidth: true
                 text: "Per-game tools"
-                subtitle: detailCard.isSteam ? "Launch check, Proton log, overrides, Winetricks, known fixes, profiles and save backups"
-                                             : "Check why it won't start, or install Windows components into its prefix"
+                subtitle: detailCard.isSteam ? "Diagnose, Proton log, overrides, Winetricks, profiles and save backups"
+                                             : "Diagnose why it won't start, or install Windows components into its prefix"
             }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
                 PsButton {
-                    text: "Launch check…"
-                    primary: false
-                    onClicked: { launchCheckDialog.open(); page.runLaunchCheck() }
+                    text: "Diagnose"
+                    Accessible.name: "Diagnose why this game may not start or run well"
+                    onClicked: diagnoseDialog.open()
                 }
                 PsButton {
                     text: "Proton log…"
@@ -1000,12 +981,6 @@ RowLayout {
                         protontricks.gameName = library.selected.name
                         protontricksDialog.open()
                     }
-                }
-                PsButton {
-                    text: "Known fixes…"
-                    primary: false
-                    visible: detailCard.isSteam
-                    onClicked: { fixes.appId = library.selected.appId; fixesDialog.open() }
                 }
                 PsButton {
                     text: "Profiles…"
@@ -1560,89 +1535,6 @@ RowLayout {
         }
     }
 
-    // ============================ KNOWN FIXES DIALOG =======================
-    PsDialog {
-        id: fixesDialog
-        objectName: "fixesDialog"
-        width: 680
-        title: "Known fixes"
-        subtitle: (library.selected.name || "") + " · adds to the launch options, saved when you press Save to Steam"
-
-        ColumnLayout {
-            width: parent.width
-            spacing: Theme.space
-
-            Text {
-                Layout.fillWidth: true
-                visible: fixes.fixes.length === 0
-                text: "No known fixes for this game yet."
-                color: Theme.faint
-                font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall
-            }
-
-            ListView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(Math.max(contentHeight, 40), 320)
-                clip: true; spacing: 8
-                model: fixes.fixes
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar {}
-                delegate: Rectangle {
-                    required property var modelData
-                    width: ListView.view.width
-                    implicitHeight: fxCol.implicitHeight + 2 * Theme.spaceSm
-                    radius: Theme.radiusSm
-                    color: Theme.bgDeep
-                    border.color: Theme.border; border.width: 1
-                    ColumnLayout {
-                        id: fxCol
-                        anchors.fill: parent
-                        anchors.margins: Theme.spaceSm
-                        spacing: 3
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text {
-                                Layout.fillWidth: true
-                                text: modelData.title
-                                color: Theme.text
-                                font.family: Theme.fontFamily; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
-                            }
-                            Rectangle {
-                                implicitWidth: srcLbl.implicitWidth + 12; implicitHeight: 16; radius: 8
-                                color: Theme.surfaceElevated
-                                Text { id: srcLbl; anchors.centerIn: parent; text: modelData.source; color: Theme.muted; font.pixelSize: 9; font.family: Theme.fontFamily }
-                            }
-                            PsButton {
-                                text: "Add to launch options"; primary: false
-                                enabled: launch.loaded
-                                onClicked: { launch.appendPreset(modelData.snippet); fixesDialog.close() }
-                            }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: modelData.description
-                            wrapMode: Text.WordWrap
-                            color: Theme.muted
-                            font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
-                        }
-                        Text {
-                            text: modelData.snippet
-                            color: Theme.primaryBright
-                            font.family: Theme.monoFamily; font.pixelSize: 10
-                        }
-                    }
-                }
-            }
-            Text {
-                Layout.fillWidth: true
-                visible: !launch.loaded
-                text: "The launch options are still loading. Fixes can be added once they are."
-                color: Theme.faint; wrapMode: Text.WordWrap
-                font.family: Theme.fontFamily; font.pixelSize: Theme.fsCaption
-            }
-        }
-    }
-
     // ============================ PROFILES DIALOG ==========================
     PsDialog {
         id: profilesDialog
@@ -1910,166 +1802,18 @@ RowLayout {
         }
     }
 
-    // ============================ LAUNCH CHECK DIALOG =======================
-    PsDialog {
-        id: launchCheckDialog
-        objectName: "launchCheckDialog"
-        width: 660
-        title: "Launch check"
-        subtitle: (library.selected.name || "") + " · the usual reasons a game won't start"
-
-        // one chime when a run finishes
-        property bool wasRunning: false
-        Connections {
-            target: launchCheck
-            function onChanged() {
-                if (launchCheckDialog.wasRunning && !launchCheck.running && launchCheckDialog.opened) {
-                    var worst = "ok"
-                    for (var i = 0; i < launchCheck.findings.length; i++) {
-                        var l = launchCheck.findings[i].level
-                        if (l === "error") worst = "error"
-                        else if (l === "warn" && worst !== "error") worst = "warn"
-                    }
-                    sounds.play(worst === "error" ? "error" : (worst === "warn" ? "notification" : "success"))
-                }
-                launchCheckDialog.wasRunning = launchCheck.running
-            }
-        }
-
-        ColumnLayout {
-            width: parent.width
-            spacing: Theme.space
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.spaceSm
-                BusyIndicator {
-                    running: launchCheck.running; visible: launchCheck.running
-                    implicitWidth: 20; implicitHeight: 20
-                }
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    text: launchCheck.running ? "Checking…" : launchCheck.summary
-                    color: launchCheck.running ? Theme.muted
-                           : (launchCheck.hasProblems ? Theme.text : Theme.success)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fsBody
-                    font.weight: Font.DemiBold
-                }
-            }
-            Text {
-                Layout.fillWidth: true
-                visible: detailCard.isSteam && launch.dirty
-                wrapMode: Text.WordWrap
-                text: "This checks the launch options saved in Steam. Your unsaved edits are not included."
-                color: Theme.warning
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fsCaption
-            }
-
-            ListView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(Math.max(contentHeight, 40), 380)
-                clip: true
-                spacing: 6
-                model: launchCheck.findings
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar {}
-                delegate: Rectangle {
-                    id: findingRow
-                    required property var modelData
-                    readonly property color tone: page.levelColor(modelData.level)
-                    width: ListView.view.width
-                    implicitHeight: findingCol.implicitHeight + 2 * Theme.spaceSm
-                    radius: Theme.radiusSm
-                    color: Theme.bgDeep
-                    border.width: 1
-                    border.color: (modelData.level === "error" || modelData.level === "warn") ? tone : Theme.border
-                    Accessible.role: Accessible.ListItem
-                    Accessible.name: modelData.level + ": " + modelData.title
-                    Accessible.description: modelData.detail + " " + modelData.fix
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: Theme.spaceSm
-                        spacing: Theme.spaceSm
-                        Rectangle {
-                            Layout.alignment: Qt.AlignTop
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: "transparent"
-                            border.width: 1
-                            border.color: findingRow.tone
-                            Text {
-                                anchors.centerIn: parent
-                                text: page.levelGlyph(findingRow.modelData.level)
-                                color: findingRow.tone
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-                        }
-                        ColumnLayout {
-                            id: findingCol
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text {
-                                Layout.fillWidth: true
-                                text: findingRow.modelData.title
-                                wrapMode: Text.WordWrap
-                                color: Theme.text
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fsSmall
-                                font.weight: Font.DemiBold
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                visible: findingRow.modelData.detail.length > 0
-                                text: findingRow.modelData.detail
-                                wrapMode: Text.Wrap
-                                color: Theme.muted
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fsCaption
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                visible: findingRow.modelData.fix.length > 0
-                                text: "What to do: " + findingRow.modelData.fix
-                                wrapMode: Text.Wrap
-                                color: Theme.text
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fsCaption
-                            }
-                        }
-                    }
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.spaceSm
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    text: "Checks files and settings on this PC. It does not start the game."
-                    color: Theme.faint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fsCaption
-                }
-                PsButton {
-                    text: "Proton log…"; primary: false
-                    visible: detailCard.isSteam
-                    onClicked: {
-                        launchCheckDialog.close()
-                        protonLog.open(library.selected.appId)
-                        protonLogDialog.open()
-                    }
-                }
-                PsButton {
-                    text: "Check again"
-                    enabled: !launchCheck.running
-                    onClicked: page.runLaunchCheck()
-                }
-            }
+    // ============================ DIAGNOSE DIALOG ===========================
+    DiagnoseDialog {
+        id: diagnoseDialog
+        controller: diagnose
+        soundPlayer: sounds
+        game: library.selected
+        launchDirty: launch.dirty
+        protondbTier: (library.selected.source === "steam" && protondb.enabled && protondb.loaded) ? protondb.tierLabel : ""
+        onOpenLogRequested: {
+            diagnoseDialog.close()
+            protonLog.open(library.selected.appId)
+            protonLogDialog.open()
         }
     }
 

@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 
 from protonshift.core import proton_log
-from protonshift.core.launch_check import check_launch, check_launch_options, detect_anticheat, summarize
+from protonshift.core.fix_pack import Action
+from protonshift.core.launch_check import check_launch, check_launch_options, detect_anticheat
+from protonshift.core.launch_merge import add_command
 
 
 def levels(findings: list[dict[str, str]]) -> list[str]:
@@ -55,6 +57,26 @@ def test_missing_tools() -> None:
     assert "gamescope isn't installed" in titles(found)
 
 
+def test_quoted_assignment_is_one_word() -> None:
+    # The scan splits as the shell does: a command name inside a value is not a command.
+    assert levels(check_launch_options("KEY='a gamemoderun;b' %command%", lacks)) == ["ok"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("strangle 60", "strangle 60 %command%"),
+        ("mangohud --dlsym", "mangohud --dlsym %command%"),
+        ("gamescope -W 1920 -H 1080 -f", "gamescope -W 1920 -H 1080 -f -- %command%"),
+    ],
+)
+def test_missing_command_fix_keeps_wrapper_options(text: str, expected: str) -> None:
+    (found,) = check_launch_options(text, has)
+    assert found["id"] == "command-missing"
+    assert found["actions"] == (Action("add_command"),)
+    assert add_command(text) == expected
+
+
 def test_tool_named_after_command_is_a_game_argument() -> None:
     # after %command% everything belongs to the game, whatever it is called
     assert levels(check_launch_options("%command% gamescope", lacks)) == ["ok"]
@@ -78,15 +100,22 @@ def test_healthy_game(tmp_path: Path) -> None:
     found = run(tmp_path)
     assert "error" not in levels(found)
     assert "warn" not in levels(found)
-    assert summarize(found) == "No problems found."
 
 
 def test_removed_proton_build(tmp_path: Path) -> None:
     found = run(tmp_path, compat_tool="GE-Proton9-20")
     assert found[0]["level"] == "error"
     assert "GE-Proton9-20" in found[0]["title"]
-    assert "1 problem that will stop" in summarize(found)
+    assert levels(found).count("error") == 1
     assert "Proton build is installed" in titles(run(tmp_path, compat_tool="GE-Proton10-1"))
+
+
+def test_steam_runtime_row_is_not_called_a_proton_build(tmp_path: Path) -> None:
+    tool = "steamlinuxruntime_sniper"
+    found = by_id(run(tmp_path, compat_tool=tool, available_tools=["", tool]))
+    assert found["proton-ok"]["title"] == f"Compatibility tool is provided by Steam: {tool}"
+    proton = by_id(run(tmp_path, compat_tool="GE-Proton10-1"))
+    assert proton["proton-ok"]["title"] == "Proton build is installed: GE-Proton10-1"
 
 
 def test_missing_install_folder(tmp_path: Path) -> None:
@@ -101,7 +130,7 @@ def test_anticheat_runtime(tmp_path: Path) -> None:
     found = run(tmp_path)
     assert "Proton EasyAntiCheat Runtime isn't installed" in titles(found)
     assert "Proton BattlEye Runtime isn't installed" in titles(found)
-    assert "2 things worth a look" in summarize(found)
+    assert levels(found).count("warn") == 2
     fixed = run(tmp_path, installed_app_ids=["1826330", "1161040"])
     assert "warn" not in levels(fixed)
 
@@ -118,6 +147,65 @@ def test_protondb_and_unreadable_options(tmp_path: Path) -> None:
     assert "Couldn't read the launch options" in titles(found)
     # most serious first
     assert levels(found) == sorted(levels(found), key=["error", "warn", "info", "ok"].index)
+
+
+# --- ids and actions -------------------------------------------------------------
+
+
+def by_id(findings: list[dict]) -> dict[str, dict]:
+    return {f["id"]: f for f in findings}
+
+
+@pytest.mark.parametrize(
+    ("options", "exists", "fid", "actions"),
+    [
+        ("", lacks, "launch-empty", ()),
+        ("-novid", lacks, "launch-ok", ()),
+        ("gamemoderun %command% %command%", has, "command-twice", (Action("single_command"),)),
+        ("gamemoderun -novid", has, "command-missing", (Action("add_command"),)),
+        # no leading wrapper to put %command% after: no button that would do nothing
+        ("-novid gamemoderun", has, "command-missing", ()),
+        ("gamemoderun %command%", lacks, "wrapper-missing-gamemoderun",
+         (Action("remove_word", value="gamemoderun"),)),
+        ("/usr/bin/prime-run %command%", lacks, "wrapper-missing-prime-run",
+         (Action("remove_word", value="prime-run"),)),
+        ("MANGOHUD=1 %command%", lacks, "env-needs-mangohud", (Action("unset_env", key="MANGOHUD"),)),
+    ],
+)
+def test_option_findings_have_ids_and_actions(options: str, exists, fid: str, actions: tuple) -> None:
+    found = by_id(check_launch_options(options, exists))
+    assert fid in found
+    assert found[fid]["actions"] == actions
+
+
+def test_every_finding_has_a_stable_id(tmp_path: Path) -> None:
+    install = tmp_path / "game"
+    (install / "EasyAntiCheat").mkdir(parents=True)
+    prefix = tmp_path / "pfx"
+    prefix.mkdir()
+    found = run(tmp_path, compat_tool="GE-Proton9-20", prefix_path=prefix, protondb_tier="bronze",
+                launch_options="gamemoderun %command% %command%", tool_exists=lacks)
+    ids = [f["id"] for f in found]
+    assert all(ids) and len(ids) == len(set(ids))
+    assert {"install-ok", "proton-gone", "anticheat-missing-eac", "prefix-ok", "protondb-bronze",
+            "command-twice", "wrapper-missing-gamemoderun"} <= set(ids)
+    assert by_id(found)["proton-gone"]["actions"] == (Action("default_proton"),)
+    again = run(tmp_path, compat_tool="GE-Proton9-20", prefix_path=prefix, protondb_tier="bronze",
+                launch_options="gamemoderun %command% %command%", tool_exists=lacks)
+    assert ids == [f["id"] for f in again]
+
+    other = by_id(run(tmp_path, install_path=tmp_path / "gone", compat_tool="GE-Proton10-1",
+                      launch_options_readable=False, protondb_tier="borked", installed_app_ids=["1826330"]))
+    expected = {"install-missing", "launch-unreadable", "proton-ok", "prefix-none", "protondb-borked"}
+    assert expected <= set(other)
+    assert by_id(run(tmp_path))["proton-default"]["actions"] == ()
+    assert "anticheat-ok-eac" in by_id(run(tmp_path, installed_app_ids=["1826330"]))
+
+
+def test_findings_keep_their_old_keys(tmp_path: Path) -> None:
+    for f in run(tmp_path, compat_tool="GE-Proton9-20"):
+        assert {"level", "title", "detail", "fix", "id", "actions"} <= set(f)
+        assert isinstance(f["actions"], tuple)
 
 
 # --- Proton log --------------------------------------------------------------------
@@ -168,3 +256,14 @@ def test_read_tail(tmp_path: Path) -> None:
 def test_read_tail_missing_file(tmp_path: Path) -> None:
     with pytest.raises(OSError):
         proton_log.read_tail(tmp_path / "absent.log")
+
+
+def test_old_protonshift_build_name_is_explained_not_called_uninstalled(tmp_path):
+    # proton_9_0 is a name ProtonShift up to 1.3.2 wrote; Steam's is proton_9.
+    rows = run(tmp_path, compat_tool="proton_9_0", available_tools=["", "proton_9"])
+    gone = next(f for f in rows if f["id"] == "proton-gone")
+    assert "Older versions of ProtonShift" in gone["detail"] and "gone" not in gone["title"]
+    assert "reinstall" not in gone["fix"]
+    removed = next(f for f in run(tmp_path, compat_tool="GE-Proton9-1", available_tools=[""])
+                   if f["id"] == "proton-gone")
+    assert "no longer installed" in removed["detail"]

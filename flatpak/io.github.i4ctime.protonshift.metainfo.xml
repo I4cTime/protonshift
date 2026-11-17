@@ -14,10 +14,13 @@
       UI for the things that usually mean editing config files by hand:
     </p>
     <ul>
+      <li>Diagnose a game that won't start: one ranked list of findings from its settings, its Proton log, your PC and a bundled set of rules, with fixes you can preview and undo</li>
+      <li>Read a game's Proton log, filtered to the lines that look like problems</li>
+      <li>Install and remove GE-Proton builds, and pick the Proton build for each game</li>
       <li>Build gamescope launch commands (resolution, FSR, HDR, frame limits)</li>
-      <li>Manage MangoHud overlays</li>
-      <li>Wrap games with ScopeBuddy</li>
-      <li>Inspect Proton prefixes and per-game settings</li>
+      <li>Manage MangoHud overlays and wrap games with ScopeBuddy</li>
+      <li>Save a game's settings as a profile and apply it to any game</li>
+      <li>Inspect Proton prefixes and shader caches, and back up saves</li>
     </ul>
     <p>
       Built with Qt Quick and Python. Runs well on the desktop and on the

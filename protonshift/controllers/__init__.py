@@ -6,16 +6,15 @@ same domain logic behind it, but called in-process instead of over HTTP.
 """
 
 from .about_controller import AboutController
+from .diagnose_controller import DiagnoseController
 from .display_controller import DisplayController
 from .env_controller import EnvController
-from .fixes_controller import FixesController
 from .game_tools_controller import GameToolsController
 from .gamepad_controller import GamepadController
 from .games_controller import GamesController
 from .gamescope_controller import GamescopeController
 from .ge_proton_controller import GeProtonController
 from .heroic_controller import HeroicController
-from .launch_check_controller import LaunchCheckController
 from .launch_controller import LaunchOptionsController
 from .mangohud_controller import MangoHudController
 from .per_app_scopebuddy_controller import PerAppScopeBuddyController
@@ -33,16 +32,15 @@ from .theme_controller import ThemeController
 
 __all__ = [
     "AboutController",
+    "DiagnoseController",
     "DisplayController",
     "EnvController",
-    "FixesController",
     "GameToolsController",
     "GamepadController",
     "GamesController",
     "GamescopeController",
     "GeProtonController",
     "HeroicController",
-    "LaunchCheckController",
     "LaunchOptionsController",
     "MangoHudController",
     "PerAppScopeBuddyController",

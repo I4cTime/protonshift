@@ -17,16 +17,15 @@ from PySide6.QtQml import QQmlApplicationEngine
 from . import __version__
 from .controllers import (
     AboutController,
+    DiagnoseController,
     DisplayController,
     EnvController,
-    FixesController,
     GamepadController,
     GamesController,
     GamescopeController,
     GameToolsController,
     GeProtonController,
     HeroicController,
-    LaunchCheckController,
     LaunchOptionsController,
     MangoHudController,
     PerAppScopeBuddyController,
@@ -75,7 +74,6 @@ def main() -> int:
     game_tools = GameToolsController()
     profiles = ProfilesController()
     saves = SavesController()
-    fixes = FixesController()
     scb_envvars = ScopeBuddyEnvvarsController()
     heroic = HeroicController()
     gamepad = GamepadController()
@@ -83,7 +81,7 @@ def main() -> int:
     ge_proton = GeProtonController()
     sounds = SoundController()
     about = AboutController()
-    launch_check = LaunchCheckController()
+    diagnose = DiagnoseController()
     proton_log = ProtonLogController()
     # Outcome chimes for work that finishes on a worker thread. (Saves that
     # finish at once chime from their Save button in QML.) Where the control
@@ -102,6 +100,13 @@ def main() -> int:
     ge_proton._installDone.connect(lambda _name: sounds.chime(True))
     ge_proton._installFailed.connect(lambda _msg, cancelled: cancelled or sounds.chime(False))
     ge_proton._removeDone.connect(lambda _name, error: sounds.chime(not error))
+    # A Diagnose fix or its undo chimes like a save, and the launch options
+    # editor re-reads Steam so it shows the Proton build now saved, and the
+    # line too when the write changed it (or the editor has nothing unsaved).
+    # Also after a failed write: part of it may have landed.
+    diagnose.settingsWritten.connect(lambda _app, ok, _launch_changed: sounds.chime(ok))
+    diagnose.settingsWritten.connect(
+        lambda app_id, _ok, launch_changed: launch.reloadFromSteam(app_id, launch_changed))
     # installed/removed builds should show up in the per-game Proton picker
     ge_proton.toolsChanged.connect(launch.reloadProton)
     ctx = engine.rootContext()
@@ -120,7 +125,6 @@ def main() -> int:
     ctx.setContextProperty("gameTools", game_tools)
     ctx.setContextProperty("profiles", profiles)
     ctx.setContextProperty("saves", saves)
-    ctx.setContextProperty("fixes", fixes)
     ctx.setContextProperty("scbEnvvars", scb_envvars)
     ctx.setContextProperty("heroic", heroic)
     ctx.setContextProperty("gamepad", gamepad)
@@ -128,7 +132,7 @@ def main() -> int:
     ctx.setContextProperty("geProton", ge_proton)
     ctx.setContextProperty("sounds", sounds)
     ctx.setContextProperty("about", about)
-    ctx.setContextProperty("launchCheck", launch_check)
+    ctx.setContextProperty("diagnose", diagnose)
     ctx.setContextProperty("protonLog", proton_log)
     ctx.setContextProperty("appVersion", __version__)
 

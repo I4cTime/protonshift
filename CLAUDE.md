@@ -56,8 +56,23 @@ is conventions and constraints only.
   unvalidated key would be persistent command injection into that shell.
   `write_scb_conf` raises before writing a byte if any key fails this
   check. Keep it that way.
-- If you touch either regex, add/update the corresponding case in
-  `tests/test_core_safety.py` in the same change.
+- `core/fix_pack.py`'s action limits (`_KEY_RE`, `_ENV_VALUE_RE`,
+  `_GAME_ARG_RE`, `_WORD_RE`, the forbidden-variable list) are load-bearing:
+  Diagnose writes a rule's actions into Steam launch options, and Steam hands
+  those to a shell at every launch, so a looser pattern is command injection
+  by data file. A pack may only set variables from a short list of name
+  families; the user's own fixes may set any variable, and `core/fix_apply`
+  writes their values single-quoted and refuses what quoting cannot make
+  safe. `docs/fix-pack.md` is the contract for the format; change it first,
+  in its own commit, then the code.
+- `core/snapshots.py`'s `app_id` check (decimal digits only, plus
+  `validate_within`) is the same kind of boundary as the shader cache's: the
+  id becomes a file name. Entries holding a newline or NUL are dropped on
+  read as well as refused on write, because Undo writes them into Steam's
+  config.
+- If you touch any of these, add/update the corresponding case in
+  `tests/test_core_safety.py` (`tests/test_snapshots.py` for the snapshot
+  store) in the same change.
 
 ## Conventions
 

@@ -1,0 +1,573 @@
+{
+  "format": "protonshift-fix-pack",
+  "version": 2,
+  "revision": "2026.11.3",
+  "rules": [
+    {
+      "id": "prefix-not-owned",
+      "title": "The game's Wine prefix belongs to another user",
+      "cause": "Wine refuses to use a prefix folder that is not owned by you. This usually happens when the Steam library is on an NTFS or other Windows drive, which Linux mounts so that its files belong to someone else.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "\\bwine(?:server)?: .+ is not owned by you"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Move this game's Steam library to a drive with a Linux file system such as ext4 or Btrfs. If the drive has to stay as it is, mount it with your user as the owner (the uid and gid mount options)."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/issues/4512",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "prefix-wrong-arch",
+      "title": "The game's Wine prefix was made for a different architecture",
+      "cause": "This prefix was created as a 32-bit or 64-bit Windows install that does not match the Wine build running the game, so Wine stops before the game starts.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "is a 32-bit installation, it cannot support 64-bit applications",
+          "is a 64-bit installation, it cannot be used with a 32-bit wineserver"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Back up any saves kept inside the prefix, then delete this game's prefix (Wine prefix, Delete) and start the game again so Steam builds a new one. Saves stored only in the prefix are lost."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/dlls/ntdll/unix/server.c#L1736",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "prefix-registry-corrupt",
+      "title": "A registry file in the game's Wine prefix is damaged",
+      "cause": "Wine could not read one of the prefix's registry files (system.reg, user.reg or userdef.reg), so the game starts without its Windows settings and usually fails. A crash or a full disk while the file was being written can cause this.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "\\.reg is not a valid registry file"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Back up any saves kept inside the prefix, then delete this game's prefix (Wine prefix, Delete) and start the game again so Steam builds a new one. Saves stored only in the prefix are lost."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/server/registry.c#L1828",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "prefix-write-failed",
+      "title": "Wine could not save the game's prefix settings",
+      "cause": "Wine failed to write a registry file in the game's prefix. The drive that holds the prefix is usually full or mounted read-only.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "wineserver: could not save registry branch to "
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Free some space on the drive that holds this game's Steam library, or check that the drive is mounted with write access, then start the game again."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/server/registry.c#L2236",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "prefix-broken-kernel32",
+      "title": "Wine could not load its own core Windows files",
+      "cause": "Wine could not load kernel32.dll, one of its own core files, so nothing could start. Players have seen this with a damaged game prefix and with a damaged Proton install.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "wine: could not load kernel32\\.dll, status c0000135"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Back up any saves kept inside the prefix, then delete this game's prefix (Wine prefix, Delete) and start the game again so Steam builds a new one. Saves stored only in the prefix are lost."
+        },
+        {
+          "type": "manual",
+          "text": "If that does not help, verify this Proton build's files in Steam (it is listed under Tools in your library), or switch the game to a different build with Proton version."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/issues/4269",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "wineserver-stuck",
+      "title": "A leftover Wine process is blocking the game",
+      "cause": "Wine found a Wine server still running for this prefix but could not connect to it. It is usually left behind by an earlier game session that did not exit cleanly.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "a wine server seems to be running, but I cannot connect to it"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Quit Steam completely (Steam menu, Exit) so the leftover process ends, or restart the computer, then start the game again."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/dlls/ntdll/unix/server.c#L1396",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "sync-stale-server",
+      "title": "An old Wine process with different settings is still running",
+      "cause": "The game and the Wine server still running for this prefix disagree about the fast sync mode (esync or fsync), so Wine stops the game. The server is usually left over from an earlier session or another game.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "err:[ef]sync:[ef]sync_init Failed to open [ef]sync shared memory file",
+          "err:[ef]sync:[ef]sync_init Server is running with WINE[EF]SYNC but this process is not"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Quit Steam completely (Steam menu, Exit) so the leftover process ends, or restart the computer, then start the game again."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/dlls/ntdll/unix/fsync.c#L478",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "open-files-limit",
+      "title": "The game ran out of open files",
+      "cause": "The game hit the limit on how many files a program may have open at once. Many games need more than the default limit on some systems, and fail or crash when they reach it.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "err:winediag:NtCreateFile Too many open files, ulimit -n probably needs to be increased"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Raise the hard limit on open files to 524288 or more. Systems with systemd 240 or newer already use this; otherwise set it in /etc/security/limits.conf as the Proton wiki explains, then log out and back in."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/wiki/File-Descriptors",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "low-file-limit-warning",
+      "title": "The limit on open files is lower than Proton needs",
+      "cause": "Proton warned that the hard limit on open files is below 524288. Games that open many files can then crash or fail to load; if this game does, raising the limit is worth trying.",
+      "severity": "advice",
+      "match": {
+        "log": [
+          "^WARNING: Low file descriptor limit: [0-9]+"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Raise the hard limit on open files to 524288 or more. Systems with systemd 240 or newer already use this; otherwise set it in /etc/security/limits.conf as the Proton wiki explains, then log out and back in."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/wiki/File-Descriptors",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "low-max-map-count",
+      "title": "The memory map limit is lower than Proton needs",
+      "cause": "Proton warned that vm.max_map_count is below 1048576. Some large games run out of memory maps at a lower value; if this game crashes or never finishes loading, raising it is worth trying.",
+      "severity": "advice",
+      "match": {
+        "log": [
+          "^WARNING: Low /proc/sys/vm/max_map_count: [0-9]+ will prevent some games from working"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Set vm.max_map_count to 1048576: create a file in /etc/sysctl.d, for example 90-max-map-count.conf, containing the line vm.max_map_count = 1048576, then restart the computer."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/issues/8360#issuecomment-2567242733",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "missing-library",
+      "title": "The game could not start because a Windows library is missing",
+      "cause": "Wine could not find a DLL the game needs, so the game stopped before it opened. The line shown names the missing file; it may belong to the game itself or to a runtime the game expects.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "err:module:import_dll Library \\S+ \\(which is needed by .+\\) not found"
+        ],
+        "log_also": [
+          "err:module:[A-Za-z_]+ Importing dlls for .+ failed, status c0000135"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Verify the game's files in Steam (Properties, Installed Files, Verify integrity of game files)."
+        },
+        {
+          "type": "manual",
+          "text": "If it still fails, look up the library named in the line shown in this game's ProtonDB reports to see what other players did about it."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/dlls/ntdll/loader.c#L1219",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "wrong-kind-of-library",
+      "title": "A Windows library the game needs is the wrong kind",
+      "cause": "Wine found a DLL the game needs but could not load it: the file is for the wrong architecture (32-bit instead of 64-bit, or the other way round) or is damaged. A DLL copied into the game folder by hand or by a mod is a common cause.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "err:module:import_dll Loading library \\S+ \\(which is needed by .+\\) failed \\(error c000007b\\)"
+        ],
+        "log_also": [
+          "err:module:[A-Za-z_]+ Importing dlls for .+ failed, status c[0-9a-f]{7}"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "If you copied DLL files into the game folder yourself, for a mod or a fix, move them out. Then verify the game's files in Steam (Properties, Installed Files, Verify integrity of game files)."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/dlls/ntdll/loader.c#L1222",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "no-display-driver",
+      "title": "Wine could not open a window on your desktop",
+      "cause": "Wine could not load a display driver, so the game cannot open a window. A broken Proton build has caused this before, and so have graphics driver trouble and starting the game without access to your desktop session.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "err:winediag:nodrv_CreateWindow Application tried to create a window, but no driver could be loaded"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Switch the game to a different Proton build (Proton version) and try again. If you start Steam in an unusual way, such as over SSH or from a script, start it from your desktop session instead."
+        }
+      ],
+      "source": "https://github.com/GloriousEggroll/proton-ge-custom/issues/445",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "vulkan-loader-missing",
+      "title": "The Vulkan loader is missing",
+      "cause": "Wine could not load libvulkan, the library that connects games to the graphics driver, so games that draw with Vulkan, DXVK or VKD3D-Proton cannot start.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "err:vulkan:vulkan_init_once Failed to load libvulkan"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Install the Vulkan loader (libvulkan) from your distribution, both the 64-bit and the 32-bit package, then start the game again."
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/wine/blob/e60892cc2398b0a83c332a2078c7b85e47bdb42b/dlls/win32u/vulkan.c#L4105",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "vulkan-no-driver",
+      "title": "DXVK found no graphics card it can use",
+      "cause": "DXVK, which turns DirectX into Vulkan, found no graphics card with a working Vulkan driver. The driver is usually missing or too old, or a DXVK device filter hides every card.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "DXVK: No adapters found\\."
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Install or update the Vulkan driver for your graphics card from your distribution, including the 32-bit driver. If you set DXVK_FILTER_DEVICE_NAME for this game, remove it."
+        }
+      ],
+      "source": "https://github.com/doitsujin/dxvk/blob/a6764047e587178283fcde4073ae6e1410af594f/src/dxvk/dxvk_instance.cpp#L348",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "vulkan-loader-no-drivers",
+      "title": "Vulkan found no graphics driver",
+      "cause": "The Vulkan loader looked for graphics drivers and found none it could use, so Vulkan cannot start and games that need it fail.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          "(?:terminator_CreateInstance|vkCreateInstance): Found no drivers!"
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Install or update the Vulkan driver for your graphics card from your distribution, including the 32-bit driver."
+        }
+      ],
+      "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/18eca82e1dd3e3925ffcd9e76dcb87afad94b0ba/loader/loader.c#L5526",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "dxvk-init-failed",
+      "title": "DXVK could not start Vulkan for this game",
+      "cause": "DXVK, which turns DirectX into Vulkan, could not start Vulkan, so the game cannot draw anything. The graphics driver is usually missing, too old or broken.",
+      "severity": "blocking",
+      "match": {
+        "log": [
+          "err:   Failed to initialize DXVK\\."
+        ],
+        "log_none": [
+          "DXVK: No adapters found\\."
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Update the graphics driver from your distribution, including its 32-bit part. The Vulkan check in this list says whether Vulkan works on this computer at all."
+        }
+      ],
+      "source": "https://github.com/doitsujin/dxvk/blob/a6764047e587178283fcde4073ae6e1410af594f/src/dxvk/dxvk_instance.cpp#L57",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "d3d12-driver-lacks-feature",
+      "title": "The graphics driver lacks a feature DirectX 12 games need",
+      "cause": "VKD3D-Proton, which runs DirectX 12 games on Vulkan, needs a Vulkan feature or version that your graphics driver or Vulkan loader does not offer. The driver is usually too old for DirectX 12 games.",
+      "severity": "likely",
+      "match": {
+        "log": [
+          ":err:(?:vkd3d-proton:)?vkd3d_check_extensions: Required (?:instance|device) extension \\S+ is not supported\\.",
+          ":err:(?:vkd3d-proton:)?vkd3d_instance_init: Vulkan [0-9]+\\.[0-9]+ not supported by loader\\."
+        ]
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "Update the graphics driver from your distribution. Some games can also be switched to DirectX 11 in their own settings or launcher."
+        }
+      ],
+      "source": "https://github.com/HansKristian-Work/vkd3d-proton/blob/212991fc2c266bc0d59f4c4ce8f80f7126508d71/libs/vkd3d/device.c#L220",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "mangohud-inside-gamescope",
+      "title": "MangoHud is used inside gamescope, which does not support it",
+      "cause": "MangoHud and gamescope are both in the launch options. MangoHud is not supported inside gamescope and can cause swapchain errors or a missing overlay; gamescope's own --mangoapp option shows the overlay on top instead.",
+      "severity": "likely",
+      "match": {
+        "when": {
+          "launch_has": [
+            "mangohud",
+            "gamescope"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "remove_word",
+          "value": "mangohud"
+        },
+        {
+          "type": "manual",
+          "text": "To keep the overlay, open the Gamescope page, add --mangoapp under Advanced, and add the new launch command to this game."
+        }
+      ],
+      "source": "https://wiki.archlinux.org/title/Gamescope#Mangoapp",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "esync-switch-obsolete",
+      "title": "PROTON_NO_ESYNC does nothing in this Proton version",
+      "cause": "Proton 11.0 and newer no longer read PROTON_NO_ESYNC, so this setting has no effect and can be removed.",
+      "severity": "advice",
+      "match": {
+        "when": {
+          "proton_family": [
+            "valve"
+          ],
+          "proton_major_min": 11,
+          "env_set": [
+            "PROTON_NO_ESYNC"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "unset_env",
+          "key": "PROTON_NO_ESYNC"
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/blob/1f089f5610a882c8bfcb4b58a3c86ee88bb4b9f1/README.md#L347",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "d9vk-switch-obsolete",
+      "title": "PROTON_USE_D9VK does nothing in this Proton version",
+      "cause": "Proton 5.0 and newer no longer read PROTON_USE_D9VK, so this setting has no effect and can be removed.",
+      "severity": "advice",
+      "match": {
+        "when": {
+          "proton_family": [
+            "valve"
+          ],
+          "proton_major_min": 5,
+          "env_set": [
+            "PROTON_USE_D9VK"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "unset_env",
+          "key": "PROTON_USE_D9VK"
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/blob/1f089f5610a882c8bfcb4b58a3c86ee88bb4b9f1/README.md#L346",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "seccomp-switch-obsolete",
+      "title": "PROTON_USE_SECCOMP does nothing in this Proton version",
+      "cause": "Proton 5.13 and newer no longer read PROTON_USE_SECCOMP, so this setting has no effect and can be removed.",
+      "severity": "advice",
+      "match": {
+        "when": {
+          "proton_family": [
+            "valve"
+          ],
+          "proton_major_min": 6,
+          "env_set": [
+            "PROTON_USE_SECCOMP"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "unset_env",
+          "key": "PROTON_USE_SECCOMP"
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/blob/1f089f5610a882c8bfcb4b58a3c86ee88bb4b9f1/README.md#L345",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "nvapi-switch-wrong-build",
+      "title": "PROTON_ENABLE_NVAPI does nothing in this Proton version",
+      "cause": "Proton 9.0 and newer do not read PROTON_ENABLE_NVAPI. Proton turns NVAPI, used for DLSS and other NVIDIA features, on by itself for most games, and PROTON_DISABLE_NVAPI is the setting that turns it off.",
+      "severity": "advice",
+      "match": {
+        "when": {
+          "proton_family": [
+            "valve"
+          ],
+          "proton_major_min": 9,
+          "env_set": [
+            "PROTON_ENABLE_NVAPI"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "unset_env",
+          "key": "PROTON_ENABLE_NVAPI"
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/blob/1f089f5610a882c8bfcb4b58a3c86ee88bb4b9f1/README.md#L328",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "gamescope-blocks-wayland-game",
+      "title": "PROTON_ENABLE_WAYLAND has no effect inside gamescope",
+      "cause": "Gamescope does not accept Wayland windows unless it is started with --expose-wayland, so GE-Proton runs the game through X11 inside gamescope and PROTON_ENABLE_WAYLAND changes nothing.",
+      "severity": "advice",
+      "match": {
+        "when": {
+          "proton_family": [
+            "ge"
+          ],
+          "launch_has": [
+            "gamescope"
+          ],
+          "env_set": [
+            "PROTON_ENABLE_WAYLAND"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "manual",
+          "text": "If you want the game to use Wayland, add --expose-wayland to the gamescope options on the Gamescope page (Advanced). Otherwise remove PROTON_ENABLE_WAYLAND from the launch options."
+        }
+      ],
+      "source": "https://wiki.archlinux.org/title/Gamescope#Wayland_support",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "cyberpunk-2077-camera-jumps",
+      "title": "Camera or mouse jumps in Cyberpunk 2077 while keys are held",
+      "cause": "Players on recent Proton builds report the camera snapping or the mouse jumping when they move it while holding movement keys. Turning off Wine's raw access to input devices (hidraw) fixed it for them. Controllers that rely on hidraw may lose some features while it is off.",
+      "severity": "advice",
+      "match": {
+        "app_ids": [
+          "1091500"
+        ],
+        "when": {
+          "proton_major_min": 10,
+          "env_unset": [
+            "PROTON_DISABLE_HIDRAW"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "env",
+          "key": "PROTON_DISABLE_HIDRAW",
+          "value": "1"
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/issues/4450#issuecomment-6830749508",
+      "verified": "2026-11-16"
+    },
+    {
+      "id": "elden-ring-many-threads",
+      "title": "Elden Ring stops with an anti-cheat error on processors with 24 or more threads",
+      "cause": "Easy Anti-Cheat in Elden Ring refuses to start when the game sees too many processor threads: players with 24, 28 and 32 threads got Unexpected error (#1). Showing the game 16 threads fixed it for them. Only use this if your processor has 24 threads or more.",
+      "severity": "advice",
+      "match": {
+        "app_ids": [
+          "1245620"
+        ],
+        "when": {
+          "env_unset": [
+            "WINE_CPU_TOPOLOGY"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "env",
+          "key": "WINE_CPU_TOPOLOGY",
+          "value": "16:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+        }
+      ],
+      "source": "https://github.com/ValveSoftware/Proton/issues/5613#issuecomment-3704892525",
+      "verified": "2026-11-16"
+    }
+  ]
+}

@@ -3,12 +3,14 @@
 Pure-core tests: no Qt imports, everything runs against tmp_path.
 Covers the audit fixes: app_id path traversal (shader cache), bash-key
 injection (ScopeBuddy), tolerant decoding, fail-closed JSON writes
-(Heroic, user fixes), VDF Apps/apps merge, and backup filename uniqueness.
+(Heroic, user fixes), VDF Apps/apps merge, backup filename uniqueness, and
+fix pack rules that cannot carry shell text into launch options.
 """
 
 from __future__ import annotations
 
 import json
+import shlex
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,10 +20,13 @@ import vdf
 from protonshift.core import fixes as fixes_mod
 from protonshift.core import heroic_config, saves
 from protonshift.core import paths as paths_mod
+from protonshift.core.fix_apply import plan
+from protonshift.core.fix_pack import Action, PackError, parse_rule
 from protonshift.core.mangohud import read_mangohud_config
 from protonshift.core.prefix import delete_prefix
 from protonshift.core.scopebuddy import parse_scb_conf, write_scb_conf
 from protonshift.core.shader_cache import clear_shader_cache, get_shader_cache_info
+from protonshift.core.snapshots import GameState
 from protonshift.core.steam import get_userdata_dir
 from protonshift.core.vdf_config import read_launch_options, set_launch_options
 
@@ -332,3 +337,125 @@ def test_delete_prefix_refuses_permitted_root(
     monkeypatch.setattr(paths_mod, "_USER_PATH_ROOTS", (home,))
     assert delete_prefix(str(home)) is False
     assert home.is_dir()
+
+
+# --------------------------------------------------------------------------- #
+# fix pack: a rule cannot smuggle shell text into launch options
+# --------------------------------------------------------------------------- #
+
+def _pack_rule(*actions: dict) -> dict:
+    return {
+        "id": "smuggle-test",
+        "title": "t",
+        "cause": "c",
+        "severity": "blocking",
+        "match": {"log": [r"wine: could not load kernel32\.dll"]},
+        "actions": list(actions),
+        "source": "https://example.org/issue/1",
+        "verified": "2026-11-16",
+    }
+
+
+def test_fix_pack_safe_rule_parses() -> None:
+    parsed = parse_rule(_pack_rule(
+        {"type": "env", "key": "PROTON_ENABLE_NVAPI", "value": "1"},
+        {"type": "game_arg", "value": "-vulkan"},
+        {"type": "remove_word", "value": "gamemoderun"},
+    ))
+    assert len(parsed.actions) == 3
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["1 2", "1;reboot", "$(reboot)", "`reboot`", "'1'", '"1"', "1\nreboot", "1\rreboot", "1&&x", "1|x", "%command%"],
+)
+def test_fix_pack_env_value_rejects_shell_text(value: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "env", "key": "DXVK_HUD", "value": value}))
+
+
+@pytest.mark.parametrize("value", ["vulkan", "%command%", "-a b", "-vulkan;reboot", "-x$(id)", "-a\n"])
+def test_fix_pack_game_arg_must_be_one_switch(value: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "game_arg", "value": value}))
+
+
+@pytest.mark.parametrize("value", ["/usr/bin/gamemoderun", "../gamemoderun", "game moderun", "a;b", "%command%"])
+def test_fix_pack_remove_word_rejects_paths_and_spaces(value: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "remove_word", "value": value}))
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["LD_PRELOAD", "PATH", "STEAM_COMPAT_DATA_PATH", "LD_LIBRARY_PATH", "WINEDLLPATH", "LD_AUDIT",
+     "PROTON_REMOTE_DEBUG_CMD", "SDL_DYNAMIC_API", "WINEDLLOVERRIDES"],
+)
+@pytest.mark.parametrize("kind", ["env", "unset_env"])
+def test_fix_pack_rejects_loader_variables(kind: str, key: str) -> None:
+    action = {"type": kind, "key": key}
+    if kind == "env":
+        action["value"] = "/tmp/x"
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule(action))
+
+
+def test_fix_pack_rejects_user_snippet_action() -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "user_snippet", "value": "reboot; %command%"}))
+
+
+# A list of forbidden names is never complete, so a rule may only set
+# variables in the families that tune Proton, Wine, the drivers and the overlay.
+@pytest.mark.parametrize(
+    "key",
+    ["BASH_ENV", "GCONV_PATH", "VK_ICD_FILENAMES", "VK_ADD_LAYER_PATH", "LD_AUDIT", "SDL_DYNAMIC_API",
+     "PROTON_REMOTE_DEBUG_CMD", "WINEDLLOVERRIDES"],
+)
+def test_fix_pack_env_outside_the_families_or_forbidden_is_rejected(key: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "env", "key": key, "value": "1"}))
+    # plan() refuses the same action when it is not the user's own
+    assert plan([Action("env", key=key, value="1")], GameState("%command%", "")).blocked
+
+
+@pytest.mark.parametrize("key", ["PROTON_LOG", "WINE_CPU_TOPOLOGY", "DXVK_HUD", "MANGOHUD"])
+def test_fix_pack_env_in_the_families_is_accepted(key: str) -> None:
+    (action,) = parse_rule(_pack_rule({"type": "env", "key": key, "value": "1"})).actions
+    assert action == Action("env", key=key, value="1")
+
+
+def test_engine_logging_row_still_plans() -> None:
+    change = plan([Action("env", "PROTON_LOG", "1")], GameState("", ""))
+    assert change.blocked == "" and change.after.launch_options == "PROTON_LOG=1 %command%"
+
+
+# --------------------------------------------------------------------------- #
+# user fixes: any value, written so the shell takes it as one word
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize(
+    "value",
+    ["x; rm -rf ~", "$(id)", "`id`", "a b", "x && reboot", "a|b > /tmp/x", "$HOME", '"q"', "\\ ;"],
+)
+@pytest.mark.parametrize("start", ["", "gamemoderun %command% -novid", "KEY='old value' %command%"])
+def test_user_env_value_is_one_shell_word(value: str, start: str) -> None:
+    change = plan([Action("env", key="KEY", value=value)], GameState(start, ""), user=True)
+    assert change.blocked == "", change.blocked
+    line = change.after.launch_options
+    words = shlex.split(line)
+    # Exactly one assignment of KEY, holding the value untouched, and nothing
+    # else in front of the game: no extra command, no extra word.
+    before = words[: words.index("%command%")]
+    assert before[0] == f"KEY={value}"
+    assert [w for w in before if w.startswith("KEY=")] == [f"KEY={value}"]
+    assert before[1:] == (["gamemoderun"] if start.startswith("gamemoderun") else [])
+    # A second apply changes nothing.
+    assert not plan([Action("env", key="KEY", value=value)], change.after, user=True).changed
+
+
+@pytest.mark.parametrize("value", ["it's", "a\nreboot", "a\x00b", "x %command% y"])
+def test_user_env_value_that_quoting_cannot_hold_is_refused(value: str) -> None:
+    change = plan([Action("env", key="KEY", value=value)], GameState("%command%", ""), user=True)
+    assert change.blocked
+    assert change.after.launch_options == "%command%"

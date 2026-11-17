@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Diagnose** (Library, Per-game tools). One list of what is wrong with a
+  game, ranked as "Stops the game from starting", "Probably the cause",
+  "Worth trying", "For context" and "Checked and fine". It looks at the
+  game's launch options, its Proton build, its install folder, the end of its
+  Proton log, this PC (a working Vulkan driver, a 32-bit Vulkan driver, free
+  space on the drives holding the game and its prefix) and a pack of 26 rules
+  that ships with the app: 18 recognise a line in the Proton log, 6 look at
+  launch options, and 2 are tweaks for one game. Each finding shows the log
+  line or the setting it is based on, and a rule from the pack links to where
+  its knowledge comes from. A check that could not run says so instead of
+  reporting the PC as fine. With no Proton log, Diagnose offers to turn
+  logging on. It reads files and settings only and never starts the game.
+- **Fix this, and Undo.** "Fix this" shows the launch options and Proton
+  build before and after, then applies the change in one click. A snapshot is
+  saved first, and if that fails nothing is written. Undo puts back the last
+  fix, also after restarting the app, and asks before overwriting changes
+  made since. Diagnose warns when Steam is running, because Steam rewrites
+  its settings when it closes and a fix applied now can be lost, and when the
+  launch options editor has unsaved changes.
+- Diagnose works for Steam games and Non-Steam shortcuts. For a shortcut it
+  shows the findings and a "Copy new launch options" button but cannot apply
+  a fix, because ProtonShift cannot write Steam's shortcuts file. Heroic and
+  Lutris games are not covered yet, and the rule pack does not update by
+  itself yet; new rules arrive with app updates.
+
+### Changed
+- The game pane's "Launch check" and "Known fixes…" buttons are replaced by
+  the one "Diagnose" button. Every check Launch check made is now a finding in
+  Diagnose. "Proton log…" stays, and Diagnose has an "Open log" button.
+- Your own fixes under `~/.config/protonshift/fixes/` still load. They show
+  in Diagnose under "Worth trying", marked "yours".
+
+### Removed
+- **The 14 built-in known fixes**, because on checking, none was both
+  sourced and still correct: several had no source, some used variable
+  names Proton does not document or no longer reads, two put a game argument
+  in front of `%command%`, and one turned on BattlEye for a game that does
+  not use it. Cyberpunk 2077 and Elden Ring get a sourced tweak in the new
+  rule pack instead.
+- The five switches the old Known fixes dialog listed for every game
+  (disable esync, disable fsync, Proton log, WineD3D, NVAPI), because they
+  are not fixes for anything Diagnose can detect. Proton logging is still a
+  launch-option preset, and Diagnose offers it when there is no log.
+
+### Fixed
+- **The Proton version picker used names Steam does not know.** It offered
+  Valve's builds as `proton_9_0`, `proton_8_0` and `proton_7_0`, but Steam
+  calls them `proton_9`, `proton_8` and `proton_7`. Choosing one wrote a
+  build Steam did not recognise, and Launch check called a game on a real
+  Valve build "gone". The picker now lists Steam's own names, including
+  Proton 10, Proton 11 and Proton Hotfix. A game still set to an old name
+  gets a finding in Diagnose with a one-click fix back to Steam's default.
+
 ## [1.3.2] - 2026-10-13
 
 ### Fixed

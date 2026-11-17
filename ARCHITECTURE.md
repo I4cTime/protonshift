@@ -33,16 +33,21 @@ Roughly one module per integration or feature:
 - **Config editors**: `gamescope.py` (command building), `mangohud.py`,
   `scopebuddy.py`, `env_vars.py`, `vdf_config.py` (Steam launch options),
   `launch_merge.py` (places a snippet around `%command%` instead of
-  appending it).
+  appending it, plus the single edits a Diagnose fix makes: set or unset a
+  variable, add a game argument, remove a wrapper word).
 - **System**: `display.py` (xrandr/wlr-randr/kscreen-doctor), `gpu.py`
   (nvidia-smi/sysfs + power profiles), `input_devices.py` (gamepad detection,
   SDL mapping, force-feedback rumble via raw `ioctl`/`struct` packing),
   `host.py` (host command execution, see "Flatpak sandboxing" below).
 - **Game maintenance**: `shader_cache.py`, `saves.py` (backup/restore),
-  `prefix.py`, `protontricks.py`, `fixes.py` (known-fixes DB, backed by
-  `core/data/known_fixes.json`), `launch_presets.py`, `profiles_storage.py`,
-  `compat_tool.py`, `launch_check.py` (why a game won't start; pure, fed by
-  its controller), `proton_log.py` (tail of `steam-<appid>.log`).
+  `prefix.py`, `protontricks.py`, `fixes.py` (the user's own fixes),
+  `launch_presets.py`, `profiles_storage.py`, `compat_tool.py`,
+  `proton_log.py` (tail of `steam-<appid>.log`).
+- **Diagnose**: `diagnose.py` (one ranked list of findings; `collect` reads,
+  the rest is pure), fed by `launch_check.py`, `proton_log.py`, `fix_pack.py`
+  (the bundled `core/data/fix_pack.json` plus the user's fixes) and
+  `system_checks.py`; `fix_apply.py` plans, applies and undoes a fix, with
+  `snapshots.py` keeping what Undo needs.
 - **The app itself**: `appearance.py` (styles, mode, accent), `sounds.py`
   (sound sets and stored settings), `updates.py` (manual update check).
 - **Shared low-level helpers**: `fsutil.py` (atomic writes, dir sizing),
@@ -96,6 +101,47 @@ example):
 `_worker.py` itself is deliberately PySide-free (no Qt import), so its
 exception-routing behavior is covered by a plain pytest test with no Qt
 runtime involved.
+
+### Diagnose flow
+
+`DiagnoseController` follows the same pattern, with the reading and the
+writing kept apart:
+
+1. **Collect on a worker.** `run` starts `diagnose.collect`, which reads
+   Steam's config, the Proton log tail, the system checks (host commands go
+   through `host_run`), the bundled fix pack and the user's fixes, and passes
+   a `Facts` to the pure `diagnose()`, which ranks the findings. Each run
+   carries a token; a result from an older run or another game is dropped.
+2. **Plan, pure.** "Fix this" calls `fix_apply.plan(actions, state, user=...)`
+   on the GUI thread (`user` for the user's own fixes, which may set any
+   variable, single-quoted; everything else is held to the pack's limits).
+   It reads nothing and returns the before and after `GameState`
+   (launch options and compatibility tool), which the dialog shows.
+3. **Snapshot, then write.** Apply plans again on a worker and calls
+   `apply_change`, which re-reads Steam's files and refuses if they no longer
+   match the plan's `before`, records a snapshot
+   (`~/.config/protonshift/snapshots/<appid>.json`, last 20 per game) and
+   writes nothing if that fails, then writes `localconfig.vdf` and
+   `config.vdf`, putting the first back if the second write fails. The
+   snapshot is dropped after a failed write only when the files read back as
+   `before`; otherwise it stays for Undo.
+4. **Undo.** `undo_latest` writes the latest snapshot's `before` back and
+   drops it once the files read back as `before`. If a setting is neither
+   that snapshot's `before` nor its `after`, someone changed it since, and it
+   refuses unless forced. Snapshots are on disk, so Undo survives a restart.
+
+After a write, `settingsWritten` makes `app.py` refresh the launch options
+editor (its text only when the launch options on disk changed or nothing is
+unsaved) and the diagnosis runs again. Non-Steam shortcuts get findings but no
+apply: there is no writer for the binary `shortcuts.vdf`.
+
+The fix pack (`core/data/fix_pack.json`) is data, not code. Its actions are
+a closed set (set or unset one variable, add one game argument, remove one
+wrapper word, use Steam's default Proton, or an instruction for the user),
+so no rule can put free text into launch options, which Steam hands to a
+shell. The format, the loader's limits and how to add a rule are in
+[docs/fix-pack.md](docs/fix-pack.md); `tests/test_fix_pack.py` enforces them
+for the bundled pack.
 
 ## `qml/` - pages and design system
 
@@ -159,7 +205,10 @@ runtime:
 
 - `test_core_safety.py` - path-traversal, command-injection, tolerant-decoding,
   and fail-closed-write regressions across `shader_cache`, `scopebuddy`,
-  `heroic_config`, `saves`, `vdf_config`.
+  `heroic_config`, `saves`, `vdf_config`, and the fix pack's action limits.
+- `test_fix_pack.py` and `test_fix_pack_rules.py` - the pack loader against
+  [docs/fix-pack.md](docs/fix-pack.md), and a real sample line for every log
+  rule plus lines from healthy runs that no rule may match.
 - `test_input_devices_structs.py` - pins the 64-bit kernel force-feedback ABI
   (`struct ff_effect` layout, `input_event` size) that `input_devices.py`
   packs by hand.
