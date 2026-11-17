@@ -3,7 +3,8 @@
 Pure-core tests: no Qt imports, everything runs against tmp_path.
 Covers the audit fixes: app_id path traversal (shader cache), bash-key
 injection (ScopeBuddy), tolerant decoding, fail-closed JSON writes
-(Heroic, user fixes), VDF Apps/apps merge, and backup filename uniqueness.
+(Heroic, user fixes), VDF Apps/apps merge, backup filename uniqueness, and
+fix pack rules that cannot carry shell text into launch options.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import vdf
 from protonshift.core import fixes as fixes_mod
 from protonshift.core import heroic_config, saves
 from protonshift.core import paths as paths_mod
+from protonshift.core.fix_pack import PackError, parse_rule
 from protonshift.core.mangohud import read_mangohud_config
 from protonshift.core.prefix import delete_prefix
 from protonshift.core.scopebuddy import parse_scb_conf, write_scb_conf
@@ -332,3 +334,65 @@ def test_delete_prefix_refuses_permitted_root(
     monkeypatch.setattr(paths_mod, "_USER_PATH_ROOTS", (home,))
     assert delete_prefix(str(home)) is False
     assert home.is_dir()
+
+
+# --------------------------------------------------------------------------- #
+# fix pack: a rule cannot smuggle shell text into launch options
+# --------------------------------------------------------------------------- #
+
+def _pack_rule(*actions: dict) -> dict:
+    return {
+        "id": "smuggle-test",
+        "title": "t",
+        "cause": "c",
+        "severity": "blocking",
+        "match": {"log": [r"wine: could not load kernel32\.dll"]},
+        "actions": list(actions),
+        "source": "https://example.org/issue/1",
+        "verified": "2026-11-16",
+    }
+
+
+def test_fix_pack_safe_rule_parses() -> None:
+    parsed = parse_rule(_pack_rule(
+        {"type": "env", "key": "PROTON_ENABLE_NVAPI", "value": "1"},
+        {"type": "game_arg", "value": "-vulkan"},
+        {"type": "remove_word", "value": "gamemoderun"},
+    ))
+    assert len(parsed.actions) == 3
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["1 2", "1;reboot", "$(reboot)", "`reboot`", "'1'", '"1"', "1\nreboot", "1\rreboot", "1&&x", "1|x", "%command%"],
+)
+def test_fix_pack_env_value_rejects_shell_text(value: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "env", "key": "DXVK_HUD", "value": value}))
+
+
+@pytest.mark.parametrize("value", ["vulkan", "%command%", "-a b", "-vulkan;reboot", "-x$(id)", "-a\n"])
+def test_fix_pack_game_arg_must_be_one_switch(value: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "game_arg", "value": value}))
+
+
+@pytest.mark.parametrize("value", ["/usr/bin/gamemoderun", "../gamemoderun", "game moderun", "a;b", "%command%"])
+def test_fix_pack_remove_word_rejects_paths_and_spaces(value: str) -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "remove_word", "value": value}))
+
+
+@pytest.mark.parametrize("key", ["LD_PRELOAD", "PATH", "STEAM_COMPAT_DATA_PATH", "LD_LIBRARY_PATH", "WINEDLLPATH"])
+@pytest.mark.parametrize("kind", ["env", "unset_env"])
+def test_fix_pack_rejects_loader_variables(kind: str, key: str) -> None:
+    action = {"type": kind, "key": key}
+    if kind == "env":
+        action["value"] = "/tmp/x"
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule(action))
+
+
+def test_fix_pack_rejects_user_snippet_action() -> None:
+    with pytest.raises(PackError):
+        parse_rule(_pack_rule({"type": "user_snippet", "value": "reboot; %command%"}))
