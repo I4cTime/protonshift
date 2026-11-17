@@ -79,10 +79,11 @@ Titles and causes are plain text. They are shown as text, never as markup,
 and may not be blank or contain line breaks or other control characters; the
 same goes for the text of a `manual` action.
 
-The loader is strict throughout. A key it does not know (in the pack, a
-rule, `match`, `when` or an action) rejects that rule, so a typo cannot
-silently produce a rule with defaults. A value of the wrong type is rejected,
-never converted. An empty list is rejected. An id may not start with `user-`,
+The loader is strict throughout. A key it does not know in a rule, `match`,
+`when` or an action rejects that rule, so a typo cannot silently produce a
+rule with defaults; an unknown key at the top of the file rejects the whole
+pack. A value of the wrong type is rejected, never converted. An empty list
+and an empty `when` are rejected. An id may not start with `user-`,
 which is kept for the user's own fixes. A file with the same key twice in one
 object is rejected whole.
 
@@ -109,8 +110,11 @@ is not a rule.
 
   What counts toward the 8 literal characters: plain and escaped characters
   (`\.`), also through a group that is not repeated. A character class, `.`,
-  an anchor, a repeat that may match zero times, and a lookaround end the
-  run. An alternation counts as its shortest branch.
+  an anchor, a lookaround, any repeat and any alternation end the run. What
+  is inside a repeat that must match at least once is measured on its own,
+  and an alternation is measured as its shortest branch on its own; neither
+  joins the text around it. So `kernel(?:32|64)` has 6 in a row and is
+  rejected, while `kernel32\.dll` is fine.
   With no log on disk, a rule that has a `log` part does not match.
 - `log_also`: a list of regular expressions under the same limits. Every one
   of them must also be found somewhere in the log tail, each in any line.
