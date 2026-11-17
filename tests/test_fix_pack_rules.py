@@ -9,6 +9,7 @@ Settings and per-game rules are checked through ``fix_pack`` only.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 from pathlib import Path
@@ -17,6 +18,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from protonshift.core import fix_pack
+from protonshift.core.diagnose import Facts, rule_finding
 from protonshift.core.fix_pack import Action, Rule, load_bundled_pack, match_log
 
 PACK_PATH = Path(fix_pack.__file__).parent / "data" / "fix_pack.json"
@@ -264,11 +266,11 @@ SETTINGS: dict[str, tuple[tuple[str, ...], dict[str, object], tuple[Action, ...]
         (),
     ),
     "cyberpunk-2077-camera-jumps": (
-        ("1091500",), {"proton_major_min": 10},
+        ("1091500",), {"proton_major_min": 10, "env_unset": ("PROTON_DISABLE_HIDRAW",)},
         (Action("env", key="PROTON_DISABLE_HIDRAW", value="1"),),
     ),
     "elden-ring-many-threads": (
-        ("1245620",), {},
+        ("1245620",), {"env_unset": ("WINE_CPU_TOPOLOGY",)},
         (Action("env", key="WINE_CPU_TOPOLOGY", value="16:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"),),
     ),
 }
@@ -315,6 +317,25 @@ def test_wayland_rule_names_both_choices() -> None:
     assert "--expose-wayland" in action.text and "PROTON_ENABLE_WAYLAND" in action.text
 
 
+@pytest.mark.parametrize(
+    ("rule_id", "app_id", "key"),
+    [("cyberpunk-2077-camera-jumps", "1091500", "PROTON_DISABLE_HIDRAW"),
+     ("elden-ring-many-threads", "1245620", "WINE_CPU_TOPOLOGY")],
+)
+def test_game_tweak_is_no_longer_offered_once_applied(rule_id: str, app_id: str, key: str) -> None:
+    facts = Facts(
+        app_id=app_id, steam_app=True, native=False, launch_options="%command%", launch_options_readable=True,
+        compat_tool="proton_10", proton_family="valve", proton_major=10, gpu_vendors=frozenset({"amd"}),
+        session="wayland", log_lines=None, log_modified="",
+    )
+    rule = RULES[rule_id]
+    assert rule_finding(rule, facts) is not None
+    # The line its own fix writes: the finding is gone.
+    (action,) = (a for a in rule.actions if a.type == "env")
+    applied = f"{key}={action.value} %command%"
+    assert rule_finding(rule, dataclasses.replace(facts, launch_options=applied)) is None
+
+
 def test_elden_ring_rule_names_the_thread_count() -> None:
     rule = RULES["elden-ring-many-threads"]
     assert "24" in rule.title and "24" in rule.cause
@@ -331,7 +352,7 @@ ALLOWED_HOSTS = {
 
 def test_pack_loads_every_rule() -> None:
     assert PACK.rejected == []
-    assert PACK.revision == "2026.11.2"
+    assert PACK.revision == "2026.11.3"
     assert len(RULES) == len(PACK.rules)
 
 

@@ -112,22 +112,27 @@ writing kept apart:
    through `host_run`), the bundled fix pack and the user's fixes, and passes
    a `Facts` to the pure `diagnose()`, which ranks the findings. Each run
    carries a token; a result from an older run or another game is dropped.
-2. **Plan, pure.** "Fix this" calls `fix_apply.plan(actions, state)` on the
-   GUI thread. It reads nothing and returns the before and after `GameState`
+2. **Plan, pure.** "Fix this" calls `fix_apply.plan(actions, state, user=...)`
+   on the GUI thread (`user` for the user's own fixes, which may set any
+   variable, single-quoted; everything else is held to the pack's limits).
+   It reads nothing and returns the before and after `GameState`
    (launch options and compatibility tool), which the dialog shows.
 3. **Snapshot, then write.** Apply plans again on a worker and calls
    `apply_change`, which re-reads Steam's files and refuses if they no longer
    match the plan's `before`, records a snapshot
    (`~/.config/protonshift/snapshots/<appid>.json`, last 20 per game) and
    writes nothing if that fails, then writes `localconfig.vdf` and
-   `config.vdf`, putting the first back if the second write fails.
+   `config.vdf`, putting the first back if the second write fails. The
+   snapshot is dropped after a failed write only when the files read back as
+   `before`; otherwise it stays for Undo.
 4. **Undo.** `undo_latest` writes the latest snapshot's `before` back and
-   drops it. If the settings are neither that snapshot's `before` nor its
-   `after`, someone changed them since, and it refuses unless forced.
-   Snapshots are on disk, so Undo survives a restart.
+   drops it once the files read back as `before`. If a setting is neither
+   that snapshot's `before` nor its `after`, someone changed it since, and it
+   refuses unless forced. Snapshots are on disk, so Undo survives a restart.
 
-After a write, `settingsWritten` makes `app.py` reload the launch options
-editor and the diagnosis runs again. Non-Steam shortcuts get findings but no
+After a write, `settingsWritten` makes `app.py` refresh the launch options
+editor (its text only when the launch options on disk changed or nothing is
+unsaved) and the diagnosis runs again. Non-Steam shortcuts get findings but no
 apply: there is no writer for the binary `shortcuts.vdf`.
 
 The fix pack (`core/data/fix_pack.json`) is data, not code. Its actions are

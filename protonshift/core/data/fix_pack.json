@@ -1,7 +1,7 @@
 {
   "format": "protonshift-fix-pack",
   "version": 2,
-  "revision": "2026.11.2",
+  "revision": "2026.11.3",
   "rules": [
     {
       "id": "prefix-not-owned",
@@ -528,7 +528,10 @@
           "1091500"
         ],
         "when": {
-          "proton_major_min": 10
+          "proton_major_min": 10,
+          "env_unset": [
+            "PROTON_DISABLE_HIDRAW"
+          ]
         }
       },
       "actions": [
@@ -549,7 +552,12 @@
       "match": {
         "app_ids": [
           "1245620"
-        ]
+        ],
+        "when": {
+          "env_unset": [
+            "WINE_CPU_TOPOLOGY"
+          ]
+        }
       },
       "actions": [
         {

@@ -22,6 +22,16 @@ from .fsutil import atomic_write_text
 from .vdf_config import VdfParseError, _load_vdf_strict
 
 
+def is_steam_runtime(tool_name: str) -> bool:
+    """True for Steam's own Linux runtimes (``steamlinuxruntime_sniper``, ``legacysteamruntime``, ...).
+
+    A game forced to one of these runs natively inside Steam's container, not
+    through Proton. Steam provides them, so they are never "gone".
+    """
+    name = (tool_name or "").strip()
+    return name.startswith("steamlinuxruntime") or name == "legacysteamruntime"
+
+
 def get_config_vdf_path(steam_root: Path) -> Path:
     return steam_root / "config" / "config.vdf"
 

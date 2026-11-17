@@ -224,8 +224,25 @@ def _vulkan_from_manifests(icd_dirs: Sequence[Path]) -> Check:
     )
 
 
-def check_vulkan(run: Runner = host_run, icd_dirs: Sequence[Path] | None = None) -> Check:
-    """Does Vulkan work on a real graphics card? Asks ``vulkaninfo``, else reads driver manifests."""
+def check_vulkan(
+    run: Runner = host_run, icd_dirs: Sequence[Path] | None = None, flavor: str = "",
+) -> Check:
+    """Does Vulkan work on a real graphics card? Asks ``vulkaninfo``, else reads driver manifests.
+
+    ``flavor`` is :func:`steam_flavor`'s answer. With Flatpak Steam the games
+    use the drivers of Steam's Flatpak runtime, not this computer's, so the
+    answer is ``unknown`` and nothing is run. That holds for a working host
+    driver too: a host that passes says nothing about the runtime's drivers
+    (the NVIDIA one, for example, must match the host driver's version), and a
+    green tick on a guess is what these checks never give.
+    """
+    if flavor == "flatpak":
+        return Check(
+            "vulkan", UNKNOWN, _VULKAN_UNKNOWN,
+            "Steam runs as a Flatpak and brings its own drivers, so a check of the drivers installed on "
+            "this computer does not apply to its games.",
+            "",
+        )
     dirs = list(icd_dirs) if icd_dirs is not None else default_icd_dirs()
     try:
         proc = run(["vulkaninfo", "--summary"], capture_output=True, text=True, timeout=_TIMEOUT)
@@ -470,9 +487,10 @@ def run_checks(
     run: Runner = host_run,
 ) -> list[Check]:
     """Every system check for one game, in display order."""
+    flavor = steam_flavor(steam_root)
     checks = [
-        check_vulkan(run),
-        check_vulkan_32bit(steam_flavor(steam_root)),
+        check_vulkan(run, flavor=flavor),
+        check_vulkan_32bit(flavor),
         check_disk(install_path, "library"),
     ]
     # One drive, one answer: the same free space twice reads like two problems.

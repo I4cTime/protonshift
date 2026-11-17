@@ -10,8 +10,9 @@ A fix goes preview first, then apply: ``openPreview`` plans it on the GUI
 thread (``fix_apply.plan`` is pure), ``apply`` plans it again from the same
 report and writes it on a worker. ``apply_change`` itself refuses a plan made
 from settings that changed on disk since, so the user is never surprised.
-After a write that worked, ``settingsWritten`` fires (``app.py`` reloads the
-launch options editor and plays the chime) and the diagnosis runs again.
+After a write, ``settingsWritten`` fires (``app.py`` plays the chime and
+refreshes the launch options editor, whose unsaved text is replaced only when
+the write changed the launch options on disk) and the diagnosis runs again.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from ..core.snapshots import GameState, Snapshot
 from ._worker import start_worker
 
 _SEVERITIES = diagnose.SEVERITY_ORDER
+_SHORTCUT_PROTON = "ProtonShift can't apply this to a shortcut from here. Pick a build under Proton version."
 
 
 def _when_label(taken_at: str) -> str:
@@ -57,19 +59,21 @@ def _checked_line(report: diagnose.Report, shortcut: bool, native: bool) -> str:
 
 class DiagnoseController(QObject):
     runningChanged = Signal()
-    reportChanged = Signal()  # findings / summary / counts / canApply / steamRunning / logPath / checked
+    reportChanged = Signal()  # findings / summary / counts / canApply / steamRunning / checked
     busyChanged = Signal()
     statusChanged = Signal()
-    undoChanged = Signal()  # undoAvailable / undoLabel / undoWhen / undoConflict
+    undoChanged = Signal()  # undoAvailable / undoLabel / undoWhen / undoConflict / undoChangesLaunch
     previewChanged = Signal()
 
-    # A fix or its undo was written (app_id, ok). app.py chimes on it and, when
-    # ok, reloads the launch options editor so it shows what Steam now has.
-    settingsWritten = Signal(str, bool)
+    # A fix or its undo was written (app_id, ok, launch options changed on
+    # disk). app.py chimes on it and refreshes the launch options editor; its
+    # text is reloaded only when the launch options on disk changed, so a
+    # Proton-only fix keeps the user's unsaved edits.
+    settingsWritten = Signal(str, bool, bool)
 
     _runResult = Signal(int, object, object)  # run token, Report, Snapshot | None
     _runError = Signal(int, str)  # run token, message
-    _writeResult = Signal(str, object, object, bool)  # app_id, ApplyResult, Snapshot | None, undo conflict
+    _writeResult = Signal(str, object, object)  # app_id, ApplyResult, Snapshot | None
     _writeError = Signal(str, str)  # app_id, message
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -151,10 +155,6 @@ class DiagnoseController(QObject):
         running = self._report.steam_running if self._report else None
         return "unknown" if running is None else ("yes" if running else "no")
 
-    @Property(str, notify=reportChanged)
-    def logPath(self) -> str:
-        return self._report.log_path if self._report else ""
-
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
         """An apply or an undo is being written."""
@@ -179,6 +179,12 @@ class DiagnoseController(QObject):
     @Property(str, notify=undoChanged)
     def undoWhen(self) -> str:
         return _when_label(self._undo.taken_at) if self._undo else ""
+
+    @Property(bool, notify=undoChanged)
+    def undoChangesLaunch(self) -> bool:
+        """Undo would change the launch options (so it would replace unsaved edits in the editor)."""
+        snap = self._undo
+        return snap is not None and snap.before.launch_options != snap.after.launch_options
 
     @Property(str, notify=undoChanged)
     def undoConflict(self) -> str:
@@ -248,7 +254,7 @@ class DiagnoseController(QObject):
         self._findings = {f.id: f for f in report.findings}
         self._rows = [diagnose.to_row(f) for f in report.findings]
         self._summary = report.summary
-        self._checked = _checked_line(report, shortcut=args[2] is not None, native=bool(args[3]))
+        self._checked = _checked_line(report, shortcut=args[2] is not None, native=report.native)
         self._error = ""
         self._undo = undo
         self._running = False
@@ -276,11 +282,11 @@ class DiagnoseController(QObject):
     # --- preview ------------------------------------------------------------------
 
     def _planning_state(self) -> tuple[GameState | None, str]:
-        """The settings a plan starts from, or ``(None, reason)`` when there are none to plan on."""
-        if self._shortcut_options is not None:
-            # Steam keeps a shortcut's launch options in the shortcut; its Proton
-            # choice is not something ProtonShift can change for it.
-            return GameState(launch_options=self._shortcut_options, compat_tool=""), ""
+        """The settings a plan starts from, or ``(None, reason)`` when there are none to plan on.
+
+        For a shortcut the report's state holds its launch options and its real
+        Proton build, so a "use Steam's default" fix is not planned as done.
+        """
         if self._report is not None and self._report.state is not None:
             return self._report.state, ""
         return None, ("Steam's settings for this game could not be read, so ProtonShift cannot work out "
@@ -293,7 +299,7 @@ class DiagnoseController(QObject):
         state, reason = self._planning_state()
         if state is None:
             return finding, None, reason
-        return finding, fix_apply.plan(finding.actions, state), ""
+        return finding, fix_apply.plan(finding.actions, state, user=finding.origin == "user"), ""
 
     @Slot(str)
     def openPreview(self, finding_id: str) -> None:
@@ -310,6 +316,7 @@ class DiagnoseController(QObject):
             "beforeProton": "", "afterProton": "", "protonChanged": False,
             "manual": manual,
             "blocked": reason,
+            "note": "",  # a plain sentence for what the user has to do instead
             "changed": False,
             "mode": "none",  # "apply" | "copy" | "none"
         }
@@ -332,6 +339,9 @@ class DiagnoseController(QObject):
                     preview["mode"] = "apply"
                 elif self._shortcut_options is not None and launch_changed:
                     preview["mode"] = "copy"
+                elif self._shortcut_options is not None and proton_changed:
+                    # No launch line to copy; the Proton picker sets a shortcut's build.
+                    preview["note"] = _SHORTCUT_PROTON
         self._preview = preview
         self.previewChanged.emit()
 
@@ -376,10 +386,10 @@ class DiagnoseController(QObject):
                      on_error=lambda message: self._writeError.emit(app_id, message))
 
     def _apply_work(self, app_id, localconfig, config_vdf, finding, state) -> None:
-        change = fix_apply.plan(finding.actions, state)
+        change = fix_apply.plan(finding.actions, state, user=finding.origin == "user")
         result = fix_apply.apply_change(localconfig, config_vdf, app_id, change,
                                         label=finding.title, finding_id=finding.id)
-        self._writeResult.emit(app_id, result, fix_apply.undo_available(app_id), False)
+        self._writeResult.emit(app_id, result, fix_apply.undo_available(app_id))
 
     @Slot(bool)
     def undo(self, force: bool) -> None:
@@ -397,14 +407,8 @@ class DiagnoseController(QObject):
                      on_error=lambda message: self._writeError.emit(app_id, message))
 
     def _undo_work(self, app_id, localconfig, config_vdf, force: bool) -> None:
-        snap = fix_apply.undo_available(app_id)
-        current = fix_apply.read_state(localconfig, config_vdf, app_id)
-        # The same test undo_latest refuses on: settings that are neither the
-        # fix's before nor its after were changed by someone since.
-        conflict = (not force and snap is not None and current is not None
-                    and current not in (snap.before, snap.after))
         result = fix_apply.undo_latest(localconfig, config_vdf, app_id, force=force)
-        self._writeResult.emit(app_id, result, fix_apply.undo_available(app_id), conflict and not result.ok)
+        self._writeResult.emit(app_id, result, fix_apply.undo_available(app_id))
 
     @Slot()
     def dismissUndoConflict(self) -> None:
@@ -419,8 +423,8 @@ class DiagnoseController(QObject):
         self.busyChanged.emit()
         self.undoChanged.emit()
 
-    def _on_write_result(self, app_id: str, result: fix_apply.ApplyResult, undo: Snapshot | None,
-                         conflict: bool) -> None:
+    def _on_write_result(self, app_id: str, result: fix_apply.ApplyResult, undo: Snapshot | None) -> None:
+        conflict = result.conflict
         self._busy = False
         self.busyChanged.emit()
         if app_id == self._app_id:
@@ -429,7 +433,7 @@ class DiagnoseController(QObject):
             self.undoChanged.emit()
             if not conflict:
                 self._set_status(result.message, result.ok)
-        self.settingsWritten.emit(app_id, result.ok)
+        self.settingsWritten.emit(app_id, result.ok, result.launch_changed)
         # The list has to show the settings as they are now; a plan refused
         # because the settings moved needs a fresh report too.
         if app_id == self._app_id and not conflict and (result.ok or result.state is not None):
@@ -438,7 +442,9 @@ class DiagnoseController(QObject):
     def _on_write_error(self, app_id: str, message: str) -> None:
         self._busy = False
         self.busyChanged.emit()
-        self.settingsWritten.emit(app_id, False)
+        # Whether anything reached the disk is unknown, so the editor keeps
+        # unsaved text rather than losing it; its Proton choice is refreshed.
+        self.settingsWritten.emit(app_id, False, False)
         if app_id == self._app_id:
             self._set_status(f"Something went wrong, so the change may not be complete: {message}", False)
             self._rerun()

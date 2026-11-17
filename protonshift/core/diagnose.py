@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from . import compat_tool, fix_pack, gpu, host, launch_check, proton_log, steam, system_checks, tool_check
+from .compat_tool import is_steam_runtime
 from .display import _is_wayland
 from .fix_apply import read_state
 from .fix_pack import Action, Rule, When, match_log
@@ -104,6 +105,71 @@ def _valve_major(digits: str) -> int | None:
     if len(digits) == 2 and digits[0] in "12":
         return int(digits)
     return None
+
+
+def steam_provides(tool_name: str) -> bool:
+    """True for a tool Steam itself downloads when a game needs it: Valve's Proton or a Steam runtime."""
+    return proton_build(tool_name)[0] == "valve" or is_steam_runtime(tool_name)
+
+
+def proton_facts(tool_name: str, native: bool) -> tuple[str, int | None]:
+    """``(family, major)`` for :class:`Facts`: unknown for a native game or a Steam runtime.
+
+    Neither runs the game through Proton, so no ``proton_*`` rule condition
+    may hold for them, ``proton_family: ["other"]`` included.
+    """
+    if native or is_steam_runtime(tool_name):
+        return "", None
+    return proton_build(tool_name)
+
+
+# How deep guess_native looks for a Windows program, and how many entries it
+# reads at most, so the guess stays quick on a 100 GB install.
+_NATIVE_SCAN_DEPTH = 3  # the install folder and two levels of folders below it
+_NATIVE_SCAN_ENTRIES = 20000
+
+
+def guess_native(compat_tool: str | None, prefix_path: Path | None, install_path: Path | None) -> bool:
+    """A conservative guess that a Steam game is a native Linux game.
+
+    True only when all hold: no compatibility tool is forced for it
+    (``compat_tool`` is ``""``) or the forced one is a Steam runtime, its
+    compatdata prefix folder does not exist, and its install folder holds no
+    ``.exe`` file within two folder levels. Anything that could not be found
+    out (``compat_tool`` None, a path unknown or unreadable, too many entries)
+    gives False. The guess errs toward "Proton" on purpose: a native game
+    hides the Proton checks, the log and the prefix, so a wrong "native" would
+    hide the very findings a Windows game needs.
+    """
+    if compat_tool is None or (compat_tool and not is_steam_runtime(compat_tool)):
+        return False
+    if prefix_path is None or install_path is None:
+        return False
+    try:
+        if prefix_path.exists() or not install_path.is_dir():
+            return False
+    except OSError:
+        return False
+    pending: list[tuple[Path, int]] = [(install_path, 0)]
+    seen = 0
+    while pending:
+        folder, depth = pending.pop()
+        try:
+            entries = list(folder.iterdir())
+        except OSError:
+            return False
+        seen += len(entries)
+        if seen > _NATIVE_SCAN_ENTRIES:
+            return False
+        for entry in entries:
+            if entry.name.lower().endswith(".exe"):
+                return False
+            try:
+                if depth + 1 < _NATIVE_SCAN_DEPTH and entry.is_dir() and not entry.is_symlink():
+                    pending.append((entry, depth + 1))
+            except OSError:
+                return False
+    return True
 
 
 def proton_build(tool_name: str) -> tuple[str, int | None]:
@@ -455,11 +521,14 @@ class Report:
     app_id: str
     findings: list[Finding]
     summary: str
-    state: GameState | None  # current settings, None when unreadable or a shortcut
+    # Current settings, None when unreadable. For a shortcut: its launch
+    # options and the Proton build forced for it, for planning only.
+    state: GameState | None
     can_apply: bool  # False for shortcuts and unreadable configs
     steam_running: bool | None
     log_path: str
     paths: tuple[Path | None, Path | None]  # (localconfig.vdf, config.vdf) for apply/undo
+    native: bool = False  # diagnosed as a native Linux game (guess_native, or the caller said so)
 
 
 def _quiet(read: Callable[[], T], fallback: T) -> T:
@@ -514,17 +583,21 @@ def collect(
     ok, tool = (False, "")
     if config_vdf:
         ok, tool = _quiet(lambda: compat_tool.read_compat_tool(config_vdf, app_id), (False, ""))
-    tool = tool if ok and isinstance(tool, str) else ""
+    tool_known = ok and isinstance(tool, str)
+    tool = tool if tool_known else ""
 
     install = Path(install_path) if install_path else None
     prefix = Path(prefix_path) if prefix_path else None
-    family, major = ("", None) if native else proton_build(tool)
+    if steam_app and not native:
+        # The library has no native flag for Steam games, so it is guessed here.
+        native = _quiet(lambda: guess_native(tool if tool_known else None, prefix, install), False)
+    family, major = proton_facts(tool, native)
     available = list(_quiet(lambda: steam.get_available_proton_tools(root), [""]))
     runtimes = _quiet(lambda: _installed_runtimes(root), [])
-    if family == "valve" and tool not in available:
-        # Steam downloads its own Proton builds when a game needs one, and
-        # their internal names are not on disk to compare with, so a Valve
-        # build is never reported as gone.
+    if steam_provides(tool) and tool not in available:
+        # Steam downloads its own Proton builds and runtimes when a game needs
+        # one, and their internal names are not on disk to compare with, so
+        # they are never reported as gone.
         available.append(tool)
     launch_findings = _quiet(lambda: launch_check.check_launch(
         launch_options=options,
@@ -569,7 +642,12 @@ def collect(
     rules = [*fix_pack.load_bundled_pack().rules, *_quiet(lambda: fix_pack.user_rules(app_id), [])]
     findings = diagnose(facts, rules=rules, launch_findings=launch_findings, checks=checks)
 
-    state = read_state(localconfig, config_vdf, app_id) if steam_app else None
+    if steam_app:
+        state = read_state(localconfig, config_vdf, app_id)
+    else:
+        # ProtonShift cannot write a shortcut, but a plan still has to start
+        # from its real Proton build, or "use Steam's default" looks done.
+        state = GameState(launch_options=options, compat_tool=tool)
     return Report(
         app_id=app_id,
         findings=findings,
@@ -579,4 +657,5 @@ def collect(
         steam_running=_quiet(lambda: system_checks.steam_running(host.host_run), None),
         log_path=str(log_file) if log_file else "",
         paths=(localconfig, config_vdf),
+        native=native,
     )

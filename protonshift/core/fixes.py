@@ -7,7 +7,6 @@ turned into Diagnose rules by ``fix_pack.user_rules``.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -19,16 +18,6 @@ _USER_FIXES_DIR = Path.home() / ".config" / "protonshift" / "fixes"
 
 def _user_fixes_path(app_id: str) -> Path:
     return _USER_FIXES_DIR / f"{sanitize_filename(app_id, fallback='unknown')}.json"
-
-
-@dataclass
-class GameFix:
-    title: str
-    description: str
-    fix_type: str  # "env" or "launch_arg"
-    key: str  # env var key (empty for launch_arg)
-    value: str
-    source: str  # always "user"
 
 
 def _load_user_fixes_strict(app_id: str) -> list[dict[str, Any]]:
@@ -55,22 +44,6 @@ def _load_user_fixes(app_id: str) -> list[dict[str, Any]]:
         return _load_user_fixes_strict(app_id)
     except (json.JSONDecodeError, ValueError, OSError):
         return []
-
-
-def _dict_to_fix(d: dict[str, Any], source: str) -> GameFix:
-    return GameFix(
-        title=d.get("title", ""),
-        description=d.get("description", ""),
-        fix_type=d.get("type", "env"),
-        key=d.get("key", ""),
-        value=d.get("value", ""),
-        source=source,
-    )
-
-
-def get_fixes(app_id: str) -> list[GameFix]:
-    """The user's own fixes for a game."""
-    return [_dict_to_fix(entry, "user") for entry in _load_user_fixes(app_id)]
 
 
 def add_user_fix(

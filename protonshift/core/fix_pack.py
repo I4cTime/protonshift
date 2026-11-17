@@ -55,15 +55,23 @@ _ENV_VALUE_RE = re.compile(r"[A-Za-z0-9_.,:=/+@%-]{0,200}")
 _GAME_ARG_RE = re.compile(r"[-+][A-Za-z0-9_.=:-]{1,60}")
 _WORD_RE = re.compile(r"[A-Za-z0-9_.-]{1,40}")
 
-# These decide what code a process loads or runs.
+# The only families an ``env`` action may set: the ones that tune Proton,
+# Wine, the graphics drivers and the overlay. A list of forbidden names can
+# never be complete, and a variable ProtonShift does not know (BASH_ENV,
+# GCONV_PATH, VK_ICD_FILENAMES, ...) may decide what code a process loads.
+ENV_FAMILIES = ("PROTON_", "WINE_", "DXVK_", "VKD3D_", "MESA_", "RADV_", "__GL_", "__NV_", "SDL_", "MANGOHUD")
+# These decide what code a process loads or runs, so a rule may neither set
+# nor unset them, inside the families or not.
 _FORBIDDEN_VARS = frozenset({
+    "PROTON_REMOTE_DEBUG_CMD",
+    "SDL_DYNAMIC_API",
     "LD_PRELOAD",
     "LD_LIBRARY_PATH",
     "LD_AUDIT",
     "PATH",
     "PYTHONPATH",
-    "STEAM_COMPAT_LAUNCHER_SERVICE",
     "WINEDLLPATH",
+    "WINEDLLOVERRIDES",
 })
 _FORBIDDEN_PREFIX = "STEAM_COMPAT_"
 # ``user_rules`` hands out ``user-<n>``; a pack rule with that id could be
@@ -179,12 +187,27 @@ def _str_list(value: object, where: str) -> list[str]:
     return value
 
 
-def _env_key(value: object, where: str) -> str:
-    if not isinstance(value, str) or not _KEY_RE.fullmatch(value):
-        raise PackError(f"{where}: not a valid variable name")
-    if value in _FORBIDDEN_VARS or value.startswith(_FORBIDDEN_PREFIX):
-        raise PackError(f"{where}: {value} may not be changed by a rule")
-    return value
+def env_key_problem(key: object, *, setting: bool) -> str:
+    """Why a rule may not change the variable ``key``; ``""`` when it may.
+
+    ``setting`` is True for an ``env`` action, which is held to
+    :data:`ENV_FAMILIES`; ``unset_env`` is not, since removing a variable the
+    user set adds nothing. The forbidden list holds for both.
+    """
+    if not isinstance(key, str) or not _KEY_RE.fullmatch(key):
+        return "not a valid variable name"
+    if key in _FORBIDDEN_VARS or key.startswith(_FORBIDDEN_PREFIX):
+        return f"{key} may not be changed by a rule"
+    if setting and not key.startswith(ENV_FAMILIES):
+        return f"{key} is not in a family a rule may set ({', '.join(ENV_FAMILIES)})"
+    return ""
+
+
+def _env_key(value: object, where: str, *, setting: bool) -> str:
+    problem = env_key_problem(value, setting=setting)
+    if problem:
+        raise PackError(f"{where}: {problem}")
+    return str(value)
 
 
 def _source(value: object) -> str:
@@ -291,20 +314,25 @@ def _children(node: tuple[Any, ...]) -> list[list[tuple[Any, ...]]]:
     return []
 
 
-def _contains_repeat(seq: list[tuple[Any, ...]]) -> bool:
-    return any(n[0] == "rep" or any(_contains_repeat(s) for s in _children(n)) for n in seq)
+def _has_repeated_group(seq: list[tuple[Any, ...]]) -> bool:
+    """True when a repeat that can match more than once repeats anything but one character.
 
-
-def _has_nested_repeat(seq: list[tuple[Any, ...]]) -> bool:
-    # An outer quantifier that can match at most once (``?``, ``{0,1}``) does
-    # not repeat its group, so it cannot multiply the ways the inner repeat
-    # splits a line; any quantifier inside a real repeat counts, ``?`` too,
-    # since ``(a?)+`` style patterns backtrack as badly as ``(a+)+``.
-    return any(
-        (n[0] == "rep" and (n[3] is None or n[3] > 1) and _contains_repeat(n[2]))
-        or any(_has_nested_repeat(s) for s in _children(n))
-        for n in seq
-    )
+    The contract allows a repeat of a single character, an escaped character,
+    a character class or ``.``, all of which are one ``lit`` or ``char`` node
+    here. A repeated group is refused even without a repeat inside:
+    ``(?:a{8}|a{16})+$`` style alternations of different lengths backtrack
+    exponentially on a line that almost matches. A quantifier that matches at
+    most once (``?``, ``{0,1}``) does not repeat, so its group is allowed and
+    only its contents are checked.
+    """
+    for n in seq:
+        if n[0] == "rep" and (n[3] is None or n[3] > 1):
+            body = n[2]
+            if len(body) != 1 or body[0][0] not in ("lit", "char"):
+                return True
+        if any(_has_repeated_group(s) for s in _children(n)):
+            return True
+    return False
 
 
 def _open_repeats(seq: list[tuple[Any, ...]]) -> int:
@@ -350,8 +378,8 @@ def _compile_log(pattern: object, where: str) -> re.Pattern[str]:
     tree = _regex_tree(pattern)
     if tree is None:
         raise PackError(f"{where}: expression uses a construct that cannot be checked")
-    if _has_nested_repeat(tree):
-        raise PackError(f"{where}: expression repeats a group that contains a repeat")
+    if _has_repeated_group(tree):
+        raise PackError(f"{where}: expression repeats a group; only one character, a class or . may repeat")
     if _open_repeats(tree) > _MAX_OPEN_REPEATS:
         raise PackError(f"{where}: expression has more than {_MAX_OPEN_REPEATS} open-ended repeats")
     if _literal_run(tree) < _MIN_LITERAL_RUN:
@@ -449,7 +477,7 @@ def _parse_action(raw: object, where: str) -> Action:
         if name not in raw:
             raise PackError(f"{where}: {kind} needs {name}")
     if kind == "env":
-        key = _env_key(raw["key"], f"{where}.key")
+        key = _env_key(raw["key"], f"{where}.key", setting=True)
         value = raw["value"]
         if not isinstance(value, str) or not _ENV_VALUE_RE.fullmatch(value):
             raise PackError(f"{where}.value: not allowed for env (letters, digits and _.,:=/+@%- only)")
@@ -459,7 +487,7 @@ def _parse_action(raw: object, where: str) -> Action:
             raise PackError(f"{where}.value: must not contain %command%")
         return Action("env", key=key, value=value)
     if kind == "unset_env":
-        return Action("unset_env", key=_env_key(raw["key"], f"{where}.key"))
+        return Action("unset_env", key=_env_key(raw["key"], f"{where}.key", setting=False))
     if kind == "game_arg":
         value = raw["value"]
         if not isinstance(value, str) or not _GAME_ARG_RE.fullmatch(value):
@@ -660,7 +688,8 @@ def _user_action(entry: dict[Any, Any]) -> Action | None:
     # carrying it; nothing else about the user's own value is limited.
     if not isinstance(value, str) or any(ch in value for ch in "\n\r\0"):
         return None
-    kind = entry.get("type")
+    # Version 1 read an entry without a type as env.
+    kind = entry.get("type", "env")
     if kind == "env":
         key = entry.get("key", "")
         if not isinstance(key, str) or not _KEY_RE.fullmatch(key):

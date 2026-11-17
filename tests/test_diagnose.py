@@ -12,7 +12,7 @@ import pytest
 import vdf
 
 from protonshift.core import diagnose as dg
-from protonshift.core import fix_pack, fixes, gpu, host, steam, system_checks, tool_check
+from protonshift.core import fix_apply, fix_pack, fixes, gpu, host, steam, system_checks, tool_check
 from protonshift.core.diagnose import Facts, Finding, diagnose, proton_build, rule_finding, summarize, to_row
 from protonshift.core.fix_pack import Action, parse_rule
 from protonshift.core.gpu import GPUInfo
@@ -548,10 +548,133 @@ def test_collect_reports_a_name_steam_does_not_know(fake_steam: dict[str, Path])
 def test_collect_a_shortcut(fake_steam: dict[str, Path]) -> None:
     report = dg.collect("3000000000", install_path=str(fake_steam["game"]), prefix_path="",
                         shortcut_options="mangohud %command%", native=False, protondb_tier="")
-    assert report.state is None and report.can_apply is False
+    # A state to plan on, but nothing ProtonShift may write.
+    assert report.state == GameState("mangohud %command%", "") and report.can_apply is False
     found = {f.id for f in report.findings}
     assert "wrapper-missing-mangohud" in found
     assert not any(fid.startswith("log-") for fid in found)
+
+
+def test_collect_plans_a_shortcut_against_its_real_proton_build(fake_steam: dict[str, Path]) -> None:
+    shortcut = "3000000000"
+    mapping = {shortcut: {"name": "GE-Proton8-1", "config": "", "priority": "250"}}
+    config = {"InstallConfigStore": {"Software": {"Valve": {"Steam": {"CompatToolMapping": mapping}}}}}
+    fake_steam["config_vdf"].write_text(vdf.dumps(config, pretty=True), encoding="utf-8")
+    report = dg.collect(shortcut, install_path=str(fake_steam["game"]), prefix_path="",
+                        shortcut_options="%command%", native=False, protondb_tier="")
+    gone = next(f for f in report.findings if f.id == "proton-gone")
+    assert report.state == GameState("%command%", "GE-Proton8-1") and not report.can_apply
+    change = fix_apply.plan(gone.actions, report.state)
+    assert change.changed and change.after == GameState("%command%", "")
+
+
+STEAM_RUNTIMES = ["steamlinuxruntime", "steamlinuxruntime_sniper", "steamlinuxruntime_soldier",
+                  "steamlinuxruntime_4", "legacysteamruntime"]
+
+
+@pytest.mark.parametrize("tool", STEAM_RUNTIMES)
+def test_collect_counts_a_steam_runtime_as_available(fake_steam: dict[str, Path], tool: str) -> None:
+    write_steam(fake_steam["localconfig"], fake_steam["config_vdf"], "", tool)
+    report = dg.collect(APP, install_path=str(fake_steam["game"]), prefix_path="", shortcut_options=None,
+                        native=False, protondb_tier="")
+    assert "proton-gone" not in {f.id for f in report.findings}
+
+
+@pytest.mark.parametrize("tool", STEAM_RUNTIMES)
+def test_a_steam_runtime_is_not_proton(tool: str) -> None:
+    assert dg.is_steam_runtime(tool) and dg.steam_provides(tool)
+    assert proton_build(tool) == ("other", None)
+    family, major = dg.proton_facts(tool, native=False)
+    assert (family, major) == ("", None)
+    runtime = facts(compat_tool=tool, proton_family=family, proton_major=major)
+    for when in ({"proton_family": ["other"]}, {"proton_family": ["valve", "ge", "cachyos", "other"]},
+                 {"proton_major_min": 0}, {"proton_major_max": 99}):
+        assert rule_finding(when_rule(when), runtime) is None, when
+
+
+def test_steam_runtime_names_are_exact() -> None:
+    for name in ("proton_9_0", "GE-Proton9-20", "my-steamlinuxruntime", "legacysteamruntime2", ""):
+        assert not dg.is_steam_runtime(name), name
+    assert dg.proton_facts("GE-Proton9-20", native=False) == ("ge", 9)
+    assert dg.proton_facts("GE-Proton9-20", native=True) == ("", None)
+
+
+# --- guess_native -------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def linux_game(tmp_path: Path) -> tuple[Path, Path]:
+    install = tmp_path / "common" / "Game"
+    (install / "bin" / "x86_64").mkdir(parents=True)
+    (install / "bin" / "x86_64" / "game").write_bytes(b"\x7fELF")
+    (install / "game.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    return install, tmp_path / "compatdata" / "100"
+
+
+def test_guess_native_for_a_linux_install(linux_game: tuple[Path, Path]) -> None:
+    install, prefix = linux_game
+    assert dg.guess_native("", prefix, install) is True
+    for tool in STEAM_RUNTIMES:
+        assert dg.guess_native(tool, prefix, install) is True, tool
+
+
+@pytest.mark.parametrize("where", ["Game.exe", "bin/Launcher.EXE", "bin/x86_64/game.exe"])
+def test_guess_native_an_exe_means_proton(linux_game: tuple[Path, Path], where: str) -> None:
+    install, prefix = linux_game
+    (install / where).write_bytes(b"MZ")
+    assert dg.guess_native("", prefix, install) is False
+
+
+def test_guess_native_looks_only_two_levels_down(linux_game: tuple[Path, Path]) -> None:
+    install, prefix = linux_game
+    deep = install / "a" / "b" / "c"
+    deep.mkdir(parents=True)
+    (deep / "tool.exe").write_bytes(b"MZ")
+    assert dg.guess_native("", prefix, install) is True
+
+
+def test_guess_native_errs_toward_proton(linux_game: tuple[Path, Path], tmp_path: Path) -> None:
+    install, prefix = linux_game
+    assert dg.guess_native("GE-Proton9-20", prefix, install) is False  # a forced Proton build
+    assert dg.guess_native("proton_9", prefix, install) is False
+    assert dg.guess_native(None, prefix, install) is False  # the forced tool is unknown
+    assert dg.guess_native("", prefix, tmp_path / "missing") is False
+    assert dg.guess_native("", None, install) is False
+    assert dg.guess_native("", prefix, None) is False
+    prefix.mkdir(parents=True)  # a prefix: Proton ran it
+    assert dg.guess_native("", prefix, install) is False
+
+
+def test_guess_native_unreadable_folder_is_not_native(
+    linux_game: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install, prefix = linux_game
+    real = Path.iterdir
+
+    def deny(self: Path):  # type: ignore[no-untyped-def]
+        if self.name == "bin":
+            raise PermissionError("no")
+        return real(self)
+
+    monkeypatch.setattr(Path, "iterdir", deny)
+    assert dg.guess_native("", prefix, install) is False
+
+
+def test_collect_guesses_a_native_steam_game(fake_steam: dict[str, Path], tmp_path: Path) -> None:
+    write_steam(fake_steam["localconfig"], fake_steam["config_vdf"], "", "")
+    (fake_steam["game"] / "game.x86_64").write_bytes(b"\x7fELF")
+    prefix = tmp_path / "compatdata" / APP
+    report = dg.collect(APP, install_path=str(fake_steam["game"]), prefix_path=str(prefix),
+                        shortcut_options=None, native=False, protondb_tier="")
+    assert report.native is True
+    found = {f.id for f in report.findings}
+    assert not any(fid.startswith(("proton-", "prefix-", "anticheat-", "log-")) for fid in found)
+    # The same game with a Windows program in it is diagnosed as a Proton game.
+    (fake_steam["game"] / "game.exe").write_bytes(b"MZ")
+    report = dg.collect(APP, install_path=str(fake_steam["game"]), prefix_path=str(prefix),
+                        shortcut_options=None, native=False, protondb_tier="")
+    assert report.native is False
+    assert "log-off" in {f.id for f in report.findings}
 
 
 def test_collect_a_native_game(fake_steam: dict[str, Path]) -> None:
