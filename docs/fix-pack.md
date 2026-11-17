@@ -100,13 +100,15 @@ is not a rule.
   when any one of them is found in any single line of the log tail. Each
   expression must compile, must be at most 300 characters, and must contain
   at least 8 literal characters in a row, so that it is anchored on real text
-  and not on a pattern that fits half the log. An expression must not repeat
-  a group that itself contains a repeat (for example `(a+)+`), and may hold
-  at most two open-ended repeats (`*`, `+`, `{n,}`), because such patterns
-  can take a very long time on a long line. An optional group (`?`) does not
-  count as repeating what is inside it. Inline flags, back-references and
-  conditionals are not allowed. Matching is case sensitive, and only the
-  first 2000 characters of a line are looked at.
+  and not on a pattern that fits half the log. A repeat (`*`, `+`, `{n}`,
+  `{n,m}`, `{n,}`) may only repeat a single character, an escaped character,
+  a character class or `.`: `.+`, `\S+` and `[0-9a-f]{7}` are fine, a
+  repeated group such as `(a+)+` or `(?:ab|abab)+` is not. An expression may
+  hold at most two open-ended repeats (`*`, `+`, `{n,}`). Both limits are
+  there because such patterns can take a very long time on a long line. An
+  optional group (`(?:...)?`) is allowed; it is not a repeat. Inline flags,
+  back-references and conditionals are not allowed. Matching is case
+  sensitive, and only the first 2000 characters of a line are looked at.
 
   What counts toward the 8 literal characters: plain and escaped characters
   (`\.`), also through a group that is not repeated. A character class, `.`,
@@ -179,10 +181,17 @@ Limits, enforced by the loader:
   appears, also inside an assignment.
 - A rule has at most 6 actions. No action is listed twice, and no two
   actions of one rule touch the same variable.
-- These variables may never be set or unset by a rule, because they decide
-  what code a process loads or runs: `LD_PRELOAD`, `LD_LIBRARY_PATH`,
-  `LD_AUDIT`, `PATH`, `PYTHONPATH`, `STEAM_COMPAT_LAUNCHER_SERVICE`,
-  `WINEDLLPATH`, and any name starting with `STEAM_COMPAT_`.
+- A rule may only set (`env`) a variable whose name starts with one of
+  `PROTON_`, `WINE_`, `DXVK_`, `VKD3D_`, `MESA_`, `RADV_`, `__GL_`, `__NV_`,
+  `SDL_` or `MANGOHUD`. These are the families that tune Proton, Wine, the
+  graphics drivers and the overlay. A list of forbidden names can never be
+  complete, so setting anything else is refused: a variable ProtonShift does
+  not know may decide what code a process loads.
+- Inside those families, and for `unset_env` with any name, these may never
+  be set or unset, because they decide what code a process loads or runs:
+  `PROTON_REMOTE_DEBUG_CMD`, `SDL_DYNAMIC_API`, `LD_PRELOAD`,
+  `LD_LIBRARY_PATH`, `LD_AUDIT`, `PATH`, `PYTHONPATH`, `WINEDLLPATH`,
+  `WINEDLLOVERRIDES`, and any name starting with `STEAM_COMPAT_`.
 
 A game argument can only be placed after `%command%`; there is no action
 that puts text in front of it other than `env`. This is by construction, so a
@@ -199,11 +208,19 @@ version 1 entries:
 
 `type` is `env` (uses `key` and `value`) or `launch_arg` (uses `value`).
 Each entry is shown in Diagnose as an `advice` finding marked as the user's
-own. A user entry is the user's own text on the user's own machine, so its
-value is not held to the character limits above; the key still must match
-the key pattern, and the change is still shown before it is applied. A
-`launch_arg` value that contains `%command%` is merged the way the app merges
-any snippet; one without it is treated as game arguments.
+own. An entry with no `type` is read as `env`, as version 1 did.
+
+A user entry is the user's own text on the user's own machine, so it is not
+held to the pack's limits: any variable name that matches the key pattern may
+be set, and the value may hold spaces and punctuation
+(`WINEDLLOVERRIDES=d3d9=n;dinput8=n,b`). ProtonShift writes such a value in
+single quotes so the shell takes it as one word and runs none of it. Three
+things are still refused, because quoting cannot make them safe: a value
+with a single quote, with a line break or NUL, or with `%command%` (Steam
+replaces that before the shell sees the line). The change is shown before it
+is applied, like any other. A `launch_arg` value that contains `%command%`
+is merged the way the app merges any snippet; one without it is treated as
+game arguments.
 
 ## Adding a rule
 

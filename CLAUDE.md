@@ -60,9 +60,11 @@ is conventions and constraints only.
   `_GAME_ARG_RE`, `_WORD_RE`, the forbidden-variable list) are load-bearing:
   Diagnose writes a rule's actions into Steam launch options, and Steam hands
   those to a shell at every launch, so a looser pattern is command injection
-  by data file. `core/fix_apply.plan` holds the user's own fixes to the same
-  value limits. `docs/fix-pack.md` is the contract for the format; change it
-  first, in its own commit, then the code.
+  by data file. A pack may only set variables from a short list of name
+  families; the user's own fixes may set any variable, and `core/fix_apply`
+  writes their values single-quoted and refuses what quoting cannot make
+  safe. `docs/fix-pack.md` is the contract for the format; change it first,
+  in its own commit, then the code.
 - `core/snapshots.py`'s `app_id` check (decimal digits only, plus
   `validate_within`) is the same kind of boundary as the shader cache's: the
   id becomes a file name. Entries holding a newline or NUL are dropped on
