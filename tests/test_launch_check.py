@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from protonshift.core import proton_log
+from protonshift.core.fix_pack import Action
 from protonshift.core.launch_check import check_launch, check_launch_options, detect_anticheat, summarize
 
 
@@ -118,6 +119,65 @@ def test_protondb_and_unreadable_options(tmp_path: Path) -> None:
     assert "Couldn't read the launch options" in titles(found)
     # most serious first
     assert levels(found) == sorted(levels(found), key=["error", "warn", "info", "ok"].index)
+
+
+# --- ids and actions -------------------------------------------------------------
+
+
+def by_id(findings: list[dict]) -> dict[str, dict]:
+    return {f["id"]: f for f in findings}
+
+
+@pytest.mark.parametrize(
+    ("options", "exists", "fid", "actions"),
+    [
+        ("", lacks, "launch-empty", ()),
+        ("-novid", lacks, "launch-ok", ()),
+        ("gamemoderun %command% %command%", has, "command-twice", (Action("single_command"),)),
+        ("gamemoderun -novid", has, "command-missing", (Action("add_command"),)),
+        # no leading wrapper to put %command% after: no button that would do nothing
+        ("-novid gamemoderun", has, "command-missing", ()),
+        ("gamemoderun %command%", lacks, "wrapper-missing-gamemoderun",
+         (Action("remove_word", value="gamemoderun"),)),
+        ("/usr/bin/prime-run %command%", lacks, "wrapper-missing-prime-run",
+         (Action("remove_word", value="prime-run"),)),
+        ("MANGOHUD=1 %command%", lacks, "env-needs-mangohud", (Action("unset_env", key="MANGOHUD"),)),
+    ],
+)
+def test_option_findings_have_ids_and_actions(options: str, exists, fid: str, actions: tuple) -> None:
+    found = by_id(check_launch_options(options, exists))
+    assert fid in found
+    assert found[fid]["actions"] == actions
+
+
+def test_every_finding_has_a_stable_id(tmp_path: Path) -> None:
+    install = tmp_path / "game"
+    (install / "EasyAntiCheat").mkdir(parents=True)
+    prefix = tmp_path / "pfx"
+    prefix.mkdir()
+    found = run(tmp_path, compat_tool="GE-Proton9-20", prefix_path=prefix, protondb_tier="bronze",
+                launch_options="gamemoderun %command% %command%", tool_exists=lacks)
+    ids = [f["id"] for f in found]
+    assert all(ids) and len(ids) == len(set(ids))
+    assert {"install-ok", "proton-gone", "anticheat-missing-eac", "prefix-ok", "protondb-bronze",
+            "command-twice", "wrapper-missing-gamemoderun"} <= set(ids)
+    assert by_id(found)["proton-gone"]["actions"] == (Action("default_proton"),)
+    again = run(tmp_path, compat_tool="GE-Proton9-20", prefix_path=prefix, protondb_tier="bronze",
+                launch_options="gamemoderun %command% %command%", tool_exists=lacks)
+    assert ids == [f["id"] for f in again]
+
+    other = by_id(run(tmp_path, install_path=tmp_path / "gone", compat_tool="GE-Proton10-1",
+                      launch_options_readable=False, protondb_tier="borked", installed_app_ids=["1826330"]))
+    expected = {"install-missing", "launch-unreadable", "proton-ok", "prefix-none", "protondb-borked"}
+    assert expected <= set(other)
+    assert by_id(run(tmp_path))["proton-default"]["actions"] == ()
+    assert "anticheat-ok-eac" in by_id(run(tmp_path, installed_app_ids=["1826330"]))
+
+
+def test_findings_keep_their_old_keys(tmp_path: Path) -> None:
+    for f in run(tmp_path, compat_tool="GE-Proton9-20"):
+        assert {"level", "title", "detail", "fix", "id", "actions"} <= set(f)
+        assert isinstance(f["actions"], tuple)
 
 
 # --- Proton log --------------------------------------------------------------------

@@ -3,34 +3,37 @@
 ``check_launch`` is pure: it is handed everything it needs to know (the
 launch-options line, the chosen compatibility tool, what is installed) and
 returns a list of findings, so it runs without Steam, a display or a disk in
-tests. ``LaunchCheckController`` gathers the inputs on a worker thread.
+tests. ``diagnose.collect`` gathers the inputs.
 
 Each finding is a dict with ``level`` (``error`` stops the game from starting,
 ``warn`` probably matters, ``info`` is context, ``ok`` is a passed check),
-``title``, ``detail`` and ``fix`` (what to do about it; empty when nothing).
+``title``, ``detail``, ``fix`` (what to do about it; empty when nothing),
+``id`` (stable kebab-case, the same finding has the same id on every run) and
+``actions`` (a tuple of ``fix_pack.Action``: the one-click fix where one is
+mechanical, empty otherwise). ``single_command`` and ``add_command`` actions
+exist only here; a fix pack cannot name them.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
+from typing import Any
 
-from .launch_merge import COMMAND, _tokens
+from .fix_pack import Action
+from .launch_merge import (
+    COMMAND,
+    KNOWN_COMMANDS,
+    _tokens,
+    add_command,
+    remove_word,
+    single_command,
+    unset_env,
+)
 
 _ENV_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
-# Wrapper commands people put in launch options -> the name to show.
-KNOWN_COMMANDS: dict[str, str] = {
-    "gamemoderun": "GameMode",
-    "mangohud": "MangoHud",
-    "gamescope": "gamescope",
-    "scb": "ScopeBuddy",
-    "scopebuddy": "ScopeBuddy",
-    "obs-gamecapture": "OBS game capture",
-    "prime-run": "prime-run",
-    "strangle": "libstrangle",
-}
 # Environment switches that only do something when a tool is installed.
 ENV_NEEDS: dict[str, tuple[str, str]] = {
     "MANGOHUD": ("mangohud", "MangoHud"),
@@ -47,8 +50,22 @@ _ANTICHEAT_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 
-def finding(level: str, title: str, detail: str = "", fix: str = "") -> dict[str, str]:
-    return {"level": level, "title": title, "detail": detail, "fix": fix}
+def finding(
+    level: str,
+    title: str,
+    detail: str = "",
+    fix: str = "",
+    *,
+    id: str = "",
+    actions: Sequence[Action] = (),
+) -> dict[str, Any]:
+    """One finding. ``id`` is stable across runs; ``actions`` is the one-click fix, if there is one."""
+    return {"level": level, "title": title, "detail": detail, "fix": fix, "id": id, "actions": tuple(actions)}
+
+
+def _if_it_changes(text: str, edit: Callable[[str], str], action: Action) -> tuple[Action, ...]:
+    # An action that would leave the line as it is would offer a button that does nothing.
+    return (action,) if edit(text) != text else ()
 
 
 def detect_anticheat(install_path: Path | None, max_depth: int = 3) -> set[str]:
@@ -77,14 +94,15 @@ def detect_anticheat(install_path: Path | None, max_depth: int = 3) -> set[str]:
     return found
 
 
-def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[dict[str, str]]:
+def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[dict[str, Any]]:
     """Findings about the launch-options line alone."""
     text = text.strip()
     if not text:
-        return [finding("ok", "Launch options are empty", "The game starts with Steam's defaults.")]
+        return [finding("ok", "Launch options are empty", "The game starts with Steam's defaults.",
+                        id="launch-empty")]
     tokens = _tokens(text)
     count = tokens.count(COMMAND)
-    out: list[dict[str, str]] = []
+    out: list[dict[str, Any]] = []
     before = tokens[: tokens.index(COMMAND)] if count else []
 
     if count > 1:
@@ -92,6 +110,8 @@ def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[
             "error", "%command% appears more than once",
             "Steam replaces every %command% with the game, so it would be started inside itself.",
             "Keep a single %command% in the launch options.",
+            id="command-twice",
+            actions=_if_it_changes(text, single_command, Action("single_command")),
         ))
     if count == 0:
         # Without %command% the whole line is handed to the game as arguments.
@@ -102,6 +122,8 @@ def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[
                 f"Without it, {', '.join(stray[:3])} {'is' if len(stray) == 1 else 'are'} passed to the game "
                 "as arguments instead of wrapping it, so nothing they are meant to do happens.",
                 "Add %command% after them, for example: " + " ".join(stray[:3]) + " %command%",
+                id="command-missing",
+                actions=_if_it_changes(text, add_command, Action("add_command")),
             ))
 
     seen: set[str] = set()
@@ -115,6 +137,10 @@ def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[
                     "warn", f"{need[1]} isn't installed",
                     f"{token} is set, but without {need[1]} it does nothing.",
                     f"Install {need[1]} from your package manager, or remove {token}.",
+                    id=f"env-needs-{key.lower().replace('_', '-')}",
+                    actions=_if_it_changes(
+                        text, lambda t, k=key: unset_env(t, k), Action("unset_env", key=key),
+                    ),
                 ))
             continue
         name = token.rsplit("/", 1)[-1]
@@ -126,9 +152,13 @@ def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[
                     f"The launch options run the game through `{name}`, which wasn't found. "
                     "Steam then fails to start the game at all, usually without a message.",
                     f"Install {KNOWN_COMMANDS[name]}, or remove `{name}` from the launch options.",
+                    id=f"wrapper-missing-{name}",
+                    actions=_if_it_changes(
+                        text, lambda t, n=name: remove_word(t, n), Action("remove_word", value=name),
+                    ),
                 ))
     if not out:
-        out.append(finding("ok", "Launch options look right", text))
+        out.append(finding("ok", "Launch options look right", text, id="launch-ok"))
     return out
 
 
@@ -143,9 +173,9 @@ def check_launch(
     installed_app_ids: Iterable[str],
     tool_exists: Callable[[str], bool],
     protondb_tier: str = "",
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     """All findings for one Steam game, most serious first."""
-    out: list[dict[str, str]] = []
+    out: list[dict[str, Any]] = []
 
     # --- the game's files ---
     if install_path is None or not install_path.is_dir():
@@ -153,9 +183,10 @@ def check_launch(
             "error", "The install folder is missing",
             str(install_path) if install_path else "Steam lists the game, but its folder isn't on disk.",
             "Let Steam verify the game files (Properties, Installed Files), or reinstall it.",
+            id="install-missing",
         ))
     else:
-        out.append(finding("ok", "Game files are present", str(install_path)))
+        out.append(finding("ok", "Game files are present", str(install_path), id="install-ok"))
 
     # --- launch options ---
     if launch_options_readable:
@@ -164,6 +195,7 @@ def check_launch(
         out.append(finding(
             "warn", "Couldn't read the launch options",
             "Steam's localconfig.vdf could not be parsed, so they were not checked.",
+            id="launch-unreadable",
         ))
 
     # --- compatibility tool ---
@@ -173,33 +205,37 @@ def check_launch(
             "error", f"The chosen Proton build is gone: {compat_tool}",
             "It is still selected for this game but is no longer installed, so Steam can't start the game.",
             "Pick another build under Proton version, or reinstall this one from the Proton builds tab.",
+            id="proton-gone",
+            actions=(Action("default_proton"),),
         ))
     elif compat_tool:
-        out.append(finding("ok", f"Proton build is installed: {compat_tool}"))
+        out.append(finding("ok", f"Proton build is installed: {compat_tool}", id="proton-ok"))
     else:
         out.append(finding("info", "Using Steam's default Proton",
-                           "No build is forced for this game; Steam picks one itself."))
+                           "No build is forced for this game; Steam picks one itself.", id="proton-default"))
 
     # --- anti-cheat runtimes ---
     installed = set(installed_app_ids)
     for kind in sorted(detect_anticheat(install_path)):
         app_id, name = ANTICHEAT_RUNTIMES[kind]
         if app_id in installed:
-            out.append(finding("ok", f"{name} is installed"))
+            out.append(finding("ok", f"{name} is installed", id=f"anticheat-ok-{kind}"))
         else:
             out.append(finding(
                 "warn", f"{name} isn't installed",
                 "This game ships that anti-cheat. Without the runtime it usually starts and then "
                 "refuses to connect or closes.",
                 f"Install \"{name}\" from your Steam library (enable Tools in the library filter).",
+                id=f"anticheat-missing-{kind}",
             ))
 
     # --- prefix ---
     if prefix_path is None or not prefix_path.is_dir():
         out.append(finding("info", "No Proton prefix yet",
-                           "Steam creates it the first time the game runs. A first launch takes longer."))
+                           "Steam creates it the first time the game runs. A first launch takes longer.",
+                           id="prefix-none"))
     else:
-        out.append(finding("ok", "Proton prefix exists", str(prefix_path)))
+        out.append(finding("ok", "Proton prefix exists", str(prefix_path), id="prefix-ok"))
 
     # --- what other players report ---
     tier = protondb_tier.strip().lower()
@@ -208,17 +244,19 @@ def check_launch(
             "warn", "ProtonDB rates this game Borked",
             "Most players report it does not run under Proton at all, whatever the settings.",
             "Read the recent reports on ProtonDB before spending time on it.",
+            id="protondb-borked",
         ))
     elif tier == "bronze":
         out.append(finding("info", "ProtonDB rates this game Bronze",
-                           "It runs for some players, often with crashes or missing features."))
+                           "It runs for some players, often with crashes or missing features.",
+                           id="protondb-bronze"))
 
     order = {"error": 0, "warn": 1, "info": 2, "ok": 3}
     out.sort(key=lambda f: order.get(f["level"], 4))  # stable: keeps the order within a level
     return out
 
 
-def summarize(findings: list[dict[str, str]]) -> str:
+def summarize(findings: list[dict[str, Any]]) -> str:
     errors = sum(1 for f in findings if f["level"] == "error")
     warns = sum(1 for f in findings if f["level"] == "warn")
     if errors:
