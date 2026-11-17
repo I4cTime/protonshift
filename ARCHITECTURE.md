@@ -39,10 +39,14 @@ Roughly one module per integration or feature:
   SDL mapping, force-feedback rumble via raw `ioctl`/`struct` packing),
   `host.py` (host command execution, see "Flatpak sandboxing" below).
 - **Game maintenance**: `shader_cache.py`, `saves.py` (backup/restore),
-  `prefix.py`, `protontricks.py`, `fixes.py` (known-fixes DB, backed by
-  `core/data/known_fixes.json`), `launch_presets.py`, `profiles_storage.py`,
-  `compat_tool.py`, `launch_check.py` (why a game won't start; pure, fed by
-  its controller), `proton_log.py` (tail of `steam-<appid>.log`).
+  `prefix.py`, `protontricks.py`, `fixes.py` (the user's own fixes),
+  `launch_presets.py`, `profiles_storage.py`, `compat_tool.py`,
+  `proton_log.py` (tail of `steam-<appid>.log`).
+- **Diagnose**: `diagnose.py` (one ranked list of findings; `collect` reads,
+  the rest is pure), fed by `launch_check.py`, `proton_log.py`, `fix_pack.py`
+  (the bundled `core/data/fix_pack.json` plus the user's fixes) and
+  `system_checks.py`; `fix_apply.py` plans, applies and undoes a fix, with
+  `snapshots.py` keeping what Undo needs.
 - **The app itself**: `appearance.py` (styles, mode, accent), `sounds.py`
   (sound sets and stored settings), `updates.py` (manual update check).
 - **Shared low-level helpers**: `fsutil.py` (atomic writes, dir sizing),

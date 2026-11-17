@@ -1,4 +1,8 @@
-"""Game-specific fixes database - built-in and user-contributed."""
+"""The user's own fixes per game, stored in ``~/.config/protonshift/fixes/<appid>.json``.
+
+The bundled knowledge lives in the fix pack (``fix_pack.py``); these are
+turned into Diagnose rules by ``fix_pack.user_rules``.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,6 @@ from typing import Any
 from .fsutil import atomic_write_text
 from .paths import sanitize_filename
 
-_DATA_DIR = Path(__file__).parent / "data"
 _USER_FIXES_DIR = Path.home() / ".config" / "protonshift" / "fixes"
 
 
@@ -25,17 +28,7 @@ class GameFix:
     fix_type: str  # "env" or "launch_arg"
     key: str  # env var key (empty for launch_arg)
     value: str
-    source: str  # "builtin" or "user"
-
-
-def _load_builtin_fixes() -> dict[str, list[dict[str, Any]]]:
-    path = _DATA_DIR / "known_fixes.json"
-    if not path.exists():
-        return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
+    source: str  # always "user"
 
 
 def _load_user_fixes_strict(app_id: str) -> list[dict[str, Any]]:
@@ -76,21 +69,8 @@ def _dict_to_fix(d: dict[str, Any], source: str) -> GameFix:
 
 
 def get_fixes(app_id: str) -> list[GameFix]:
-    """Get all applicable fixes for a game (built-in + user + common)."""
-    builtin = _load_builtin_fixes()
-
-    fixes: list[GameFix] = []
-
-    for entry in builtin.get(app_id, []):
-        fixes.append(_dict_to_fix(entry, "builtin"))
-
-    for entry in builtin.get("_common", []):
-        fixes.append(_dict_to_fix(entry, "builtin"))
-
-    for entry in _load_user_fixes(app_id):
-        fixes.append(_dict_to_fix(entry, "user"))
-
-    return fixes
+    """The user's own fixes for a game."""
+    return [_dict_to_fix(entry, "user") for entry in _load_user_fixes(app_id)]
 
 
 def add_user_fix(
