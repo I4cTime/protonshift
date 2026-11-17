@@ -50,6 +50,10 @@ _ANTICHEAT_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 
+# Names an older ProtonShift wrote for Valve's builds; Steam's are proton_9, not proton_9_0.
+_OLD_BUILTIN_NAME_RE = re.compile(r"proton_[0-9]+_0")
+
+
 def finding(
     level: str,
     title: str,
@@ -201,10 +205,17 @@ def check_launch(
     # --- compatibility tool ---
     tools = set(available_tools)
     if compat_tool and compat_tool not in tools:
+        if _OLD_BUILTIN_NAME_RE.fullmatch(compat_tool):
+            # ProtonShift up to 1.3.2 offered Valve's builds under names Steam never used
+            # (proton_9_0 for proton_9), so there is nothing to reinstall: the name itself is wrong.
+            detail = ("Steam has no build with this name. Older versions of ProtonShift wrote it by mistake, "
+                      "so Steam can't start the game with it.")
+            fix = "Pick the build you want under Proton version, or let Steam choose with its default."
+        else:
+            detail = "It is still selected for this game but is no longer installed, so Steam can't start the game."
+            fix = "Pick another build under Proton version, or reinstall this one from the Proton builds tab."
         out.append(finding(
-            "error", f"The chosen Proton build is gone: {compat_tool}",
-            "It is still selected for this game but is no longer installed, so Steam can't start the game.",
-            "Pick another build under Proton version, or reinstall this one from the Proton builds tab.",
+            "error", f"The chosen Proton build is gone: {compat_tool}", detail, fix,
             id="proton-gone",
             actions=(Action("default_proton"),),
         ))

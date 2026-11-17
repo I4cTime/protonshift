@@ -228,3 +228,14 @@ def test_read_tail(tmp_path: Path) -> None:
 def test_read_tail_missing_file(tmp_path: Path) -> None:
     with pytest.raises(OSError):
         proton_log.read_tail(tmp_path / "absent.log")
+
+
+def test_old_protonshift_build_name_is_explained_not_called_uninstalled(tmp_path):
+    # proton_9_0 is a name ProtonShift up to 1.3.2 wrote; Steam's is proton_9.
+    rows = run(tmp_path, compat_tool="proton_9_0", available_tools=["", "proton_9"])
+    gone = next(f for f in rows if f["id"] == "proton-gone")
+    assert "Older versions of ProtonShift" in gone["detail"]
+    assert "reinstall" not in gone["fix"]
+    removed = next(f for f in run(tmp_path, compat_tool="GE-Proton9-1", available_tools=[""])
+                   if f["id"] == "proton-gone")
+    assert "no longer installed" in removed["detail"]

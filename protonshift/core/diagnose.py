@@ -327,10 +327,10 @@ def _log_rows(facts: Facts, rule_matched_log: bool) -> list[Finding]:
         )]
 
     rows: list[Finding] = []
-    where = facts.log_path or "the Proton log"
+    # The path is the row's evidence; repeating it in the sentence only made the row longer.
     when = f", last written {facts.log_modified}" if facts.log_modified else ""
-    cause = (f"Diagnose read the end of {where}{when}. If the game has failed since then, run it again and "
-             "diagnose again so the log is current.")
+    cause = (f"Diagnose read the end of the Proton log{when}. If the game has failed since then, run it "
+             "again and diagnose again so the log is current.")
     if readable and not logging_on:
         cause += " Logging is off now, so this log is from an earlier run."
     title = "Read the Proton log"

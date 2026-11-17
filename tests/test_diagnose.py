@@ -389,7 +389,8 @@ def test_a_log_says_which_and_when() -> None:
               launch_options="PROTON_LOG=1 %command%")
     (row,) = log_rows(f)
     assert row.id == "log-read" and row.severity == "context"
-    assert "/home/u/steam-100.log" in row.cause and "2026-11-16 01:23" in row.cause
+    # The path is the evidence; the sentence names only when the log was written.
+    assert "/home/u/steam-100.log" not in row.cause and "2026-11-16 01:23" in row.cause
     assert "2026-11-16 01:23" in row.title
     assert row.evidence == "/home/u/steam-100.log"
     assert "earlier run" not in row.cause

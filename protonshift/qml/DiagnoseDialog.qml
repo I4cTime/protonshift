@@ -153,7 +153,7 @@ PsDialog {
             readOnly: true
             selectByMouse: true
             activeFocusOnTab: false
-            wrapMode: TextEdit.WrapAnywhere
+            wrapMode: TextEdit.Wrap
             color: mono.quiet ? Theme.faint : Theme.text
             selectionColor: Theme.primary
             selectedTextColor: Theme.onPrimary
