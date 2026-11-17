@@ -1,7 +1,7 @@
 {
   "format": "protonshift-fix-pack",
   "version": 2,
-  "revision": "2026.11.1",
+  "revision": "2026.11.2",
   "rules": [
     {
       "id": "prefix-not-owned",
@@ -164,8 +164,8 @@
     {
       "id": "low-file-limit-warning",
       "title": "The limit on open files is lower than Proton needs",
-      "cause": "Proton warned that the hard limit on open files is below 524288. Games that open many files can then crash or fail to load.",
-      "severity": "likely",
+      "cause": "Proton warned that the hard limit on open files is below 524288. Games that open many files can then crash or fail to load; if this game does, raising the limit is worth trying.",
+      "severity": "advice",
       "match": {
         "log": [
           "^WARNING: Low file descriptor limit: [0-9]+"
@@ -183,8 +183,8 @@
     {
       "id": "low-max-map-count",
       "title": "The memory map limit is lower than Proton needs",
-      "cause": "Proton warned that vm.max_map_count is below 1048576. Some large games run out of memory maps at a lower value and crash or never finish loading.",
-      "severity": "likely",
+      "cause": "Proton warned that vm.max_map_count is below 1048576. Some large games run out of memory maps at a lower value; if this game crashes or never finishes loading, raising it is worth trying.",
+      "severity": "advice",
       "match": {
         "log": [
           "^WARNING: Low /proc/sys/vm/max_map_count: [0-9]+ will prevent some games from working"
@@ -331,6 +331,9 @@
       "match": {
         "log": [
           "err:   Failed to initialize DXVK\\."
+        ],
+        "log_none": [
+          "DXVK: No adapters found\\."
         ]
       },
       "actions": [
