@@ -89,7 +89,7 @@ object is rejected whole.
 
 ## Matching
 
-`match` holds up to four parts. Every part that is present must hold.
+`match` holds up to five parts. Every part that is present must hold.
 At least one of `app_ids` and `log`, or a `when` that uses `launch_has` or
 `env_set`, must be present: a rule that matches every game on every machine
 is not a rule.
@@ -124,6 +124,12 @@ is not a rule.
   the missing-library rule also requires the line that says the game's own
   start failed. The line quoted to the user as evidence is the one `log`
   matched.
+- `log_none`: a list of regular expressions under the same limits. None of
+  them may be found anywhere in the log tail. It is only allowed together
+  with `log`. Use it when a more exact rule covers the same failure, so the
+  user gets one finding and not two: DXVK prints "Failed to initialize DXVK"
+  after "No adapters found", and the rule for the first leaves the case to
+  the rule for the second.
 - `when`: conditions on the machine and the game's settings. All listed
   conditions must hold.
 
