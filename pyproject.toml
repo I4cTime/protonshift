@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff>=0.16,<0.17", "pytest"]
+dev = ["ruff>=0.16,<0.18", "pytest"]
 
 [project.scripts]
 protonshift = "protonshift.app:main"
