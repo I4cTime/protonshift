@@ -381,14 +381,14 @@ Usage = namedtuple("Usage", "total used free")
 
 
 def test_disk_ok(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sc.shutil, "disk_usage", lambda p: Usage(100 << 30, 50 << 30, 50 << 30))
+    monkeypatch.setattr(sc.shutil, "disk_usage", lambda *_a, **_kw: Usage(100 << 30, 50 << 30, 50 << 30))
     c = sc.check_disk(tmp_path, "library")
     assert (c.id, c.state, c.fix) == ("disk-library", "ok", "")
     assert "50.0 GiB" in c.detail
 
 
 def test_disk_problem_reports_gib_and_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sc.shutil, "disk_usage", lambda p: Usage(100 << 30, 99 << 30, 400 << 20))
+    monkeypatch.setattr(sc.shutil, "disk_usage", lambda *_a, **_kw: Usage(100 << 30, 99 << 30, 400 << 20))
     c = sc.check_disk(tmp_path, "prefix")
     assert (c.id, c.state) == ("disk-prefix", "problem")
     assert "0.4 GiB" in c.detail
@@ -398,7 +398,7 @@ def test_disk_problem_reports_gib_and_path(tmp_path: Path, monkeypatch: pytest.M
 
 
 def test_disk_threshold_is_configurable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sc.shutil, "disk_usage", lambda p: Usage(10, 5, 5 << 30))
+    monkeypatch.setattr(sc.shutil, "disk_usage", lambda *_a, **_kw: Usage(10, 5, 5 << 30))
     assert sc.check_disk(tmp_path, "library", min_free_bytes=10 << 30).state == "problem"
     assert sc.check_disk(tmp_path, "library", min_free_bytes=5 << 30).state == "ok"
 
@@ -433,13 +433,28 @@ def test_run_checks_separate_drives(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     install, prefix = tmp_path / "game", tmp_path / "pfx"
     install.mkdir()
     prefix.mkdir()
+    devices = {install: 1, prefix: 2}
 
-    class FakeStat:
-        def __init__(self, dev: int) -> None:
-            self.st_dev = dev
+    class OtherDevice:
+        """The real stat result, on another device; everything but ``st_dev`` is untouched."""
 
-    monkeypatch.setattr(sc.os, "stat", lambda p: FakeStat(1 if Path(p) == install else 2)
-                        if Path(p) in (install, prefix) else real_stat(p))
+        def __init__(self, real: os.stat_result, dev: int) -> None:
+            self._real, self.st_dev = real, dev
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(self._real, name)
+
+    # sc.os is the os module itself, so anything else calling os.stat during
+    # the test (pytest included, with follow_symlinks=) must get the real thing.
+    def fake_stat(path: object, *args: object, **kwargs: object) -> object:
+        real = real_stat(path, *args, **kwargs)
+        try:
+            dev = devices.get(Path(path))
+        except TypeError:  # a file descriptor
+            dev = None
+        return real if dev is None else OtherDevice(real, dev)
+
+    monkeypatch.setattr(sc.os, "stat", fake_stat)
     checks = sc.run_checks(steam_root=None, install_path=install, prefix_path=prefix,
                            run=runner(0, REAL_SUMMARY))
     assert [c.id for c in checks] == ["vulkan", "vulkan-32bit", "disk-library", "disk-prefix"]
