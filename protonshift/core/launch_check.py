@@ -211,11 +211,13 @@ def check_launch(
             detail = ("Steam has no build with this name. Older versions of ProtonShift wrote it by mistake, "
                       "so Steam can't start the game with it.")
             fix = "Pick the build you want under Proton version, or let Steam choose with its default."
+            title = f"Steam has no Proton build named {compat_tool}"
         else:
             detail = "It is still selected for this game but is no longer installed, so Steam can't start the game."
             fix = "Pick another build under Proton version, or reinstall this one from the Proton builds tab."
+            title = f"The chosen Proton build is gone: {compat_tool}"
         out.append(finding(
-            "error", f"The chosen Proton build is gone: {compat_tool}", detail, fix,
+            "error", title, detail, fix,
             id="proton-gone",
             actions=(Action("default_proton"),),
         ))

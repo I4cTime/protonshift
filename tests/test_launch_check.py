@@ -234,7 +234,7 @@ def test_old_protonshift_build_name_is_explained_not_called_uninstalled(tmp_path
     # proton_9_0 is a name ProtonShift up to 1.3.2 wrote; Steam's is proton_9.
     rows = run(tmp_path, compat_tool="proton_9_0", available_tools=["", "proton_9"])
     gone = next(f for f in rows if f["id"] == "proton-gone")
-    assert "Older versions of ProtonShift" in gone["detail"]
+    assert "Older versions of ProtonShift" in gone["detail"] and "gone" not in gone["title"]
     assert "reinstall" not in gone["fix"]
     removed = next(f for f in run(tmp_path, compat_tool="GE-Proton9-1", available_tools=[""])
                    if f["id"] == "proton-gone")
