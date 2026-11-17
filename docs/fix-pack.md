@@ -75,7 +75,16 @@ elsewhere. Nothing here is relaxed because the file ships with the app.
 | `source` | yes | An `https://` URL where the situation and the remedy can be checked: upstream source code, a public issue, or project documentation. |
 | `verified` | yes | The date (`YYYY-MM-DD`) someone last checked the rule against its source. |
 
-Titles and causes are plain text. They are shown as text, never as markup.
+Titles and causes are plain text. They are shown as text, never as markup,
+and may not be blank or contain line breaks or other control characters; the
+same goes for the text of a `manual` action.
+
+The loader is strict throughout. A key it does not know (in the pack, a
+rule, `match`, `when` or an action) rejects that rule, so a typo cannot
+silently produce a rule with defaults. A value of the wrong type is rejected,
+never converted. An empty list is rejected. An id may not start with `user-`,
+which is kept for the user's own fixes. A file with the same key twice in one
+object is rejected whole.
 
 ## Matching
 
@@ -91,9 +100,17 @@ is not a rule.
   expression must compile, must be at most 300 characters, and must contain
   at least 8 literal characters in a row, so that it is anchored on real text
   and not on a pattern that fits half the log. An expression must not repeat
-  a group that itself contains a repeat (for example `(a+)+`), because such
-  a pattern can take a very long time on a long line. Matching is case
-  sensitive, and only the first 2000 characters of a line are looked at.
+  a group that itself contains a repeat (for example `(a+)+`), and may hold
+  at most two open-ended repeats (`*`, `+`, `{n,}`), because such patterns
+  can take a very long time on a long line. An optional group (`?`) does not
+  count as repeating what is inside it. Inline flags, back-references and
+  conditionals are not allowed. Matching is case sensitive, and only the
+  first 2000 characters of a line are looked at.
+
+  What counts toward the 8 literal characters: plain and escaped characters
+  (`\.`), also through a group that is not repeated. A character class, `.`,
+  an anchor, a repeat that may match zero times, and a lookaround end the
+  run. An alternation counts as its shortest branch.
   With no log on disk, a rule that has a `log` part does not match.
 - `log_also`: a list of regular expressions under the same limits. Every one
   of them must also be found somewhere in the log tail, each in any line.
@@ -111,9 +128,9 @@ is not a rule.
 | `gpu_vendor` | list of `nvidia`, `amd`, `intel` | any GPU of a listed vendor is present |
 | `session` | list of `wayland`, `x11` | the desktop session is of a listed type |
 | `proton_family` | list of `valve`, `ge`, `cachyos`, `other` | the game's Proton build belongs to a listed family |
-| `proton_major_min` | integer | the build's major version is at least this |
-| `proton_major_max` | integer | the build's major version is at most this |
-| `launch_has` | list of words | every listed word is in the launch options before `%command%`, as a command name (`gamemoderun`) |
+| `proton_major_min` | integer, 0 or more | the build's major version is at least this |
+| `proton_major_max` | integer, not below the minimum | the build's major version is at most this |
+| `launch_has` | list of words (same characters as `remove_word`) | every listed word is in the launch options before `%command%`, as a command name (`gamemoderun`) |
 | `env_set` | list of variable names | every listed variable is set in the launch options |
 | `env_unset` | list of variable names | none of the listed variables is set in the launch options |
 
@@ -148,7 +165,10 @@ Limits, enforced by the loader:
 - `value` for `game_arg` matches `^[-+][A-Za-z0-9_.=:-]{1,60}$` (one switch,
   such as `-vulkan` or `+fps_max=0`).
 - `value` for `remove_word` matches `^[A-Za-z0-9_.-]{1,40}$`.
-- A rule has at most 6 actions.
+- An `env` value may not contain `%command%`: Steam replaces it wherever it
+  appears, also inside an assignment.
+- A rule has at most 6 actions. No action is listed twice, and no two
+  actions of one rule touch the same variable.
 - These variables may never be set or unset by a rule, because they decide
   what code a process loads or runs: `LD_PRELOAD`, `LD_LIBRARY_PATH`,
   `LD_AUDIT`, `PATH`, `PYTHONPATH`, `STEAM_COMPAT_LAUNCHER_SERVICE`,
