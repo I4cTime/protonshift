@@ -24,7 +24,9 @@ Diagnose fix applies. They share these rules:
   one helper that moves words in front of the game.
 - Words are split by :func:`split_words`, which keeps ``KEY='a b'`` together
   as one word. A line with an unbalanced quote falls back to plain whitespace
-  splitting, as ``_tokens`` does, so no text is lost.
+  splitting, so no text is lost. :func:`merge_launch_snippet` and the launch
+  check split the same way, so every part of the app sees one assignment
+  where the shell sees one.
 - Applying a helper twice gives the same line as applying it once.
 
 Pure Python - exercised in tests/test_launch_merge.py.
@@ -33,7 +35,6 @@ Pure Python - exercised in tests/test_launch_merge.py.
 from __future__ import annotations
 
 import re
-import shlex
 
 COMMAND = "%command%"
 
@@ -44,8 +45,17 @@ _WRAPPERS = ("gamescope", "scb", "scopebuddy")
 # What a word right after a removed command looks like when it is that
 # command's own option or number (``mangohud --dlsym``, ``strangle 60``).
 _OPTION_RE = re.compile(r"-\S*|[0-9][0-9.:]*")
+# What ProtonShift writes as a bare ``KEY=value``: the fix pack's own value set
+# (docs/fix-pack.md), none of which means anything to the shell. Any other
+# value, from the user's own fixes, is written in single quotes.
+_BARE_VALUE_RE = re.compile(r"[A-Za-z0-9_.,:=/+@%-]*")
+# What single quotes cannot make safe: a quote ends them, a line break or NUL
+# ends the line or the string, and Steam replaces %command% before the shell
+# sees the line.
+_UNQUOTABLE = ("'", "\n", "\r", "\x00", COMMAND)
 
 # Wrapper commands people put in launch options -> the name to show.
+# (TAKES_OPTIONS below says which of them read options of their own.)
 KNOWN_COMMANDS: dict[str, str] = {
     "gamemoderun": "GameMode",
     "mangohud": "MangoHud",
@@ -56,14 +66,28 @@ KNOWN_COMMANDS: dict[str, str] = {
     "prime-run": "prime-run",
     "strangle": "libstrangle",
 }
+# The known commands that read options of their own before the program they
+# run: ``strangle 60`` (its FPS limit and flags), ``mangohud --dlsym``. The
+# others (gamemoderun, prime-run, obs-gamecapture) run the next word as the
+# program, so a word like ``-novid`` after them is the game's, and add_command
+# must not pull it in front of %command%. The ``--`` wrappers (_WRAPPERS) are
+# handled on their own.
+TAKES_OPTIONS = frozenset({"strangle", "mangohud"})
+# What their options look like: a number (strangle's FPS limit, ``60`` or
+# ``60:30``), a one-letter flag (``-k``) or a long one (``--dlsym``). Narrower
+# than _OPTION_RE on purpose: a game switch such as ``-novid`` or ``-dx11`` is
+# a single dash and several letters, so it stays the game's.
+_OWN_OPTION_RE = re.compile(r"[0-9][0-9.:]*|-[A-Za-z]|--[A-Za-z][A-Za-z0-9-]*(?:=\S*)?")
 
 
 def _tokens(text: str) -> list[str]:
-    """Split on whitespace, keeping quoted segments (and their quotes) intact."""
-    try:
-        return shlex.split(text, posix=False)
-    except ValueError:  # unbalanced quote: fall back rather than lose the text
-        return text.split()
+    """Split on whitespace, keeping quoted segments (and their quotes) intact.
+
+    The same split as :func:`split_words`. ``shlex`` in non-POSIX mode, used
+    here before, cut ``KEY='a b'`` in two, so a merge could move half of an
+    assignment behind a wrapper.
+    """
+    return split_words(text)
 
 
 def _split_command(tokens: list[str]) -> tuple[list[str], list[str], bool]:
@@ -137,9 +161,9 @@ def merge_launch_snippet(text: str, snippet: str) -> str:
 def split_words(text: str) -> list[str]:
     """Split on whitespace like a shell would, keeping quotes and escapes inside their word.
 
-    Unlike ``_tokens`` (``shlex`` in non-POSIX mode), a quote in the middle of
-    a word does not end it, so ``KEY='a b'`` is one word. With an unbalanced
-    quote the line is split on whitespace alone rather than losing text.
+    A quote in the middle of a word does not end it, so ``KEY='a b;c'`` is one
+    word. With an unbalanced quote the line is split on whitespace alone
+    rather than losing text.
     """
     words: list[str] = []
     current: list[str] = []
@@ -236,16 +260,31 @@ def _check_key(key: str) -> None:
         raise ValueError(f"not a valid variable name: {key!r}")
 
 
+def env_word(key: str, value: str) -> str:
+    """The assignment as written into launch options: ``KEY=value``, or ``KEY='value'``.
+
+    A value outside the fix pack's character set (only the user's own fixes
+    have one) is single-quoted, so the shell takes it as one word and runs none
+    of it. Raises ``ValueError`` for a bad key, or for a value that quoting
+    cannot make safe (a single quote, a line break, NUL, ``%command%``).
+    """
+    _check_key(key)
+    if not isinstance(value, str) or any(bad in value for bad in _UNQUOTABLE):
+        raise ValueError(f"not a value that can be written for {key}")
+    if _BARE_VALUE_RE.fullmatch(value):
+        return f"{key}={value}"
+    return f"{key}='{value}'"
+
+
 def set_env(text: str, key: str, value: str) -> str:
-    """Set ``KEY=value`` before ``%command%``.
+    """Set ``KEY=value`` before ``%command%``, quoted as :func:`env_word` says.
 
     An existing assignment of the same key is replaced where it stands (a later
     duplicate is dropped, since the shell would let it win); otherwise the
     assignment goes to the front of the prefix.
     """
-    _check_key(key)
+    new = env_word(key, value)
     before, after, count = split_line(text)
-    new = f"{key}={value}"
     out: list[str] = []
     placed = False
     for word in before:
@@ -341,11 +380,18 @@ def single_command(text: str) -> str:
 def add_command(text: str) -> str:
     """Insert ``%command%`` after the leading assignments and known wrapper commands.
 
-    For a line with no ``%command%`` such as ``PROTON_LOG=1 gamemoderun -novid``:
-    the leading run (``PROTON_LOG=1 gamemoderun``) becomes the prefix and the
-    rest stays game arguments. A wrapper in the run keeps its options up to its
-    ``--``. A line that already has ``%command%``, or that does not start with
-    such words, is returned as it was.
+    For a line with no ``%command%`` such as ``PROTON_LOG=1 strangle 60 +x``:
+    the leading run (``PROTON_LOG=1 strangle 60``) becomes the prefix and the
+    rest stays game arguments. A command that reads options of its own
+    (:data:`TAKES_OPTIONS`) keeps the words right after it that look like its
+    options (``strangle 60``, ``mangohud --dlsym``), since putting the game
+    between it and its options would hand them to the game. A game switch
+    (``-novid``) after it, and any word after another command
+    (``gamemoderun -novid``), stays the game's. A wrapper that ends
+    its options with ``--`` (gamescope, scb, scopebuddy) keeps them up to that
+    ``--``; without one, every word after it is its own and the line ends with
+    ``-- %command%``. A line that already has ``%command%``, or that does not
+    start with such words, is returned as it was.
     """
     words = split_words(text.strip())
     if COMMAND in words:
@@ -359,8 +405,16 @@ def add_command(text: str) -> str:
         name = _basename(word)
         if name not in KNOWN_COMMANDS:
             break
-        end = _dashdash(words, i) if name in _WRAPPERS else None
-        i = end + 1 if end is not None else i + 1
+        if name in _WRAPPERS:
+            end = _dashdash(words, i)
+            if end is None:
+                return _join([*words, "--"], [])
+            i = end + 1
+            continue
+        i += 1
+        if name in TAKES_OPTIONS:
+            while i < len(words) and _OWN_OPTION_RE.fullmatch(words[i]):
+                i += 1
     if i == 0:
         return text
     return _join(words[:i], words[i:])

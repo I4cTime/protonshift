@@ -229,21 +229,25 @@ class LaunchOptionsController(QObject):
         """Re-read the Proton tool list (e.g. after the GE-Proton page installs a build)."""
         self._reload_proton()
 
-    @Slot(str)
-    def reloadFromSteam(self, app_id: str) -> None:
-        """Re-read the saved launch options and Proton choice when ``app_id`` is the game shown.
+    @Slot(str, bool)
+    def reloadFromSteam(self, app_id: str, launch_changed: bool) -> None:
+        """Re-read what Steam has for ``app_id`` after a change written behind the editor.
 
-        For a change written behind the editor (a Diagnose fix or its undo):
-        the editor then shows what Steam has, replacing any unsaved edit.
+        For a Diagnose fix or its undo. The Proton choice is always re-read.
+        The launch options text is re-read only when that write changed the
+        launch options on disk, or when the editor has no unsaved edit: a fix
+        that changed only the Proton build must not throw away what the user
+        typed. (Diagnose warns before a write that will replace it.)
         """
         if not app_id or app_id != self._app_id:
             return
-        self._status = ""
         self._proton_status = ""
-        self.statusChanged.emit()
         self.protonStatusChanged.emit()
-        self._reload()
         self._reload_proton()
+        if launch_changed or not self._dirty:
+            self._status = ""
+            self.statusChanged.emit()
+            self._reload()
 
     def _reload_proton(self) -> None:
         if not self._app_id:

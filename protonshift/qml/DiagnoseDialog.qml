@@ -556,6 +556,15 @@ PsDialog {
                                                 }
                                                 Text {
                                                     Layout.fillWidth: true
+                                                    visible: row.previewing && (dlg.preview.note || "").length > 0
+                                                    wrapMode: Text.Wrap
+                                                    text: dlg.preview.note || ""
+                                                    color: Theme.text
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: Theme.fsCaption
+                                                }
+                                                Text {
+                                                    Layout.fillWidth: true
                                                     visible: row.previewing && (dlg.preview.blocked || "").length > 0
                                                     wrapMode: Text.Wrap
                                                     text: dlg.preview.blocked || ""
@@ -680,6 +689,16 @@ PsDialog {
                         Accessible.name: "Undo the last fix"
                         onClicked: dlg.controller.undo(false)
                     }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: dlg.ready && dlg.controller.undoConflict.length === 0
+                             && dlg.controller.undoChangesLaunch && dlg.launchDirty
+                    wrapMode: Text.Wrap
+                    text: "Undoing replaces the unsaved launch options in the editor with the ones from before the fix."
+                    color: Theme.warning
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fsCaption
                 }
 
                 Text {

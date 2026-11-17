@@ -12,7 +12,9 @@ The disk part keeps three promises:
 - It never makes a change that cannot be undone. The snapshot is saved first;
   if that fails, nothing is written.
 - It never leaves half a change behind. When the second of two writes fails,
-  the first is put back.
+  the first is put back. When even that fails, the snapshot stays, so Undo can
+  still put the old settings back; a snapshot is only ever dropped once the
+  files are read back as they were before the fix.
 
 Paths are passed in, never looked up here, so tests run against VDF files in a
 temporary folder.
@@ -34,6 +36,7 @@ from .fix_pack import (
     _KEY_RE,
     _WORD_RE,
     Action,
+    env_key_problem,
 )
 from .launch_merge import (
     COMMAND,
@@ -59,6 +62,17 @@ _LOADER_REFUSED = (
     "{key} decides what code the game loads, so ProtonShift will not change it for you. "
     "Add it by hand if you are sure."
 )
+_FAMILY_REFUSED = (
+    "{key} is not one of the variables ProtonShift sets for you, so add it by hand if you want it."
+)
+_QUOTE_REFUSED = (
+    "The value has a single quote, which ProtonShift cannot write safely into launch options, "
+    "so add it by hand if you want it."
+)
+_COMMAND_REFUSED = (
+    "The value contains %command%, which Steam would replace with the game's command line, "
+    "so add it by hand if you want it."
+)
 _UNKNOWN_ACTION = "ProtonShift does not know how to make this change for you."
 _LINE_BREAK = "The new launch options would contain a line break, which Steam cannot store."
 _STATE_MOVED = "The settings changed since the check. Run Diagnose again."
@@ -83,20 +97,45 @@ class ApplyResult:
     message: str  # plain sentence for the user
     snapshot_id: str  # "" when nothing was recorded
     state: GameState | None  # the state now on disk, when known
+    # The launch options on disk differ from what they were before this call.
+    # The launch options editor reloads its text only then, so a fix that
+    # changed only the Proton build keeps the user's unsaved edits.
+    launch_changed: bool = False
+    # Undo refused because the settings were changed after the fix.
+    conflict: bool = False
 
 
 # --------------------------------------------------------------------------- #
 # planning
 # --------------------------------------------------------------------------- #
 
-def _key_problem(key: str) -> str:
+def _key_problem(key: str, *, setting: bool, user: bool) -> str:
     if not isinstance(key, str) or not _KEY_RE.fullmatch(key):
         return _KEY_REFUSED.format(key=key or "The name")
-    # The pack loader already refuses these; a user's own fix is not loaded
-    # through it, and one click should not be able to set them either way.
+    if user:
+        # docs/fix-pack.md, "User fixes": the user's own fix may name any
+        # variable; it is their text on their machine.
+        return ""
+    # The pack loader already refuses these. Checked again here so a pack
+    # action that reached the plan some other way still cannot set them.
     if key in _FORBIDDEN_VARS or key.startswith(_FORBIDDEN_PREFIX):
         return _LOADER_REFUSED.format(key=key)
+    if env_key_problem(key, setting=setting):
+        return _FAMILY_REFUSED.format(key=key)
     return ""
+
+
+def _value_problem(value: object, *, user: bool) -> str:
+    if not isinstance(value, str):
+        return _VALUE_REFUSED
+    # Steam substitutes %command% wherever it appears, quoted or not.
+    if COMMAND in value:
+        return _COMMAND_REFUSED if user else _VALUE_REFUSED
+    if user:
+        # Anything else is written single-quoted (launch_merge.env_word); a
+        # quote would end the quoting. Line breaks are refused by plan().
+        return _QUOTE_REFUSED if "'" in value else ""
+    return "" if _ENV_VALUE_RE.fullmatch(value) else _VALUE_REFUSED
 
 
 def _user_snippet(text: str, value: str) -> str:
@@ -107,19 +146,19 @@ def _user_snippet(text: str, value: str) -> str:
     return merge_launch_snippet(text, snippet)
 
 
-def _step(action: Action, text: str) -> tuple[str, str]:
+def _step(action: Action, text: str, user: bool) -> tuple[str, str]:
     """``(new_text, refusal)`` for one launch-options action."""
     kind = action.type
     if kind in ("env", "unset_env"):
-        problem = _key_problem(action.key)
+        problem = _key_problem(action.key, setting=kind == "env", user=user)
         if problem:
             return text, problem
         if kind == "unset_env":
             return unset_env(text, action.key), ""
-        value = action.value
-        if not isinstance(value, str) or not _ENV_VALUE_RE.fullmatch(value) or COMMAND in value:
-            return text, _VALUE_REFUSED
-        return set_env(text, action.key, value), ""
+        problem = _value_problem(action.value, user=user)
+        if problem:
+            return text, problem
+        return set_env(text, action.key, action.value), ""
     if kind == "game_arg":
         if not isinstance(action.value, str) or not _GAME_ARG_RE.fullmatch(action.value):
             return text, _VALUE_REFUSED
@@ -131,19 +170,24 @@ def _step(action: Action, text: str) -> tuple[str, str]:
     simple: dict[str, Callable[[str], str]] = {"single_command": single_command, "add_command": add_command}
     if kind in simple:
         return simple[kind](text), ""
-    if kind == "user_snippet":
+    if kind == "user_snippet" and user:
         if not isinstance(action.value, str) or not action.value.strip():
             return text, _VALUE_REFUSED
         return _user_snippet(text, action.value.strip()), ""
     return text, _UNKNOWN_ACTION
 
 
-def plan(actions: Sequence[Action], state: GameState) -> Change:
+def plan(actions: Sequence[Action], state: GameState, *, user: bool = False) -> Change:
     """What ``actions`` would do to ``state``. Pure: nothing is read or written.
 
     Actions apply in order. A blocked plan changes nothing (``after`` is
     ``before``), but still lists every manual instruction so the user can
     follow them by hand.
+
+    ``user`` is True for the user's own fix (a finding of origin ``"user"``).
+    Only then may an ``env`` action name any variable and carry any value
+    that single quotes make safe, and only then is ``user_snippet`` allowed;
+    everything else is held to the fix pack's limits, whatever produced it.
     """
     text, tool = state.launch_options, state.compat_tool
     manual: list[str] = []
@@ -162,7 +206,7 @@ def plan(actions: Sequence[Action], state: GameState) -> Change:
         if any(ch in str(action.value) + str(action.key) for ch in _BAD_CHARS):
             blocked = _LINE_BREAK
             continue
-        text, blocked = _step(action, text)
+        text, blocked = _step(action, text, user)
     if not blocked and any(ch in text or ch in tool for ch in _BAD_CHARS):
         blocked = _LINE_BREAK
     after = state if blocked else GameState(launch_options=text, compat_tool=tool)
@@ -262,19 +306,55 @@ def apply_change(
         )
 
     failure = _write(localconfig, config_vdf, app_id, current, change.after, unchanged="nothing was changed")
-    if failure:
-        snapshots.drop(app_id, snap.id)
-        return ApplyResult(False, failure, "", read_state(localconfig, config_vdf, app_id))
-
     now = read_state(localconfig, config_vdf, app_id)
+    moved = _launch_moved(current, now, change.after)
+    if failure:
+        if now == change.before:
+            snapshots.drop(app_id, snap.id)
+            return ApplyResult(False, failure, "", now, launch_changed=moved)
+        # Half a change may be on disk and the snapshot is the only record of
+        # the settings before it, so it stays.
+        if failure.endswith("nothing was changed."):
+            # The write said no, yet the files are not as they were: the
+            # sentence must not claim otherwise.
+            failure = "Steam's settings could not all be written, and they are no longer as they were."
+        return ApplyResult(
+            False, f"{failure} Use Undo in Diagnose to put the old settings back.", snap.id, now,
+            launch_changed=moved,
+        )
+
     if now != change.after:
         # The undo point stays: whatever did land can still be put back with Undo.
         return ApplyResult(
             False,
             "The fix was written, but Steam's files do not show it now. Close Steam and run Diagnose again.",
-            snap.id, now,
+            snap.id, now, launch_changed=moved,
         )
-    return ApplyResult(True, "The fix was applied. You can undo it from Diagnose.", snap.id, now)
+    return ApplyResult(True, "The fix was applied. You can undo it from Diagnose.", snap.id, now,
+                       launch_changed=moved)
+
+
+def _launch_moved(old: GameState, now: GameState | None, target: GameState) -> bool:
+    """Whether the launch options on disk changed from ``old``.
+
+    When the files cannot be read back, a launch-options write that was
+    attempted counts as a change.
+    """
+    if now is None:
+        return target.launch_options != old.launch_options
+    return now.launch_options != old.launch_options
+
+
+def _only_fix_values(current: GameState, snap: Snapshot) -> bool:
+    """True when every setting is either as before the fix or as the fix left it.
+
+    Such a state holds nothing anyone wrote after the fix, so putting
+    ``before`` back loses nothing. It is also what a half-finished apply or
+    undo leaves (the launch options written, the Proton build not), which Undo
+    must be able to finish without asking.
+    """
+    return (current.launch_options in (snap.before.launch_options, snap.after.launch_options)
+            and current.compat_tool in (snap.before.compat_tool, snap.after.compat_tool))
 
 
 def undo_latest(
@@ -287,9 +367,11 @@ def undo_latest(
     """Put back the settings from before the latest fix, then forget that fix.
 
     When the settings were changed after the fix was applied, Undo would
-    overwrite those changes, so it refuses unless ``force`` is set. The
-    result's ``snapshot_id`` is the snapshot Undo acted on; it is dropped only
-    when the settings are back as they were before the fix.
+    overwrite those changes, so it refuses unless ``force`` is set (the result
+    then has ``conflict``). A setting that is as before the fix or as the fix
+    left it is not a later change. The result's ``snapshot_id`` is the
+    snapshot Undo acted on; it is dropped only when the settings are read back
+    as they were before the fix.
     """
     snap = snapshots.latest(app_id)
     if snap is None:
@@ -302,7 +384,7 @@ def undo_latest(
         return ApplyResult(
             True, "The settings were already back to how they were before the fix.", snap.id, current,
         )
-    if current != snap.after and not force:
+    if not force and not _only_fix_values(current, snap):
         message = (
             "The settings were changed after the fix was applied, so Undo would overwrite those changes. "
             f"The launch options are now {_shown(current.launch_options)}; before the fix they were "
@@ -311,23 +393,28 @@ def undo_latest(
         if current.compat_tool != snap.before.compat_tool:
             message += (f" The Proton build is now {_shown(current.compat_tool)}; before the fix it was "
                         f"{_shown(snap.before.compat_tool)}.")
-        return ApplyResult(False, message, snap.id, current)
+        return ApplyResult(False, message, snap.id, current, conflict=True)
 
     failure = _write(
         localconfig, config_vdf, app_id, current, snap.before, unchanged="the fix is still in place",
     )
-    if failure:
-        return ApplyResult(False, failure, snap.id, read_state(localconfig, config_vdf, app_id))
     now = read_state(localconfig, config_vdf, app_id)
+    moved = _launch_moved(current, now, snap.before)
+    if failure:
+        # Never dropped here: the snapshot is the only record of "before".
+        if failure.endswith("the fix is still in place.") and now != snap.after:
+            failure = ("Steam's settings could not all be written, so the fix is only partly undone. "
+                       "Try Undo again.")
+        return ApplyResult(False, failure, snap.id, now, launch_changed=moved)
     if now != snap.before:
         return ApplyResult(
             False,
             "The old settings were written, but Steam's files do not show them now. "
             "Close Steam and try Undo again.",
-            snap.id, now,
+            snap.id, now, launch_changed=moved,
         )
     snapshots.drop(app_id, snap.id)
-    return ApplyResult(True, "The fix was undone.", snap.id, now)
+    return ApplyResult(True, "The fix was undone.", snap.id, now, launch_changed=moved)
 
 
 def undo_available(app_id: str) -> Snapshot | None:

@@ -8,7 +8,8 @@ import pytest
 
 from protonshift.core import proton_log
 from protonshift.core.fix_pack import Action
-from protonshift.core.launch_check import check_launch, check_launch_options, detect_anticheat, summarize
+from protonshift.core.launch_check import check_launch, check_launch_options, detect_anticheat
+from protonshift.core.launch_merge import add_command
 
 
 def levels(findings: list[dict[str, str]]) -> list[str]:
@@ -56,6 +57,26 @@ def test_missing_tools() -> None:
     assert "gamescope isn't installed" in titles(found)
 
 
+def test_quoted_assignment_is_one_word() -> None:
+    # The scan splits as the shell does: a command name inside a value is not a command.
+    assert levels(check_launch_options("KEY='a gamemoderun;b' %command%", lacks)) == ["ok"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("strangle 60", "strangle 60 %command%"),
+        ("mangohud --dlsym", "mangohud --dlsym %command%"),
+        ("gamescope -W 1920 -H 1080 -f", "gamescope -W 1920 -H 1080 -f -- %command%"),
+    ],
+)
+def test_missing_command_fix_keeps_wrapper_options(text: str, expected: str) -> None:
+    (found,) = check_launch_options(text, has)
+    assert found["id"] == "command-missing"
+    assert found["actions"] == (Action("add_command"),)
+    assert add_command(text) == expected
+
+
 def test_tool_named_after_command_is_a_game_argument() -> None:
     # after %command% everything belongs to the game, whatever it is called
     assert levels(check_launch_options("%command% gamescope", lacks)) == ["ok"]
@@ -79,15 +100,22 @@ def test_healthy_game(tmp_path: Path) -> None:
     found = run(tmp_path)
     assert "error" not in levels(found)
     assert "warn" not in levels(found)
-    assert summarize(found) == "No problems found."
 
 
 def test_removed_proton_build(tmp_path: Path) -> None:
     found = run(tmp_path, compat_tool="GE-Proton9-20")
     assert found[0]["level"] == "error"
     assert "GE-Proton9-20" in found[0]["title"]
-    assert "1 problem that will stop" in summarize(found)
+    assert levels(found).count("error") == 1
     assert "Proton build is installed" in titles(run(tmp_path, compat_tool="GE-Proton10-1"))
+
+
+def test_steam_runtime_row_is_not_called_a_proton_build(tmp_path: Path) -> None:
+    tool = "steamlinuxruntime_sniper"
+    found = by_id(run(tmp_path, compat_tool=tool, available_tools=["", tool]))
+    assert found["proton-ok"]["title"] == f"Compatibility tool is provided by Steam: {tool}"
+    proton = by_id(run(tmp_path, compat_tool="GE-Proton10-1"))
+    assert proton["proton-ok"]["title"] == "Proton build is installed: GE-Proton10-1"
 
 
 def test_missing_install_folder(tmp_path: Path) -> None:
@@ -102,7 +130,7 @@ def test_anticheat_runtime(tmp_path: Path) -> None:
     found = run(tmp_path)
     assert "Proton EasyAntiCheat Runtime isn't installed" in titles(found)
     assert "Proton BattlEye Runtime isn't installed" in titles(found)
-    assert "2 things worth a look" in summarize(found)
+    assert levels(found).count("warn") == 2
     fixed = run(tmp_path, installed_app_ids=["1826330", "1161040"])
     assert "warn" not in levels(fixed)
 

@@ -455,7 +455,11 @@ def test_env_values_rejected(value: Any) -> None:
     rejects(with_actions({"type": "env", "key": "DXVK_HUD", "value": value}), "value")
 
 
-@pytest.mark.parametrize("key", ["A", "_", "_a1", "DXVK_HUD", "mesa_glthread"])
+@pytest.mark.parametrize(
+    "key",
+    ["PROTON_LOG", "WINE_CPU_TOPOLOGY", "DXVK_HUD", "VKD3D_CONFIG", "MESA_GLTHREAD", "RADV_PERFTEST",
+     "__GL_SHADER_DISK_CACHE", "__NV_PRIME_RENDER_OFFLOAD", "SDL_VIDEODRIVER", "MANGOHUD", "MANGOHUD_CONFIG"],
+)
 @pytest.mark.parametrize("kind", ["env", "unset_env"])
 def test_env_keys_accepted(kind: str, key: str) -> None:
     action: dict[str, Any] = {"type": kind, "key": key}
@@ -464,11 +468,19 @@ def test_env_keys_accepted(kind: str, key: str) -> None:
     assert parse_rule(with_actions(action)).actions[0].key == key
 
 
+@pytest.mark.parametrize("key", ["A", "_", "_a1", "mesa_glthread", "MY_VAR", "DXVK", "proton_log"])
+def test_env_keys_outside_the_families(key: str) -> None:
+    # Setting is limited to the families; removing is not.
+    rejects(with_actions({"type": "env", "key": key, "value": "1"}), "not in a family")
+    assert parse_rule(with_actions({"type": "unset_env", "key": key})).actions[0].key == key
+
+
 @pytest.mark.parametrize(
     "key",
     ["", "1A", "A-B", "A B", "A=", "A\n", "ÉTÉ", None, 5,
      "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "PATH", "PYTHONPATH",
-     "STEAM_COMPAT_LAUNCHER_SERVICE", "WINEDLLPATH", "STEAM_COMPAT_DATA_PATH", "STEAM_COMPAT_"],
+     "STEAM_COMPAT_LAUNCHER_SERVICE", "WINEDLLPATH", "STEAM_COMPAT_DATA_PATH", "STEAM_COMPAT_",
+     "PROTON_REMOTE_DEBUG_CMD", "SDL_DYNAMIC_API", "WINEDLLOVERRIDES"],
 )
 @pytest.mark.parametrize("kind", ["env", "unset_env"])
 def test_env_keys_rejected(kind: str, key: Any) -> None:
@@ -480,7 +492,7 @@ def test_env_keys_rejected(kind: str, key: Any) -> None:
 
 def test_forbidden_list_is_case_sensitive() -> None:
     # Variables are case sensitive: ``path`` is not ``PATH``.
-    assert parse_rule(with_actions({"type": "env", "key": "path", "value": "1"})).actions[0].key == "path"
+    assert parse_rule(with_actions({"type": "unset_env", "key": "path"})).actions[0].key == "path"
     rejects(with_actions({"type": "unset_env", "key": "STEAM_COMPAT_CLIENT_INSTALL_PATH"}), "may not")
 
 
@@ -524,8 +536,8 @@ def test_default_proton_has_no_fields() -> None:
 @pytest.mark.parametrize(
     "actions",
     [
-        [{"type": "env", "key": "A", "value": "1"}, {"type": "env", "key": "A", "value": "2"}],
-        [{"type": "env", "key": "A", "value": "1"}, {"type": "unset_env", "key": "A"}],
+        [{"type": "env", "key": "DXVK_HUD", "value": "1"}, {"type": "env", "key": "DXVK_HUD", "value": "2"}],
+        [{"type": "env", "key": "DXVK_HUD", "value": "1"}, {"type": "unset_env", "key": "DXVK_HUD"}],
         [{"type": "default_proton"}, {"type": "default_proton"}],
         [{"type": "game_arg", "value": "-vulkan"}, {"type": "game_arg", "value": "-vulkan"}],
     ],
@@ -545,7 +557,10 @@ def test_conflicting_or_repeated_actions(actions: list[dict[str, Any]]) -> None:
         r"\.\.\.\.\.\.\.\.",  # escaped characters are literals
         r"[.][.][.][.][.][.][.][.]",  # a one-member class is that literal
         r"(kern)el32",  # an unquantified group is part of the run
-        r"(?:kernel32\.dll)+",  # a repeat that happens at least once guarantees its text
+        r"(?:kernel32\.dll){1}",  # a repeat that happens at least once guarantees its text
+        r"\S+ kernel32\.dll",  # a repeated class
+        r"[0-9a-f]{7} kernel32dll",
+        r"(a)+kernel32dll",  # a group of one character is one character
         r"kernel32\.dll|kernel32\.sys",  # both branches share the run
         r"^err:module:import_dll Library \S+ not found$",
         r"(?:\d+ )?err:module:",  # an optional group may hold a repeat
@@ -574,7 +589,7 @@ def test_log_expression_length_limit() -> None:
         r"[kK]ernel32",  # a class of two is not a literal
         r"\bkernel\b32dll",  # an anchor breaks the run
         r"abcdefg|abcdefgh",  # one branch is too short
-        r"(?:kernel32\.dll)*",  # may not happen at all
+        r"(?:kernel32\.dll){0,1}",  # may not happen at all
         r"(?:kernel32\.dll)?",
         r"(?=kernel32\.dll)",  # lookaround text is not consumed
         r"a{8}",
@@ -597,10 +612,29 @@ def test_log_expressions_without_a_literal_run(pattern: str) -> None:
         r"(?:x(?:y+z)+)+kernel32dll",
         r"(\d+\s)++kernel32dll",
         r"kernel32dll(?=(a+)+)",
+        # a repeated group without a repeat inside is refused too
+        r"(?:aaaaaaaa|aaaaaaaaaaaaaaaa)+$",
+        r"(?:ab){2,50}kernel32dll",
+        r"(a|aa){3}kernel32dll",
+        r"(?:kernel32\.dll)+",
+        r"(?:kernel32\.dll)*",
+        r"kernel32dll(?:\.so)?(?:ab)+",
+        r"(?:(?:ab)+)?kernel32dll",  # inside an optional group, checked all the same
     ],
 )
-def test_log_expressions_with_nested_repeats(pattern: str) -> None:
+def test_log_expressions_with_repeated_groups(pattern: str) -> None:
     rejects(with_match(log=[pattern]), "repeats a group")
+
+
+def test_backtracking_pattern_is_refused_before_it_ever_runs() -> None:
+    # The review's example takes exponential time on a line of a's that does
+    # not end where $ wants. Asserting the time would flake; what matters is
+    # that the loader refuses it, so match_log never gets to run it.
+    pattern = r"(?:aaaaaaaa|aaaaaaaaaaaaaaaa)+$"
+    msg = rejects(with_match(log=[pattern]), "repeats a group")
+    assert msg.startswith("match.log")
+    loaded = parse_pack(pack(rule(match={"log": [pattern]})))
+    assert loaded.rules == [] and "repeats a group" in loaded.rejected[0][1]
 
 
 @pytest.mark.parametrize("pattern", [r"kernel32(", r"kernel32[", "kernel32\\", r"*kernel32", r"kernel32{2,1}"])
@@ -1136,7 +1170,6 @@ def test_user_rules_values_are_not_held_to_pack_limits(user_dir: Path) -> None:
         {"title": "t", "type": "launch_arg", "value": "x" * 501},
         {"title": "t", "type": "launch_arg", "value": "   "},
         {"title": "t", "type": "wrapper", "value": "gamemoderun"},
-        {"title": "t", "value": "1", "key": "A"},
         {"title": 5, "type": "env", "key": "A", "value": "1"},
         {"title": "t", "description": ["x"], "type": "env", "key": "A", "value": "1"},
         ["not", "a", "dict"],
@@ -1146,6 +1179,13 @@ def test_user_rules_values_are_not_held_to_pack_limits(user_dir: Path) -> None:
 def test_user_rules_skip_unusable_entries(user_dir: Path, entry: Any) -> None:
     write_user(user_dir, "570", [entry])
     assert user_rules("570") == []
+
+
+def test_user_rules_entry_without_a_type_is_env(user_dir: Path) -> None:
+    # Version 1 read an entry with no type as env.
+    write_user(user_dir, "570", [{"title": "t", "key": "DXVK_HUD", "value": "fps"}])
+    (only,) = user_rules("570")
+    assert only.actions == (Action("env", key="DXVK_HUD", value="fps"),)
 
 
 def test_user_rules_snippet_cap(user_dir: Path) -> None:

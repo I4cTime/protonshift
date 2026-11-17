@@ -468,6 +468,42 @@ def test_run_checks_missing_paths_never_raise(tmp_path: Path, monkeypatch: pytes
     assert [c.state for c in checks[2:]] == ["unknown", "unknown"]
 
 
+def flatpak_root(tmp_path: Path) -> Path:
+    root = tmp_path / ".var" / "app" / "com.valvesoftware.Steam" / ".local" / "share" / "Steam"
+    root.mkdir(parents=True)
+    return root
+
+
+@pytest.mark.parametrize(
+    "run",
+    [runner(1, "", NO_DRIVER_STDERR), runner(0, LLVMPIPE_ONLY), raising(FileNotFoundError()),
+     runner(0, REAL_SUMMARY)],
+    ids=["no-driver", "software-only", "no-vulkaninfo", "host-ok"],
+)
+def test_flatpak_steam_vulkan_is_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, run: object,
+) -> None:
+    # Flatpak Steam's games use the runtime's drivers: whatever the host says,
+    # it is not the answer, so it is never a problem (or a tick).
+    monkeypatch.setattr(sc, "default_icd_dirs", lambda: [tmp_path / "icd.d"])
+    checks = sc.run_checks(steam_root=flatpak_root(tmp_path), install_path=None, prefix_path=None, run=run)
+    vulkan = next(c for c in checks if c.id == "vulkan")
+    assert vulkan.state == "unknown"
+    assert "Flatpak" in vulkan.detail and "its own drivers" in vulkan.detail
+    assert next(c for c in checks if c.id == "vulkan-32bit").state == "unknown"
+
+
+def test_flatpak_steam_vulkan_runs_nothing() -> None:
+    assert sc.check_vulkan(raising(AssertionError("must not run")), flavor="flatpak").state == "unknown"
+
+
+def test_native_steam_vulkan_problem_stays_a_problem(tmp_path: Path) -> None:
+    root = tmp_path / "steam"
+    root.mkdir()
+    checks = sc.run_checks(steam_root=root, install_path=None, prefix_path=None, run=runner(0, LLVMPIPE_ONLY))
+    assert next(c for c in checks if c.id == "vulkan").state == "problem"
+
+
 def test_text_has_no_long_dashes(tmp_path: Path) -> None:
     source = Path(sc.__file__).read_text(encoding="utf-8")
     assert chr(0x2014) not in source and chr(0x2013) not in source

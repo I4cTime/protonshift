@@ -21,14 +21,15 @@ from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from .compat_tool import is_steam_runtime
 from .fix_pack import Action
 from .launch_merge import (
     COMMAND,
     KNOWN_COMMANDS,
-    _tokens,
     add_command,
     remove_word,
     single_command,
+    split_words,
     unset_env,
 )
 
@@ -104,7 +105,9 @@ def check_launch_options(text: str, tool_exists: Callable[[str], bool]) -> list[
     if not text:
         return [finding("ok", "Launch options are empty", "The game starts with Steam's defaults.",
                         id="launch-empty")]
-    tokens = _tokens(text)
+    # Split as the edit helpers and the shell split it, so KEY='a b;c' is one
+    # assignment and none of its value is read as a command.
+    tokens = split_words(text)
     count = tokens.count(COMMAND)
     out: list[dict[str, Any]] = []
     before = tokens[: tokens.index(COMMAND)] if count else []
@@ -221,6 +224,10 @@ def check_launch(
             id="proton-gone",
             actions=(Action("default_proton"),),
         ))
+    elif compat_tool and is_steam_runtime(compat_tool):
+        # A Steam Linux Runtime is not a Proton build; the id stays so the row
+        # is still hidden for a native game like any Proton row.
+        out.append(finding("ok", f"Compatibility tool is provided by Steam: {compat_tool}", id="proton-ok"))
     elif compat_tool:
         out.append(finding("ok", f"Proton build is installed: {compat_tool}", id="proton-ok"))
     else:
@@ -268,13 +275,3 @@ def check_launch(
     out.sort(key=lambda f: order.get(f["level"], 4))  # stable: keeps the order within a level
     return out
 
-
-def summarize(findings: list[dict[str, Any]]) -> str:
-    errors = sum(1 for f in findings if f["level"] == "error")
-    warns = sum(1 for f in findings if f["level"] == "warn")
-    if errors:
-        return (f"{errors} problem{'s' if errors != 1 else ''} that will stop the game from starting"
-                + (f", {warns} warning{'s' if warns != 1 else ''}" if warns else "") + ".")
-    if warns:
-        return f"Nothing blocks the launch. {warns} thing{'s' if warns != 1 else ''} worth a look."
-    return "No problems found."
