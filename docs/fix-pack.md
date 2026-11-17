@@ -90,7 +90,10 @@ is not a rule.
   when any one of them is found in any single line of the log tail. Each
   expression must compile, must be at most 300 characters, and must contain
   at least 8 literal characters in a row, so that it is anchored on real text
-  and not on a pattern that fits half the log. Matching is case sensitive.
+  and not on a pattern that fits half the log. An expression must not repeat
+  a group that itself contains a repeat (for example `(a+)+`), because such
+  a pattern can take a very long time on a long line. Matching is case
+  sensitive, and only the first 2000 characters of a line are looked at.
   With no log on disk, a rule that has a `log` part does not match.
 - `when`: conditions on the machine and the game's settings. All listed
   conditions must hold.
