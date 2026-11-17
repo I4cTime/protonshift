@@ -229,6 +229,22 @@ class LaunchOptionsController(QObject):
         """Re-read the Proton tool list (e.g. after the GE-Proton page installs a build)."""
         self._reload_proton()
 
+    @Slot(str)
+    def reloadFromSteam(self, app_id: str) -> None:
+        """Re-read the saved launch options and Proton choice when ``app_id`` is the game shown.
+
+        For a change written behind the editor (a Diagnose fix or its undo):
+        the editor then shows what Steam has, replacing any unsaved edit.
+        """
+        if not app_id or app_id != self._app_id:
+            return
+        self._status = ""
+        self._proton_status = ""
+        self.statusChanged.emit()
+        self.protonStatusChanged.emit()
+        self._reload()
+        self._reload_proton()
+
     def _reload_proton(self) -> None:
         if not self._app_id:
             self._proton_tools = []
