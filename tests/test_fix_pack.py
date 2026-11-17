@@ -775,6 +775,98 @@ def test_match_log_stops_once_answered() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# log_none
+# --------------------------------------------------------------------------- #
+
+NONE_LINE = r"DXVK: No adapters found\."
+HIT = "wine: could not load kernel32.dll"
+EXCLUDED = "warn:  DXVK: No adapters found."
+
+
+def test_log_none_needs_log() -> None:
+    rejects(rule(match={"app_ids": ["570"], "log_none": [NONE_LINE]}, severity="advice"), "together with log")
+
+
+def test_log_none_parses() -> None:
+    r = parse_rule(with_match(log=[LOG_LINE], log_none=[NONE_LINE]))
+    assert [p.pattern for p in r.log_none] == [NONE_LINE]
+    assert parse_rule(rule()).log_none == ()
+
+
+@pytest.mark.parametrize(
+    "bad,fragment",
+    [
+        ([], "non-empty list"),
+        (NONE_LINE, "non-empty list"),
+        ([7], "must be a string"),
+        (["DXVK"], "8 literal characters"),
+        (["(a+)+kernel32dll"], "repeats a group"),
+        (["aaaaaaaa.*b.*c.*d"], "open-ended repeats"),
+        (["kernel32("], "does not compile"),
+        (["kernel32" + "x" * 293], "longer than 300"),
+        (["(?i)kernel32dll"], "flags"),
+    ],
+)
+def test_log_none_limits(bad: Any, fragment: str) -> None:
+    msg = rejects(with_match(log=[LOG_LINE], log_none=bad), fragment)
+    assert msg.startswith("match.log_none")
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        [EXCLUDED, HIT],
+        [HIT, "noise", EXCLUDED],
+        [HIT + " / " + EXCLUDED],
+    ],
+    ids=["before", "after", "same-line"],
+)
+def test_log_none_excludes(lines: list[str]) -> None:
+    r = parse_rule(with_match(log=[LOG_LINE], log_none=[NONE_LINE]))
+    assert match_log(r, iter(lines)) is None
+
+
+def test_log_none_absent_keeps_the_match() -> None:
+    r = parse_rule(with_match(log=[LOG_LINE], log_none=[NONE_LINE]))
+    assert match_log(r, iter(["noise", HIT, "more noise"])) == HIT
+    assert match_log(r, iter(["noise"])) is None
+
+
+def test_log_none_any_of_several() -> None:
+    r = parse_rule(with_match(log=[LOG_LINE], log_none=[NONE_LINE, r"Game start failed"]))
+    assert match_log(r, [HIT, "Game start failed"]) is None
+
+
+def test_log_none_stops_on_the_excluding_line() -> None:
+    r = parse_rule(with_match(log=[LOG_LINE], log_none=[NONE_LINE]))
+    seen: list[str] = []
+
+    def lines() -> Any:
+        for line in [HIT, EXCLUDED, "after"]:
+            seen.append(line)
+            yield line
+
+    assert match_log(r, lines()) is None
+    assert seen == [HIT, EXCLUDED]
+
+
+@pytest.mark.parametrize(
+    "lines,expected",
+    [
+        (["Game start failed", HIT], HIT),
+        ([HIT, "Game start failed"], HIT),
+        ([HIT], None),  # log_also missing
+        (["Game start failed", HIT, EXCLUDED], None),  # excluded after both
+        ([EXCLUDED, "Game start failed", HIT], None),  # excluded before both
+        ([HIT, EXCLUDED, "Game start failed"], None),  # excluded in between
+    ],
+)
+def test_log_none_with_log_also(lines: list[str], expected: str | None) -> None:
+    r = parse_rule(with_match(log=[LOG_LINE], log_also=[r"Game start failed"], log_none=[NONE_LINE]))
+    assert match_log(r, iter(lines)) == expected
+
+
+# --------------------------------------------------------------------------- #
 # packs
 # --------------------------------------------------------------------------- #
 
@@ -1004,7 +1096,7 @@ def test_user_rules_env_and_launch_arg(user_dir: Path) -> None:
     assert first.app_ids == ("570",)
     assert first.title == "HUD" and first.cause == "Shows fps"
     assert first.source == "" and first.verified == ""
-    assert first.log == () and first.log_also == ()
+    assert first.log == () and first.log_also == () and first.log_none == ()
     assert first.actions == (Action("env", key="DXVK_HUD", value="fps"),)
     assert second.actions == (Action("user_snippet", value="-vulkan"),)
 

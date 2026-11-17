@@ -72,7 +72,7 @@ _USER_ID_PREFIX = "user-"
 
 _PACK_KEYS = frozenset({"format", "version", "revision", "rules"})
 _RULE_KEYS = ("id", "title", "cause", "severity", "match", "actions", "source", "verified")
-_MATCH_KEYS = frozenset({"app_ids", "log", "log_also", "when"})
+_MATCH_KEYS = frozenset({"app_ids", "log", "log_also", "log_none", "when"})
 _WHEN_CHOICES = {
     "gpu_vendor": ("nvidia", "amd", "intel"),
     "session": ("wayland", "x11"),
@@ -124,6 +124,7 @@ class Rule:
     app_ids: tuple[str, ...]
     log: tuple[re.Pattern[str], ...]
     log_also: tuple[re.Pattern[str], ...]
+    log_none: tuple[re.Pattern[str], ...]
     when: When
     actions: tuple[Action, ...]
     source: str
@@ -368,9 +369,11 @@ def match_log(rule: Rule, lines: Iterable[str]) -> str | None:
     """The first line a ``log`` expression is found in, stripped, or None.
 
     With ``log_also``, that line counts only if every ``log_also`` expression
-    is also found in some line (the same line included). One pass, so a
-    one-shot iterable over a long log tail is fine; it stops as soon as the
-    answer is known.
+    is also found in some line (the same line included). With ``log_none``,
+    any line holding a ``log_none`` expression, before or after the evidence,
+    means no match. One pass, so a one-shot iterable over a long log tail is
+    fine; it stops as soon as the answer is known, which with ``log_none`` is
+    only at the end or on an excluding line.
     """
     if not rule.log:
         return None
@@ -378,13 +381,15 @@ def match_log(rule: Rule, lines: Iterable[str]) -> str | None:
     missing = list(rule.log_also)
     for line in lines:
         text = line.rstrip("\r\n")[:_MAX_LINE]
+        if rule.log_none and any(pattern.search(text) for pattern in rule.log_none):
+            return None
         if evidence is None and any(pattern.search(text) for pattern in rule.log):
             evidence = text.strip()
         if missing:
             missing = [pattern for pattern in missing if not pattern.search(text)]
-        if evidence is not None and not missing:
+        if evidence is not None and not missing and not rule.log_none:
             return evidence
-    return None
+    return evidence if not missing else None
 
 
 # --------------------------------------------------------------------------- #
@@ -521,6 +526,9 @@ def parse_rule(raw: object) -> Rule:
     if "log_also" in match and "log" not in match:
         raise PackError("match.log_also: only allowed together with log")
     log_also = _compile_log_list(match["log_also"], "match.log_also") if "log_also" in match else ()
+    if "log_none" in match and "log" not in match:
+        raise PackError("match.log_none: only allowed together with log")
+    log_none = _compile_log_list(match["log_none"], "match.log_none") if "log_none" in match else ()
     when = _parse_when(match["when"]) if "when" in match else When()
     if not (app_ids or log or when.launch_has or when.env_set):
         raise PackError("match: needs app_ids, log, or a when with launch_has or env_set")
@@ -535,6 +543,7 @@ def parse_rule(raw: object) -> Rule:
         app_ids=app_ids,
         log=log,
         log_also=log_also,
+        log_none=log_none,
         when=when,
         actions=_parse_actions(raw["actions"]),
         source=_source(raw["source"]),
@@ -686,6 +695,7 @@ def user_rules(app_id: str) -> list[Rule]:
             app_ids=(app_id,),
             log=(),
             log_also=(),
+            log_none=(),
             when=When(),
             actions=(action,),
             source="",

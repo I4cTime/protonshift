@@ -120,6 +120,30 @@ def test_confirming_line_may_come_first() -> None:
     assert match_log(RULES["missing-library"], [*CONTEXT["missing-library"], line]) == line
 
 
+def test_missing_vulkan_driver_gives_one_finding() -> None:
+    # DXVK prints "No adapters found" and then "Failed to initialize DXVK";
+    # the exact rule wins and the general one stands aside.
+    no_adapters = next(text for rid, text in MATCHES if rid == "vulkan-no-driver")
+    init_failed = next(text for rid, text in MATCHES if rid == "dxvk-init-failed")
+    log = ["======================", no_adapters, "err:   DXVK: Failed to create instance", init_failed]
+    hits = [r.id for r in PACK.rules if r.log and match_log(r, log) is not None]
+    assert "vulkan-no-driver" in hits
+    assert "dxvk-init-failed" not in hits
+
+
+def test_dxvk_init_failed_alone_still_matches() -> None:
+    line = "err:   Failed to initialize DXVK."
+    assert match_log(RULES["dxvk-init-failed"], ["fsync: up and running.", line]) == line
+
+
+@pytest.mark.parametrize("rule_id", ["low-file-limit-warning", "low-max-map-count"])
+def test_proton_startup_warnings_are_advice(rule_id: str) -> None:
+    # Proton prints these on every run when the value is low, games that work included.
+    rule = RULES[rule_id]
+    assert rule.severity == "advice"
+    assert "worth trying" in rule.cause
+
+
 def test_missing_library_uses_older_loader_function_names() -> None:
     line = next(text for rid, text in MATCHES if rid == "missing-library")
     older = f"0009:err:module:LdrInitializeThunk Importing dlls for {EXE} failed, status c0000135"
@@ -307,7 +331,7 @@ ALLOWED_HOSTS = {
 
 def test_pack_loads_every_rule() -> None:
     assert PACK.rejected == []
-    assert PACK.revision == "2026.11.1"
+    assert PACK.revision == "2026.11.2"
     assert len(RULES) == len(PACK.rules)
 
 
@@ -360,7 +384,7 @@ def test_file_has_no_dashes_and_is_indented_by_two() -> None:
 def test_keys_are_in_contract_order() -> None:
     data = json.loads(PACK_PATH.read_text(encoding="utf-8"))
     assert list(data) == ["format", "version", "revision", "rules"]
-    match_order = ["app_ids", "log", "log_also", "when"]
+    match_order = ["app_ids", "log", "log_also", "log_none", "when"]
     for item in data["rules"]:
         assert list(item) == list(fix_pack._RULE_KEYS), item["id"]
         keys = list(item["match"])
