@@ -508,9 +508,12 @@ RowLayout {
                 displayMap: ({
                     "": "Steam default",
                     "proton_experimental": "Proton Experimental",
-                    "proton_9_0": "Proton 9.0 (Beta)",
-                    "proton_8_0": "Proton 8.0",
-                    "proton_7_0": "Proton 7.0"
+                    "proton_hotfix": "Proton Hotfix",
+                    "proton_11": "Proton 11",
+                    "proton_10": "Proton 10",
+                    "proton_9": "Proton 9",
+                    "proton_8": "Proton 8",
+                    "proton_7": "Proton 7"
                 })
                 onChosen: launch.setProton(value)
                 function syncCurrent() {
